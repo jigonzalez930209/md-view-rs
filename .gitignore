@@ -9,3 +9,6 @@
 # kittest snapshot review artifacts
 **/tests/snapshots/**/*.diff.png
 **/tests/snapshots/**/*.new.png
+
+# local packaging output
+/dist

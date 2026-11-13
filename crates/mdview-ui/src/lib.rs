@@ -110,4 +110,6 @@ pub enum Command {
     CommandPalette,
     /// Open the quick-open file palette.
     QuickOpen,
+    /// Check the configured update manifest.
+    CheckUpdates,
 }

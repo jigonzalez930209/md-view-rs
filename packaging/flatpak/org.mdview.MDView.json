@@ -1,0 +1,42 @@
+{
+  "app-id": "org.mdview.MDView",
+  "runtime": "org.freedesktop.Platform",
+  "runtime-version": "24.08",
+  "sdk": "org.freedesktop.Sdk",
+  "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
+  "command": "mdview",
+  "finish-args": [
+    "--share=ipc",
+    "--socket=fallback-x11",
+    "--socket=wayland",
+    "--device=dri",
+    "--filesystem=home",
+    "--talk-name=org.freedesktop.portal.Desktop"
+  ],
+  "build-options": {
+    "append-path": "/usr/lib/sdk/rust-stable/bin",
+    "env": {
+      "CARGO_HOME": "/run/build/mdview/cargo"
+    }
+  },
+  "modules": [
+    {
+      "name": "mdview",
+      "buildsystem": "simple",
+      "build-commands": [
+        "cargo build --release --locked -p mdview-app",
+        "install -Dm755 target/release/mdview /app/bin/mdview",
+        "install -Dm644 packaging/linux/mdview.desktop /app/share/applications/mdview.desktop",
+        "install -Dm644 packaging/linux/mdview.xml /app/share/mime/packages/mdview.xml",
+        "install -Dm644 packaging/linux/org.mdview.MDView.metainfo.xml /app/share/metainfo/org.mdview.MDView.metainfo.xml",
+        "install -Dm644 assets/icons/512.png /app/share/icons/hicolor/512x512/apps/mdview.png"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": "../.."
+        }
+      ]
+    }
+  ]
+}

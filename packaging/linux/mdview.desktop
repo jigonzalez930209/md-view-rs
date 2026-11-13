@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=MD View
+GenericName=Markdown Editor
+Comment=Native Markdown, text, and code editor
+Exec=mdview %F
+Icon=mdview
+Terminal=false
+Categories=Office;TextEditor;Utility;
+MimeType=text/markdown;text/x-markdown;
+Keywords=markdown;editor;text;code;
+StartupNotify=true
+StartupWMClass=MD View

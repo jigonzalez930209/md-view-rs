@@ -23,11 +23,32 @@ pub struct Prefs {
     pub session: SessionSettings,
     /// Media loading policy.
     pub media: MediaSettings,
+    /// Update channel settings.
+    pub updates: UpdateSettings,
 }
 
 impl Settings for Prefs {
     const APP_ID: &'static str = "mdview";
     const SCHEMA_VERSION: u32 = 1;
+}
+
+/// Update channel settings.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(default)]
+pub struct UpdateSettings {
+    /// Manifest URL. Empty disables the manual check with a clear message.
+    pub manifest_url: String,
+    /// Allow checking for updates.
+    pub enabled: bool,
+}
+
+impl Default for UpdateSettings {
+    fn default() -> Self {
+        Self {
+            manifest_url: String::new(),
+            enabled: true,
+        }
+    }
 }
 
 /// Media loading policy.

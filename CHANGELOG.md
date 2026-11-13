@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0 — Distribution, associations, and updates
+
+- Added `cargo xtask package`: release build, portable tarball, Debian package, RPM, AppDir, optional AppImage, multi-size PNG/ICO/ICNS icons, SHA-256SUMS, CycloneDX SBOM, and an update manifest.
+- Added `cargo xtask release-check` and `cargo xtask icons`; the release check validates every manifest asset and packaging input.
+- Added Linux desktop, MIME, AppStream, hicolor icon trees, and package maintainer hooks.
+- Added WiX v4 per-user MSI sources, macOS `Info.plist`/entitlements/DMG script, and a Flatpak manifest with portal-based permissions.
+- Added Markdown file associations for `.md`/`.markdown` across the three packaging families; `.txt` remains opt-in.
+- Added manual update checking: manifest fetch, version comparison, platform asset selection, timeout/limit bounds, SHA-256 verification, download cache, prompt, and explicit installation guidance.
+- Documented the local packaging matrix, signing requirements, associations, install/uninstall, and update flow in `docs/release.md`.
+- Generated AppImage, Debian, RPM, portable tarball, icons, SBOM, checksums, and update manifest locally; `release-check` passes against all four assets.
+
 ## 0.8.0 — Themes, polished UI, and accessibility
 
 - Added nine stable theme variants across GitHub, Dracula, and One Dark Pro, with complete color tokens, legacy ID migration, and follow-system family switching.

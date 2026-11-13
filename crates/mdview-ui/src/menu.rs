@@ -342,6 +342,10 @@ pub fn show_menu(ui: &mut Ui, state: MenuState<'_>) -> Option<Command> {
         });
 
         ui.menu_button(t("Help"), |ui| {
+            if ui.button(t("Check for Updates…")).clicked() {
+                command = Some(Command::CheckUpdates);
+                ui.close();
+            }
             if ui.button(t("Settings…")).clicked() {
                 command = Some(Command::Settings);
                 ui.close();

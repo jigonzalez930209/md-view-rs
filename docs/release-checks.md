@@ -91,3 +91,26 @@ The 1.0.0 release can ship when:
 - [ ] The screen-reader item is checked on at least one platform, with limitations documented.
 - [ ] The local format, Clippy, test, release-build, and file-length commands pass.
 - [ ] No data-loss or input-corruption issue remains open.
+
+## Packaging and updates (`0.9.0`)
+
+Run these local checks before tagging a release:
+
+- [ ] `cargo xtask icons` regenerates all PNG sizes, ICO, and ICNS without errors.
+- [ ] `cargo xtask package` produces the tarball, `.deb`, `.rpm`, AppDir, AppImage when the tool is
+      available, `SHA256SUMS`, `sbom.cdx.json`, and `latest.json`.
+- [ ] `cargo xtask release-check` reports every manifest asset and input.
+- [ ] `dpkg-deb -x dist/mdview_0.9.0_amd64.deb /tmp/mdview-deb` then
+      `/tmp/mdview-deb/usr/bin/mdview --version` prints `0.9.0`.
+- [ ] `rpm -qlp dist/mdview-0.9.0-1.x86_64.rpm` lists the binary, desktop, MIME, metainfo, and
+      hicolor icons.
+- [ ] `dist/MD-View-0.9.0-x86_64.AppImage --appimage-extract-and-run --version` prints `0.9.0`.
+- [ ] A local HTTP server can serve `latest.json` and an asset; the update dialog finds the
+      version, downloads it, and verifies SHA-256.
+- [ ] `desktop-file-validate packaging/linux/mdview.desktop` passes on a machine with the tool.
+- [ ] `appstreamcli validate packaging/linux/org.mdview.MDView.metainfo.xml` passes.
+- [ ] On Windows, `build-msi.ps1` produces a per-user MSI and `.md` double-click opens the app.
+- [ ] On macOS, `build-dmg.sh` produces a signed/notarized universal app and `.md` opens it.
+- [ ] On Linux, install the deb/rpm/AppImage, double-click a `.md`, uninstall, and confirm the
+      association and icons are removed.
+- [ ] Signing credentials are supplied by the release operator; never commit them.

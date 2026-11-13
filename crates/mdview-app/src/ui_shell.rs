@@ -139,6 +139,7 @@ impl eframe::App for MdViewApp {
         self.media.set_playing(media.animate_svg);
         self.media.set_reduced_motion(media.reduce_motion);
         self.media.poll(ctx);
+        self.poll_updates(ctx);
         let forwarded = self.primary.as_ref().map(Primary::take_paths).unwrap_or_default();
         for path in forwarded {
             self.handle_external_path(&path, ctx);
@@ -394,6 +395,7 @@ impl eframe::App for MdViewApp {
             self.show_close_prompt(ui.ctx());
         }
         self.show_lightbox(ui.ctx());
+        self.show_update_dialog(ui.ctx());
         if let Some(job) = &self.pending_load {
             ui.ctx().request_repaint_after(std::time::Duration::from_millis(50));
             let cancel = mdview_ui::show_loading(ui.ctx(), &self.translations, self.lang, job.path(), job.progress());

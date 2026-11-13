@@ -159,6 +159,7 @@ impl MdViewApp {
                 self.palette_files = false;
                 self.palette_query.clear();
             }
+            Command::CheckUpdates => self.check_for_updates(),
             Command::QuickOpen => {
                 self.palette_open = true;
                 self.palette_files = true;

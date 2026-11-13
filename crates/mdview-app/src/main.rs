@@ -17,6 +17,8 @@ mod single_instance;
 mod split;
 mod tabs;
 mod ui_shell;
+mod update_ui;
+mod updater;
 mod workspace_flow;
 mod workspace_ops;
 
