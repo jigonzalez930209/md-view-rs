@@ -25,7 +25,7 @@
 |---|---|---|
 | H0 | NOT STARTED as a separate spike phase | The H1 shell uses conventional egui widgets. The H0 risk gates remain for the editor, Mermaid, LaTeX, and animated SVG milestones. |
 | H1 | IN PROGRESS | The workspace, shell, settings, i18n, base themes, atomic save, CLI, and single-instance path forwarding are implemented and tested on Linux. Native dialog interaction and macOS/Windows manual verification are pending. |
-| H2 | DONE (Linux; visual snapshot harness and macOS/Windows manual checks pending) | Rope editor, virtualization, syntax highlighting, tab/space detection, find/replace, go-to-line, encoding/EOL, mixed-EOL preservation, wrap, background large-file loading, progress/cancellation, IME commit coverage, and AccessKit role/value/selection announcements are implemented and tested on Linux. |
+| H2 | DONE (Linux; macOS/Windows and manual screen-reader checks pending) | Rope editor, virtualization, syntax highlighting, tab/space detection, find/replace, go-to-line, encoding/EOL, mixed-EOL preservation, wrap, background large-file loading, progress/cancellation, IME commit coverage, AccessKit role/value/selection announcements, and four light/dark × wrap snapshots are implemented and tested on Linux. |
 | H3–H11 | NOT STARTED | — |
 
 ---
@@ -1025,8 +1025,8 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 | IME commit path | DONE (manual IME pending) | multibyte commit unit test |
 | Clipboard operations | DONE (Linux; manual matrix pending) | copy/cut/paste event path |
 | Accessibility | DONE (Linux; manual screen-reader pending) | keyboard/focus; AccessKit role, value (bounded), selection announcements |
-| Visual snapshots | PENDING | snapshot harness not yet implemented; soft-wrap visual check pending |
-| macOS/Windows manual verification | PENDING | local Linux verification only |
+| Visual snapshots | DONE | `editor_snapshots` covers light/dark × wrap/no-wrap; PNGs checked in |
+| macOS/Windows manual verification | PENDING | see [`docs/manual-checks.md`](docs/manual-checks.md) |
 
 **Verifiable acceptance criteria**
 

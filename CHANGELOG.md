@@ -27,3 +27,4 @@
 - Preserved per-line mixed line endings on save.
 - Added an IME commit smoke test and AccessKit role/value/selection announcements.
 - Added cursor line/column, selection count, indentation, language, encoding, EOL, wrap, and large-file status.
+- Added local deterministic editor snapshots for light/dark and wrap/no-wrap, plus the remaining macOS/Windows manual checklist.

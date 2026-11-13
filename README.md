@@ -36,4 +36,5 @@ cargo xtask check-file-length
 cargo build --release -p mdview-app --locked
 ```
 
-The roadmap is the source of truth for scope.
+The roadmap is the source of truth for scope. The remaining H2 manual checks are in
+[`docs/manual-checks.md`](docs/manual-checks.md).
