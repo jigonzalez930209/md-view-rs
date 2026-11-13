@@ -347,7 +347,7 @@ lightningcss = "1"
 
 Notes:
 
-- `Cargo.lock` is committed; CI builds with `--locked`.
+- `Cargo.lock` is committed; release builds use `--locked`.
 - `craft-libs` revisions are never mixed. If a patch is required, propose it upstream and use a documented temporary `[patch]`, never a silent fork.
 - `craft-ui` features are enabled only when used (`serde` for layouts if they are ever saved; `screen-testing` for tests).
 - `[profile.dist]` uses `lto = "thin"`, `strip = "symbols"`, and `codegen-units = 1` for release packages. 1.0 does not use `panic = "abort"`: the app prefers unwinding and showing an error over aborting without a chance to save.
@@ -528,7 +528,7 @@ ThemeTokens {
 - Syntax highlighting maps to `syntect`/`egui` styles from tokens; syntect themes are not used directly.
 - Markdown rendering derives its styles from the same tokens.
 - Contrast tests compute WCAG 2.2 AA for normal text (4.5:1), large text and components (3:1), and focus (3:1).
-- No literal color outside `mdview-theme` and content assets; CI checks this with a scoped search.
+- No literal color outside `mdview-theme` and content assets; the theme checks use a scoped search.
 
 #### Families and variants (9)
 
@@ -598,7 +598,7 @@ Relative size/performance ratings in the gap-analysis tables are measured in H0 
 | `ignore` | 0.4 | MIT/Unlicense | `.gitignore` rules for the tree. | Custom implementation. | Chosen. |
 | `tracing` | 0.1 | MIT | Local logs. | `log`. | Chosen. |
 | `serde` + `toml` | 1 / 0.8 | MIT/Apache | Theme tokens and fixtures. | Rust const. | Chosen to allow future theme packs. |
-| `insta`, `proptest`, `criterion`, `egui_kittest` | dev | MIT/Apache | Snapshots, properties, benchmarks, headless UI. | — | Development/CI only. |
+| `insta`, `proptest`, `criterion`, `egui_kittest` | dev | MIT/Apache | Snapshots, properties, benchmarks, headless UI. | — | Development only. |
 
 Not included: Electron, Tauri, Wails, NW.js, webviews, QuickJS/Boa for rendering, Chromium, MathJax/KaTeX JS, `pandoc`, or `mmdc` at runtime.
 
@@ -711,7 +711,7 @@ If a budget is not met, scope is reduced (for example, optional syntax highlight
 | `mermaid-svg` 0.7 | MIT | Low (small project) | Very low; one dependency | Yes | Fallback if mmdr fails on a type. |
 | `flowmaid` 0.40 | Not declared | Medium | Low | Yes | “Mermaid-like”, not syntax parity; license needs review. |
 | Mermaid JS + QuickJS/Boa | — | — | High and DOM-dependent | — | **Rejected.** A JS engine is not the missing piece; Mermaid needs DOM/measurement. |
-| `mermaid-cli` / Chromium | MIT | High | Very high | Test only | **CI oracle only**, never runtime. |
+| `mermaid-cli` / Chromium | MIT | High | Very high | Test only | **Test-only oracle**, never runtime. |
 
 **Decision.** `mmdr` with `default-features = false` (no CLI/PNG), SVG output, parsing/validation with `craft-svg`, and rasterization with `resvg` at the block width and DPR. The app theme is mapped to mmdr `Theme`. Cache key: source hash + theme + width + DPR.
 
@@ -721,7 +721,7 @@ If a budget is not met, scope is reduced (for example, optional syntax highlight
 - **Tier B (supported with documented visual differences):** sankey, packet, radar, requirement, C4, block, architecture, kanban, treemap, zenUML.
 - **Outside the matrix:** unsupported directives/plugins show the code block with a diagnostic and a link to the matrix.
 
-Tier A types are compared against `mermaid-cli` in CI (oracle only) with visual tolerance and manual review. If a Tier A type fails, fix/vendor `mmdr` or explicitly degrade the type before 1.0; never claim support that has not been verified.
+Tier A types are compared against `mermaid-cli` in the test suite (oracle only) with visual tolerance and manual review. If a Tier A type fails, fix/vendor `mmdr` or explicitly degrade the type before 1.0; never claim support that has not been verified.
 
 **Contribution.** `craft-mermaid` (mmdr wrapper with tokens, limits, cache, and errors) is a clear candidate for craft-libs if another app needs it.
 
@@ -749,7 +749,7 @@ Tier A types are compared against `mermaid-cli` in CI (oracle only) with visual 
 
 **Contribution.** `craft-math-render` (RaTeX adapter + texture cache + tokens) is a candidate; `craft-math` remains the parser/exporter.
 
-**Risk.** **High.** RaTeX is 0.1.x and perfect KaTeX parity is not guaranteed. Mitigation: 100-formula corpus against KaTeX (CI oracle), pin/vendor, source fallback. Plan B: `latex-rust` or reduce support to a declared subset.
+**Risk.** **High.** RaTeX is 0.1.x and perfect KaTeX parity is not guaranteed. Mitigation: 100-formula corpus against KaTeX (test-only oracle), pin/vendor, source fallback. Plan B: `latex-rust` or reduce support to a declared subset.
 
 ### 4.6 Static and animated SVG
 
@@ -843,7 +843,7 @@ Tier A types are compared against `mermaid-cli` in CI (oracle only) with visual 
 | R-PREVIEW | Performance and scroll sync | High | Medium | Block virtualization, cache, anchors, property tests. | Block-level sync with throttle; preview off in large mode. |
 | R-WATCH | Cross-platform/network watching | Medium | High | `notify` + debounce + polling; file-manager tests. | Manual refresh + banner; not ideal, but avoids data loss. |
 | R-DATA | Data loss through conflict | Medium | High | `craft-atomic`, state machine, diff, conflict backup. | Always prompt on external change; never overwrite. |
-| R-PACKAGING | Signing/notarization | Medium | High | Early CI, certificates, VM install tests. | Delay 1.0 until signatures exist; never publish unsigned. |
+| R-PACKAGING | Signing/notarization | Medium | High | Early local packaging checks, certificates, VM install tests. | Delay 1.0 until signatures exist; never publish unsigned. |
 | R-DEPS | Young dependencies (mmdr/RaTeX) | High | Medium | Pin, vendor if needed, abstraction, corpus. | Switch to `mermaid-svg`/`latex-rust`. |
 | R-THEME | Contrast/fidelity of 9 themes | Medium | Medium | Tokens, WCAG tests, snapshots, visual review. | Adjust variants; reduce to 6 if quality fails. |
 | R-SIZE | Large binary/installer | Medium | Medium | Limited features, curated syntaxes, font subsets, LTO/strip. | Drop Source Serif, trim languages, compress assets. |
@@ -886,11 +886,11 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 
 ### H0 — Risk reduction and technical foundations
 
-**Objective.** Prove that the hard pieces are viable before committing the architecture, and leave the repository, CI, and quality criteria ready.
+**Objective.** Prove that the hard pieces are viable before committing the architecture, and leave the repository, local checks, and quality criteria ready.
 
 **Deliverables**
 
-- Cargo workspace with empty crates, `rustfmt`, strict Clippy, `cargo-deny`/`cargo-audit`, and CI on Linux/macOS/Windows with `--locked`.
+- Cargo workspace with empty crates, `rustfmt`, strict Clippy, `cargo-deny`/`cargo-audit`, and local checks on Linux/macOS/Windows with `--locked`.
 - Single `craft-libs` pin; `egui` version decision; ADR-001..010.
 - Measured prototypes:
   - editor with `Rope`, gutter, selection, syntax highlighting, and 100k lines;
@@ -908,7 +908,7 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 
 **Verifiable acceptance criteria**
 
-- CI is green on all three OSes; `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, tests, and `cargo deny` pass.
+- Local checks pass on all three OSes; `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, tests, and `cargo deny` pass.
 - Unsigned packages are produced and open on a clean machine.
 - Editor: 100k lines, 60 fps scroll, and typing p95 ≤ 33 ms; if not, choose the fallback and document it.
 - Markdown: the prototype produces spans for 100% of blocks in the corpus and renders tables/footnotes/math.
@@ -920,7 +920,7 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 **Required tests**
 
 - **Unit:** editor/parser/media prototypes.
-- **Integration:** CI on all three OSes; fixture opening.
+- **Integration:** local checks on all three OSes; fixture opening.
 - **Snapshot:** first reference captures of the editor and renderer.
 - **Manual 3 OS:** run the prototypes and unsigned installers.
 
@@ -963,7 +963,7 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 | Native open/save dialogs | IN PROGRESS | `craft-dialogs` integrated; headless portal interaction is unavailable in the verification environment |
 | Unsaved-changes close prompt | IN PROGRESS | Dirty Ctrl+Q keeps the window open; Save/Discard interaction is pending |
 | About window and local logging | IN PROGRESS | Logging and status bar implemented; About window is compiled but not manually exercised |
-| macOS/Windows manual verification | PENDING | CI workflow added; manual GUI checks remain |
+| macOS/Windows manual verification | PENDING | Manual GUI checks remain; hosted CI/CD is deliberately deferred until 1.0.0 |
 
 **Verifiable acceptance criteria**
 
@@ -1242,10 +1242,10 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 - Associations: `.md`/`.markdown` primary; `.txt` as opt-in “Open with”; Windows ProgID/OpenWith; macOS CFBundleDocumentTypes; Linux MIME.
 - Multi-resolution app icon; “Open with…” and drag-and-drop.
 - `craft-update`: check, prompt, download, checksum/signature verification, install, and restart; deb/rpm/Flatpak routed to the package manager; AppImage/MSI/DMG self-update.
-- CI/CD (GitHub Actions as the reference): matrix, packaging, signing, notarization, install test, draft release, checksums, SBOM, release notes, rollback.
+- Local packaging scripts under `xtask`: matrix, signing, notarization, install test, draft release, checksums, SBOM, release notes, and rollback. Hosted CI/CD is added only as part of the 1.0.0 release gate, after the local feature set is operational.
 - Installation, uninstallation, update, and channel documentation.
 
-**Dependencies.** H8 and the H0 pipeline.
+**Dependencies.** H8 and the H0 local packaging scripts.
 
 **Verifiable acceptance criteria**
 
@@ -1259,7 +1259,7 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 
 **Required tests**
 
-- **Integration:** full pipeline; install/launch/uninstall; update from the previous version.
+- **Integration:** local packaging pipeline; install/launch/uninstall; update from the previous version.
 - **Security:** signature, checksum, rollback, interrupted update.
 - **Manual 3 OS:** installers, associations, Open with, update, uninstall, Flatpak, Wayland/X11.
 

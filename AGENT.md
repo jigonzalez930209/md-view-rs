@@ -147,7 +147,7 @@ docs(roadmap): translate the roadmap to English
 - If a file approaches the limit, extract a cohesive submodule. Do not create a `misc.rs` or `utils.rs` dumping ground.
 - `lib.rs` should be a thin public facade. Put implementation in named modules and re-export the stable API.
 - A pull request that adds a file above 500 lines must be split before review. An existing oversized file may be split in a dedicated `refactor(scope):` commit.
-- CI must eventually enforce this with `cargo xtask check-file-length` (or an equivalent repository check). Until that task exists, reviewers enforce the limit manually.
+- `cargo xtask check-file-length` is the local gate. Hosted CI/CD is intentionally not configured before `1.0.0`; it is added as part of the release gate, not during feature development.
 
 ## 5. Code and architecture rules
 
@@ -162,7 +162,16 @@ docs(roadmap): translate the roadmap to English
 - **Accessibility is not optional.** New controls need keyboard access, a focus state, an accessible label, and sufficient contrast.
 - **No dates, durations, or effort estimates in roadmap or planning documents.** Organize work by phases, milestones, dependencies, and acceptance criteria.
 
-## 6. Pull requests
+## 6. CI/CD policy
+
+Do not add, enable, or run hosted CI/CD before `1.0.0`.
+
+- Verify every change locally with `cargo fmt`, strict Clippy, `cargo test --workspace`, `cargo xtask check-file-length`, and a release build.
+- Keep packaging scripts in `xtask` so they can run on the developer machine.
+- Hosted CI/CD, signing, notarization, store publishing, and automated release promotion are part of the `1.0.0` release gate. They are not part of the feature-development loop.
+- Do not push tags or trigger release workflows before the local feature set is operational.
+
+## 7. Pull requests
 
 - The PR title follows the same format as the commit summary.
 - The description states the problem, the approach, the user-visible effect, the test plan, and any limitations.
@@ -171,7 +180,7 @@ docs(roadmap): translate the roadmap to English
 - Do not merge with failing required checks, unresolved data-loss risks, or an undocumented scope reduction.
 - Keep the diff focused. Move unrelated cleanups to a separate PR.
 
-## 7. Definition of done for a change
+## 8. Definition of done for a change
 
 A change is complete when:
 
@@ -183,7 +192,7 @@ A change is complete when:
 - The commit message follows this document.
 - No unrelated changes are included.
 
-## 8. Roadmap progress tracking
+## 9. Roadmap progress tracking
 
 `ROADMAP.md` is the source of truth for scope and progress.
 
@@ -195,6 +204,6 @@ A change is complete when:
 - If a later change regresses a marked feature, change it back to `IN PROGRESS` or `BLOCKED` in the same commit.
 - Do not silently reduce scope. If a criterion cannot be met, document the deviation and update the roadmap before claiming the milestone is complete.
 
-## 9. Conflict resolution
+## 10. Conflict resolution
 
 If a direct user request conflicts with these rules, ask before bypassing a rule. Do not silently weaken the 500-line limit, the English-only policy, the crate boundaries, or the no-webview constraint.
