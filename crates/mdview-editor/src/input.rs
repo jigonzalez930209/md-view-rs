@@ -401,6 +401,9 @@ impl Editor {
     }
 
     pub(crate) fn row_to_line(&self, row: usize, columns: usize) -> (usize, usize) {
+        if columns == 0 {
+            return (row.min(self.document.line_count().saturating_sub(1)), 0);
+        }
         let mut accumulated = 0;
         for line in 0..self.document.line_count() {
             let rows = rows_for_width(self.display_widths.get(line).copied().unwrap_or(0), columns);
