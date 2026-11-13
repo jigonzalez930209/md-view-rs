@@ -1,11 +1,12 @@
-# Manual editor checks
+# Deferred release checks (1.0.0)
 
-H2 (`0.2.0`) is implemented and verified locally on Linux. The remaining H2 gates are manual
-checks on macOS and Windows and a screen-reader pass. This file is the checklist to run before
-treating H2 as fully complete.
+H2 (`0.2.0`) is complete and verified locally on Linux. The macOS, Windows, and manual
+screen-reader checks in this file are deliberately deferred to the `1.0.0` publication gate;
+they do not block work on the remaining milestones.
 
-Hosted CI/CD is intentionally disabled until `1.0.0`. Run these checks locally and record the
-result in the H2 progress table in [`ROADMAP.md`](../ROADMAP.md).
+Hosted CI/CD is intentionally disabled until `1.0.0`. Run these checks locally when preparing
+the 1.0 release and record the results in the release checklist in
+[`ROADMAP.md`](../ROADMAP.md).
 
 ## Visual snapshots
 
@@ -81,9 +82,9 @@ Linux has already been exercised, but repeat these after any dependency upgrade:
 - [ ] Open the 10.5 MB / 220k-line fixture; load, cancel, edit, and save.
 - [ ] Mixed CRLF/LF/CR file round-trips unchanged when saved without edits.
 
-## H2 exit gate
+## 1.0.0 publication gate
 
-H2 can be marked fully `DONE` when:
+The 1.0.0 release can ship when:
 
 - [ ] The four snapshot tests pass locally.
 - [ ] Every macOS and Windows item above is checked on real hardware.

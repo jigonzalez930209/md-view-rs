@@ -24,8 +24,8 @@
 | Milestone | Status | Evidence |
 |---|---|---|
 | H0 | NOT STARTED as a separate spike phase | The H1 shell uses conventional egui widgets. The H0 risk gates remain for the editor, Mermaid, LaTeX, and animated SVG milestones. |
-| H1 | IN PROGRESS | The workspace, shell, settings, i18n, base themes, atomic save, CLI, and single-instance path forwarding are implemented and tested on Linux. Native dialog interaction and macOS/Windows manual verification are pending. |
-| H2 | DONE (Linux; macOS/Windows and manual screen-reader checks pending) | Rope editor, virtualization, syntax highlighting, tab/space detection, find/replace, go-to-line, encoding/EOL, mixed-EOL preservation, wrap, background large-file loading, progress/cancellation, IME commit coverage, AccessKit role/value/selection announcements, and four light/dark × wrap snapshots are implemented and tested on Linux. |
+| H1 | IN PROGRESS | The workspace, shell, settings, i18n, base themes, atomic save, CLI, and single-instance path forwarding are implemented and tested on Linux. Native dialog interaction remains to be exercised; macOS/Windows checks are deferred to 1.0.0. |
+| H2 | DONE (Linux) | Rope editor, virtualization, syntax highlighting, tab/space detection, find/replace, go-to-line, encoding/EOL, mixed-EOL preservation, wrap, background large-file loading, progress/cancellation, IME commit coverage, AccessKit role/value/selection announcements, and four light/dark × wrap snapshots are implemented and tested on Linux. |
 | H3–H11 | NOT STARTED | — |
 
 ---
@@ -964,7 +964,7 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 | Native open/save dialogs | IN PROGRESS | `craft-dialogs` integrated; headless portal interaction is unavailable in the verification environment |
 | Unsaved-changes close prompt | IN PROGRESS | Dirty Ctrl+Q keeps the window open; Save/Discard interaction is pending |
 | About window and local logging | IN PROGRESS | Logging and status bar implemented; About window is compiled but not manually exercised |
-| macOS/Windows manual verification | PENDING | Manual GUI checks remain; hosted CI/CD is deliberately deferred until 1.0.0 |
+| macOS/Windows manual verification | DEFERRED to 1.0.0 | see [`docs/release-checks.md`](docs/release-checks.md) |
 
 **Verifiable acceptance criteria**
 
@@ -1024,9 +1024,9 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 | Background large-file loading | DONE | worker/progress/cancel tests; loading dialog request-repaint path |
 | IME commit path | DONE (manual IME pending) | multibyte commit unit test |
 | Clipboard operations | DONE (Linux; manual matrix pending) | copy/cut/paste event path |
-| Accessibility | DONE (Linux; manual screen-reader pending) | keyboard/focus; AccessKit role, value (bounded), selection announcements |
+| Accessibility | DONE (Linux) | keyboard/focus; AccessKit role, value (bounded), selection announcements |
 | Visual snapshots | DONE | `editor_snapshots` covers light/dark × wrap/no-wrap; PNGs checked in |
-| macOS/Windows manual verification | PENDING | see [`docs/manual-checks.md`](docs/manual-checks.md) |
+| macOS/Windows manual verification | DEFERRED to 1.0.0 | see [`docs/release-checks.md`](docs/release-checks.md) |
 
 **Verifiable acceptance criteria**
 
@@ -1043,7 +1043,7 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 - **Unit:** model, undo, encoding, EOL, regex, language detection.
 - **Integration:** open/edit/save for each encoding; large mode; search.
 - **Snapshot:** editor in 3 base themes, 1x/2x, with and without wrapping.
-- **Manual 3 OS:** ES/EN keyboards, IME, DPI, trackpad, large files.
+- **Manual 3 OS:** deferred to the `1.0.0` release gate; see [`docs/release-checks.md`](docs/release-checks.md).
 
 ---
 
@@ -1270,6 +1270,7 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 - `craft-update`: check, prompt, download, checksum/signature verification, install, and restart; deb/rpm/Flatpak routed to the package manager; AppImage/MSI/DMG self-update.
 - Local packaging scripts under `xtask`: matrix, signing, notarization, install test, draft release, checksums, SBOM, release notes, and rollback. Hosted CI/CD is added only as part of the 1.0.0 release gate, after the local feature set is operational.
 - Installation, uninstallation, update, and channel documentation.
+- Run the deferred platform and screen-reader checks in [`docs/release-checks.md`](docs/release-checks.md).
 
 **Dependencies.** H8 and the H0 local packaging scripts.
 
