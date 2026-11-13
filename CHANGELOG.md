@@ -7,7 +7,9 @@
 - Added Linux desktop, MIME, AppStream, hicolor icon trees, and package maintainer hooks.
 - Added WiX v4 per-user MSI sources, macOS `Info.plist`/entitlements/DMG script, and a Flatpak manifest with portal-based permissions.
 - Added Markdown file associations for `.md`/`.markdown` across the three packaging families; `.txt` remains opt-in.
-- Added manual update checking: manifest fetch, version comparison, platform asset selection, timeout/limit bounds, SHA-256 verification, download cache, prompt, and explicit installation guidance.
+- Added manual update checking: manifest fetch, version comparison, platform asset selection, timeout/limit bounds, SHA-256 verification, download cache, prompt, and installation.
+- Added update installation paths: atomic AppImage self-replace, `pkexec dpkg`/`rpm`, Flatpak update routing, MSI/DMG launchers, and a detached restart waiter.
+- Added install-plan and AppImage replacement tests; dirty documents block installation until saved.
 - Documented the local packaging matrix, signing requirements, associations, install/uninstall, and update flow in `docs/release.md`.
 - Generated AppImage, Debian, RPM, portable tarball, icons, SBOM, checksums, and update manifest locally; `release-check` passes against all four assets.
 

@@ -1336,7 +1336,7 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 | Responsive sidebar and vertical split | DONE | existing split/sidebar behavior |
 | 80–200% scaling and DPI-safe layout | DONE (Linux) | zoom slider, shortcuts, persisted factor |
 | Complete English/Spanish shell text and pseudo-locale | DONE (content badges remain English) | catalog scan test, pseudo-locale test |
-| Accessibility audit | PARTIAL | focus, labels, keyboard, contrast, AccessKit editor; manual screen-reader checks deferred |
+| Accessibility audit | DONE (Linux automated; manual screen-reader checks deferred) | contrast gates, focus, labels, 28-point targets, AccessKit editor, settings/palette accessibility snapshot checks |
 | Snapshots of key screens | DONE | editor, preview, split, media, settings, palette, conflicts, themes |
 | Manual 3 OS | DEFERRED to 1.0.0 | [`docs/release-checks.md`](docs/release-checks.md) |
 
@@ -1382,7 +1382,8 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 | Flatpak manifest and permissions | DONE | `packaging/flatpak/org.mdview.MDView.json` |
 | Associations for `.md`/`.markdown` | DONE (Linux installed; Windows/macOS sources) | MIME XML, WiX registry, CFBundleDocumentTypes |
 | Update check, prompt, download, checksum | DONE | updater tests; local manifest round trip |
-| Update install/restart per format | PARTIAL | explicit downloads folder; self-replacement intentionally not automatic |
+| Update install/restart per format | DONE (Linux AppImage/deb/rpm/Flatpak; MSI/DMG commands) | `install.rs` tests; `pkexec`/rpm/Flatpak/MSI/DMG plans; detached restart |
+| Dirty-document guard before install | DONE | update dialog blocks while tabs are dirty |
 | Signing: Authenticode/Developer ID/GPG | DEFERRED to release operator | no certificates in the repository |
 | Local packaging scripts, checksums, SBOM, manifest, release check | DONE | `cargo xtask package`, `release-check`; 4 assets |
 | Hosted CI/CD | DEFERRED to 1.0.0 | AGENT.md policy |

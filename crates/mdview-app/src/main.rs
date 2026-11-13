@@ -6,6 +6,7 @@ mod commands;
 mod conflict;
 mod document_ops;
 mod file_ops;
+mod install;
 mod lightbox;
 mod links;
 mod load_job;

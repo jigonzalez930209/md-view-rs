@@ -107,6 +107,12 @@ Run these local checks before tagging a release:
 - [ ] `dist/MD-View-0.9.0-x86_64.AppImage --appimage-extract-and-run --version` prints `0.9.0`.
 - [ ] A local HTTP server can serve `latest.json` and an asset; the update dialog finds the
       version, downloads it, and verifies SHA-256.
+- [ ] From a writable copy of the AppImage, install the downloaded AppImage; the original file is
+      replaced atomically, mode 0755 is kept, and **Restart now** launches the new version.
+- [ ] Install a downloaded deb/rpm through the dialog; `pkexec` prompts, the package is upgraded,
+      and **Restart now** relaunches the binary.
+- [ ] Flatpak: `flatpak update -y` is routed and restart works.
+- [ ] With a dirty tab, **Install update** is blocked with a save/discard message.
 - [ ] `desktop-file-validate packaging/linux/mdview.desktop` passes on a machine with the tool.
 - [ ] `appstreamcli validate packaging/linux/org.mdview.MDView.metainfo.xml` passes.
 - [ ] On Windows, `build-msi.ps1` produces a per-user MSI and `.md` double-click opens the app.

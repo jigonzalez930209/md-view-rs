@@ -82,12 +82,21 @@ package.
    platform asset.
 3. Download with a 300-second timeout and 256 MB limit.
 4. Verify the SHA-256 before writing the file to the platform cache.
-5. Show the verified path and open the downloads folder. Installation is explicit: the user runs
-   the platform installer/package manager or swaps the AppImage/manual build. The app never
-   silently replaces its own binary.
+5. Show the verified path with an **Install update** action:
+   - **AppImage:** copies the verified file beside the running AppImage, preserves mode `0755`,
+     and atomically renames it over the old mount target.
+   - **deb:** `pkexec dpkg -i <file>`; **rpm:** `pkexec rpm -U --replacepkgs <file>`.
+   - **Flatpak:** `flatpak update -y`.
+   - **Windows MSI:** `msiexec /i <file> /passive`; **macOS DMG:** `open <file>`.
+   - Unsupported assets remain a manual install with the downloads folder action.
+6. After installation, **Restart now** starts a detached waiter that relaunches the new binary
+   after the current process exits. Dirty documents block installation until saved or discarded.
+   The app never silently replaces its own binary.
 
 If no URL is configured, the dialog explains how to set one. The placeholder manifest URL in
 `latest.json` must be replaced by the actual release host before shipping a public update channel.
+Package-manager actions that need privilege use `pkexec`; a cancelled authentication prompt is
+reported and leaves the downloaded file in place.
 
 ## Signing and release gates
 

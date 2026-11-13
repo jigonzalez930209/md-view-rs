@@ -51,8 +51,20 @@ pub enum UpdateState {
         /// Download worker, when running.
         downloading: Option<Receiver<UpdateEvent>>,
     },
-    /// The download finished.
-    Downloaded(PathBuf),
+    /// The download finished and can be installed.
+    Downloaded {
+        /// Verified download path.
+        path: PathBuf,
+        /// Install worker, when running.
+        installing: Option<Receiver<UpdateEvent>>,
+    },
+    /// The installer finished.
+    Installed {
+        /// Whether a restart is the next step.
+        restart: bool,
+        /// User-facing result.
+        message: String,
+    },
     /// Informational message.
     Info(String),
     /// Failure message.
@@ -68,6 +80,8 @@ pub enum UpdateEvent {
     UpToDate,
     /// The download finished and the checksum matched.
     Downloaded(PathBuf),
+    /// The installer finished.
+    Installed(crate::install::InstallOutcome),
     /// The operation failed.
     Failed(String),
 }
@@ -97,6 +111,19 @@ pub fn start_download(manifest_url: String, asset: UpdateAsset) -> Receiver<Upda
     thread::spawn(move || {
         let event = match download_asset(&manifest_url, &asset) {
             Ok(path) => UpdateEvent::Downloaded(path),
+            Err(error) => UpdateEvent::Failed(error),
+        };
+        let _ = sender.send(event);
+    });
+    receiver
+}
+
+/// Start installing a verified asset on a worker thread.
+pub fn start_install(path: PathBuf) -> Receiver<UpdateEvent> {
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || {
+        let event = match crate::install::install(&path) {
+            Ok(outcome) => UpdateEvent::Installed(outcome),
             Err(error) => UpdateEvent::Failed(error),
         };
         let _ = sender.send(event);
