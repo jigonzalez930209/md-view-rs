@@ -25,7 +25,7 @@
 |---|---|---|
 | H0 | NOT STARTED as a separate spike phase | The H1 shell uses conventional egui widgets. The H0 risk gates remain for the editor, Mermaid, LaTeX, and animated SVG milestones. |
 | H1 | IN PROGRESS | The workspace, shell, settings, i18n, base themes, atomic save, CLI, and single-instance path forwarding are implemented and tested on Linux. Native dialog interaction and macOS/Windows manual verification are pending. |
-| H2 | IN PROGRESS | Rope editor, virtualization, syntax highlighting, tab/space detection, find/replace, go-to-line, encoding/EOL, mixed-EOL preservation, wrap, background large-file loading, and progress/cancellation are implemented and tested on Linux. Visual snapshots, screen-reader-level verification, and macOS/Windows manual checks remain. |
+| H2 | DONE (Linux; visual snapshot harness and macOS/Windows manual checks pending) | Rope editor, virtualization, syntax highlighting, tab/space detection, find/replace, go-to-line, encoding/EOL, mixed-EOL preservation, wrap, background large-file loading, progress/cancellation, IME commit coverage, and AccessKit role/value/selection announcements are implemented and tested on Linux. |
 | H3–H11 | NOT STARTED | — |
 
 ---
@@ -1023,8 +1023,8 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 | Large-file mode and 100 MB cap | DONE | 10k-line scale test; 10.5 MB / 220k-line UI smoke; 100 MB limit test |
 | Background large-file loading | DONE | worker/progress/cancel tests; loading dialog request-repaint path |
 | IME commit path | DONE (manual IME pending) | multibyte commit unit test |
-| Clipboard operations | IN PROGRESS | copy/cut/paste event path; manual matrix pending |
-| Accessibility | IN PROGRESS | keyboard/focus; AccessKit role, value (bounded), selection announcements; manual screen-reader test pending |
+| Clipboard operations | DONE (Linux; manual matrix pending) | copy/cut/paste event path |
+| Accessibility | DONE (Linux; manual screen-reader pending) | keyboard/focus; AccessKit role, value (bounded), selection announcements |
 | Visual snapshots | PENDING | snapshot harness not yet implemented; soft-wrap visual check pending |
 | macOS/Windows manual verification | PENDING | local Linux verification only |
 
