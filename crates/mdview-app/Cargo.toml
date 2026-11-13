@@ -27,12 +27,16 @@ log.workspace = true
 mdview-editor.workspace = true
 mdview-i18n.workspace = true
 mdview-model.workspace = true
+mdview-workspace.workspace = true
+similar.workspace = true
 mdview-theme.workspace = true
 mdview-ui.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+egui = { workspace = true, features = ["default_fonts"] }
+egui_kittest = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a", features = ["wgpu", "snapshot"] }
 tempfile = "3"
 toml = "0.8"
 

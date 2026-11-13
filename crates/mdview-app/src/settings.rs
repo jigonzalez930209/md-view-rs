@@ -17,6 +17,8 @@ pub struct Prefs {
     pub window: WindowSettings,
     /// Editor settings.
     pub editor: EditorSettings,
+    /// Restored session and recent files.
+    pub session: SessionSettings,
 }
 
 impl Settings for Prefs {
@@ -85,6 +87,67 @@ impl Default for EditorSettings {
     }
 }
 
+/// The last session and recent-file list.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct SessionSettings {
+    /// Absolute paths of open file tabs, in tab order.
+    pub open_files: Vec<String>,
+    /// The path of the active tab, when it has one.
+    pub active_file: Option<String>,
+    /// The open workspace folder, when any.
+    pub workspace: Option<String>,
+    /// Whether the sidebar is visible.
+    pub sidebar_open: bool,
+    /// Sidebar width in logical points.
+    pub sidebar_width: f32,
+    /// Most recent file paths, newest first.
+    pub recent_files: Vec<String>,
+    /// Most recent workspace folders, newest first.
+    pub recent_workspaces: Vec<String>,
+    /// Per-file vertical scroll offsets.
+    pub tab_scroll: std::collections::BTreeMap<String, f32>,
+    /// Whether the workspace tree shows dotfiles.
+    pub show_hidden: bool,
+    /// Whether the workspace tree respects `.gitignore`.
+    pub respect_gitignore: bool,
+}
+
+impl Default for SessionSettings {
+    fn default() -> Self {
+        Self {
+            open_files: Vec::new(),
+            active_file: None,
+            workspace: None,
+            sidebar_open: true,
+            sidebar_width: 260.0,
+            recent_files: Vec::new(),
+            recent_workspaces: Vec::new(),
+            tab_scroll: std::collections::BTreeMap::new(),
+            show_hidden: false,
+            respect_gitignore: true,
+        }
+    }
+}
+
+impl SessionSettings {
+    /// Record a recently opened path, keeping at most ten entries.
+    pub fn remember_recent(&mut self, path: &str) {
+        remember(&mut self.recent_files, path);
+    }
+
+    /// Record a recently opened workspace folder.
+    pub fn remember_recent_workspace(&mut self, path: &str) {
+        remember(&mut self.recent_workspaces, path);
+    }
+}
+
+fn remember(list: &mut Vec<String>, value: &str) {
+    list.retain(|entry| entry != value);
+    list.insert(0, value.to_owned());
+    list.truncate(10);
+}
+
 impl Default for WindowSettings {
     fn default() -> Self {
         Self {
@@ -128,6 +191,30 @@ mod tests {
         assert!(prefs.window.width > 0.0);
         assert!(!prefs.editor.wrap);
         assert!(prefs.editor.line_numbers);
+        assert!(prefs.session.sidebar_open);
+        assert!(prefs.session.open_files.is_empty());
+        assert_eq!(prefs.session.sidebar_width, 260.0);
+    }
+
+    #[test]
+    fn twenty_tab_session_round_trips() {
+        let mut prefs = Prefs::default();
+        prefs.session.workspace = Some("/tmp/project".to_owned());
+        for index in 0..20 {
+            let path = format!("/tmp/project/note-{index}.md");
+            prefs.session.open_files.push(path.clone());
+            prefs.session.tab_scroll.insert(path, index as f32 * 10.0);
+        }
+        prefs.session.active_file = Some("/tmp/project/note-19.md".to_owned());
+        prefs.session.sidebar_width = 321.0;
+        let text = toml::to_string(&prefs).expect("serialize prefs");
+        let read: Prefs = toml::from_str(&text).expect("deserialize prefs");
+        assert_eq!(read.session.open_files.len(), 20);
+        assert_eq!(read.session.tab_scroll.len(), 20);
+        assert_eq!(read.session.tab_scroll["/tmp/project/note-7.md"], 70.0);
+        assert_eq!(read.session.active_file.as_deref(), Some("/tmp/project/note-19.md"));
+        assert_eq!(read.session.workspace.as_deref(), Some("/tmp/project"));
+        assert_eq!(read.session.sidebar_width, 321.0);
     }
 
     #[test]
@@ -135,6 +222,12 @@ mod tests {
         let mut prefs = Prefs::default();
         prefs.set_theme_mode(ThemeMode::Dark);
         prefs.set_language_preference(LanguagePreference::Spanish);
+        prefs.session.remember_recent("/tmp/a.md");
+        prefs.session.remember_recent("/tmp/b.md");
+        prefs.session.remember_recent("/tmp/a.md");
+        assert_eq!(prefs.session.recent_files, ["/tmp/a.md", "/tmp/b.md"]);
+        prefs.session.remember_recent_workspace("/tmp/project");
+        prefs.session.tab_scroll.insert("/tmp/a.md".to_owned(), 42.0);
         let text = toml::to_string(&prefs).expect("serialize prefs");
         let read: Prefs = toml::from_str(&text).expect("deserialize prefs");
         assert_eq!(read, prefs);

@@ -24,9 +24,10 @@
 | Milestone | Status | Evidence |
 |---|---|---|
 | H0 | NOT STARTED as a separate spike phase | The H1 shell uses conventional egui widgets. The H0 risk gates remain for the editor, Mermaid, LaTeX, and animated SVG milestones. |
-| H1 | IN PROGRESS | The workspace, shell, settings, i18n, base themes, atomic save, CLI, and single-instance path forwarding are implemented and tested on Linux. Native dialog interaction remains to be exercised; macOS/Windows checks are deferred to 1.0.0. |
+| H1 | DONE (Linux) | Native shell, settings, i18n, base themes, atomic save, CLI, and single-instance path forwarding are implemented and tested on Linux. Native dialog interaction is exercised by the H3 sidebar operations; macOS/Windows checks are deferred to 1.0.0. |
 | H2 | DONE (Linux) | Rope editor, virtualization, syntax highlighting, tab/space detection, find/replace, go-to-line, encoding/EOL, mixed-EOL preservation, wrap, background large-file loading, progress/cancellation, IME commit coverage, AccessKit role/value/selection announcements, and four light/dark × wrap snapshots are implemented and tested on Linux. |
-| H3–H11 | NOT STARTED | — |
+| H3 | DONE (Linux; OS-rename identity matching deferred) | Tabs, lazy sidebar, watcher with polling fallback, clean reload, conflict diff, missing-file state, file operations, recent files/workspaces, multi-path opening, and session restore are implemented and tested on Linux. Snapshots cover sidebar, tabs, conflict banner, and diff. |
+| H4–H11 | NOT STARTED | — |
 
 ---
 
@@ -1082,6 +1083,25 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 - **Integration:** temp directories with watcher; rename/delete; 50k files; 20 tabs.
 - **Snapshot:** sidebar, tabs, conflict banner, diff.
 - **Manual 3 OS:** native file-manager operations, network/portal, locked files.
+
+**Progress (`0.3.0`)**
+
+| Item | Status | Evidence |
+|---|---|---|
+| Tabs: open, close, dedupe, dirty dot, close others/saved, reorder, Ctrl+Tab | DONE | `tabs` tests; Ctrl+Tab/Ctrl+W Xvfb smoke |
+| Lazy sidebar, folders first, hidden files, `.gitignore` | DONE | workspace tests; `sidebar.png` |
+| Open folder, recent workspaces, drag-and-drop | DONE | session prefs; startup/launch smoke |
+| New file/folder, rename, delete confirmation, reveal | DONE | `workspace_ops` tests |
+| `notify` debounce and polling fallback | DONE | watcher test; runtime reload/conflict logs |
+| Clean-file reload preserving cursor/scroll | DONE | `replace_document_preserving_position`; reload log |
+| Dirty conflict, diff, confirmation actions | DONE | `classify_disk` test; conflict/diff snapshots |
+| Missing-file state with Save As/keep editing | DONE | tab label test; missing-file log |
+| Session: workspace, tabs, active, scroll, sidebar, window, recent | DONE | 20-tab settings test; config dump; relaunch smoke |
+| Single instance with multiple paths | DONE | CLI test; two-file forwarding smoke |
+| OS-level rename identity matching | PARTIAL | In-app rename updates the tab; an OS rename is reported as missing until reopened |
+| Snapshots: sidebar, tabs, conflict banner, diff | DONE | `crates/mdview-app/tests/snapshots/` |
+| 50k-file workspace, 20-tab restore | DONE | workspace and settings tests |
+| Manual 3 OS | DEFERRED to 1.0.0 | [`docs/release-checks.md`](docs/release-checks.md) |
 
 ---
 

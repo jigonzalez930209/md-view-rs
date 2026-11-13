@@ -25,6 +25,18 @@ pub struct MenuState<'a> {
     pub wrap: bool,
     /// Whether line numbers are enabled.
     pub line_numbers: bool,
+    /// Whether the workspace sidebar is visible.
+    pub sidebar_open: bool,
+    /// Whether a workspace folder is open.
+    pub workspace_open: bool,
+    /// Recent file paths, newest first.
+    pub recent_files: &'a [String],
+    /// Recent workspace paths, newest first.
+    pub recent_workspaces: &'a [String],
+    /// Active tab index.
+    pub tab_index: usize,
+    /// Number of open tabs.
+    pub tab_count: usize,
 }
 
 /// Draw the menu bar and return the selected command.
@@ -46,13 +58,106 @@ pub fn show_menu(ui: &mut Ui, state: MenuState<'_>) -> Option<Command> {
                 command = Some(Command::Open);
                 ui.close();
             }
+            if ui.button(t("Open Folder…")).clicked() {
+                command = Some(Command::OpenFolder);
+                ui.close();
+            }
+            if ui
+                .add_enabled(state.workspace_open, egui::Button::new(t("Close Folder")))
+                .clicked()
+            {
+                command = Some(Command::CloseFolder);
+                ui.close();
+            }
+            if !state.recent_workspaces.is_empty() {
+                ui.menu_button(t("Recent Workspaces"), |ui| {
+                    for (index, path) in state.recent_workspaces.iter().enumerate() {
+                        let name = std::path::Path::new(path)
+                            .file_name()
+                            .map(|name| name.to_string_lossy().into_owned())
+                            .unwrap_or_else(|| path.clone());
+                        if ui.button(name).on_hover_text(path).clicked() {
+                            command = Some(Command::OpenRecentWorkspace(index));
+                            ui.close();
+                        }
+                    }
+                });
+            }
+            ui.menu_button(t("Open Recent"), |ui| {
+                if state.recent_files.is_empty() {
+                    ui.label(t("No recent files"));
+                } else {
+                    for (index, path) in state.recent_files.iter().enumerate() {
+                        let name = std::path::Path::new(path)
+                            .file_name()
+                            .map(|name| name.to_string_lossy().into_owned())
+                            .unwrap_or_else(|| path.clone());
+                        if ui.button(name).on_hover_text(path).clicked() {
+                            command = Some(Command::OpenRecent(index));
+                            ui.close();
+                        }
+                    }
+                    ui.separator();
+                    if ui.button(t("Clear recent files")).clicked() {
+                        command = Some(Command::ClearRecent);
+                        ui.close();
+                    }
+                }
+            });
             ui.separator();
+            if ui.button(t("New File in Workspace")).clicked() {
+                command = Some(Command::NewFile);
+                ui.close();
+            }
             if ui.button(t("Save")).clicked() {
                 command = Some(Command::Save);
                 ui.close();
             }
             if ui.button(t("Save As…")).clicked() {
                 command = Some(Command::SaveAs);
+                ui.close();
+            }
+            ui.separator();
+            if ui
+                .add_enabled(state.tab_count > 0, egui::Button::new(t("Close Tab")))
+                .clicked()
+            {
+                command = Some(Command::CloseTab);
+                ui.close();
+            }
+            if ui.button(t("Close Other Tabs")).clicked() {
+                command = Some(Command::CloseOtherTabs);
+                ui.close();
+            }
+            if ui.button(t("Close Saved Tabs")).clicked() {
+                command = Some(Command::CloseSavedTabs);
+                ui.close();
+            }
+            ui.separator();
+            if ui
+                .add_enabled(state.tab_index > 0, egui::Button::new(t("Move Tab Left")))
+                .clicked()
+            {
+                command = Some(Command::MoveTabLeft);
+                ui.close();
+            }
+            if ui
+                .add_enabled(
+                    state.tab_index + 1 < state.tab_count,
+                    egui::Button::new(t("Move Tab Right")),
+                )
+                .clicked()
+            {
+                command = Some(Command::MoveTabRight);
+                ui.close();
+            }
+            ui.separator();
+            if ui.button(t("Next Tab")).clicked() {
+                command = Some(Command::NextTab);
+                ui.close();
+            }
+            if ui.button(t("Previous Tab")).clicked() {
+                command = Some(Command::PreviousTab);
                 ui.close();
             }
             ui.menu_button(t("Reopen with Encoding"), |ui| {
@@ -127,6 +232,13 @@ pub fn show_menu(ui: &mut Ui, state: MenuState<'_>) -> Option<Command> {
                 }
             });
             ui.separator();
+            if ui
+                .selectable_label(state.sidebar_open, t("Workspace sidebar"))
+                .clicked()
+            {
+                command = Some(Command::ToggleSidebar);
+                ui.close();
+            }
             if ui.selectable_label(state.wrap, t("Word wrap")).clicked() {
                 command = Some(Command::ToggleWrap);
                 ui.close();

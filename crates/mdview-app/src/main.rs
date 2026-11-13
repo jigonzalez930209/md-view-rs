@@ -2,11 +2,18 @@
 
 mod app;
 mod cli;
+mod commands;
+mod conflict;
+mod document_ops;
 mod file_ops;
-mod load_flow;
 mod load_job;
 mod settings;
+mod sidebar;
 mod single_instance;
+mod tabs;
+mod ui_shell;
+mod workspace_flow;
+mod workspace_ops;
 
 use std::sync::{Arc, Mutex};
 
@@ -38,7 +45,7 @@ fn main() -> eframe::Result {
     }
 
     let wake_slot: Arc<Mutex<Option<egui::Context>>> = Arc::new(Mutex::new(None));
-    let primary = if let CliAction::Run { path } = &action {
+    let primary = if let CliAction::Run { paths } = &action {
         let wake_slot = wake_slot.clone();
         let wake = move || {
             if let Ok(slot) = wake_slot.lock()
@@ -47,7 +54,7 @@ fn main() -> eframe::Result {
                 ctx.request_repaint();
             }
         };
-        match single_instance::acquire(path.as_deref(), wake) {
+        match single_instance::acquire(paths, wake) {
             Ok(Acquired::Primary(primary)) => Some(primary),
             Ok(Acquired::Forwarded) => return Ok(()),
             Err(error) => {

@@ -28,3 +28,16 @@
 - Added an IME commit smoke test and AccessKit role/value/selection announcements.
 - Added cursor line/column, selection count, indentation, language, encoding, EOL, wrap, and large-file status.
 - Added local deterministic editor snapshots for light/dark and wrap/no-wrap, plus the remaining macOS/Windows manual checklist.
+
+## 0.3.0 — Workspace, tabs, and real time
+
+- Added document tabs with path deduplication, dirty markers, missing-file markers, close, close-others, close-saved, reorder, `Ctrl+Tab`/`Ctrl+Shift+Tab`, and `Cmd+W`.
+- Added a lazy workspace sidebar with folders first, hidden-file and `.gitignore` toggles, selection, expansion, and a user-resizable width.
+- Added open-folder, recent workspaces, drag-and-drop, new file, new folder, rename, delete with confirmation, and reveal in the platform file manager.
+- Added a debounced `notify` watcher with a polling fallback and workspace tree refresh.
+- Added clean-file external reload that preserves the cursor line/column and per-tab scroll offsets.
+- Added dirty-file conflict detection, a conflict banner, confirmation dialogs for reload/keep, and a `similar`-based comparison window.
+- Added a missing-file state with Save As and keep-editing actions.
+- Added session persistence for the workspace, open tabs, active tab, per-file scroll, sidebar state/width, window size, recent files, and recent workspaces.
+- Added multi-path command-line and single-instance forwarding.
+- Added sidebar, tab-bar, conflict-banner, and conflict-diff snapshots, plus 50k-file lazy-tree and 20-tab session tests.

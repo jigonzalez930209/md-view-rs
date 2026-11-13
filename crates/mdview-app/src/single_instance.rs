@@ -4,8 +4,8 @@
 //! asked to open, and exit. Namespaced sockets are used where the platform supports them;
 //! otherwise a temporary filesystem socket is used.
 
-use std::io::{self, BufRead, BufReader, Write};
-use std::path::{Path, PathBuf};
+use std::io::{self, Read, Write};
+use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
@@ -39,17 +39,17 @@ pub enum Acquired {
     Forwarded,
 }
 
-/// Acquire the single-instance role, forwarding `path` to an existing instance when there is one.
-pub fn acquire(path: Option<&Path>, wake: impl Fn() + Send + Sync + 'static) -> io::Result<Acquired> {
+/// Acquire the single-instance role, forwarding `paths` to an existing instance when there is one.
+pub fn acquire(paths: &[PathBuf], wake: impl Fn() + Send + Sync + 'static) -> io::Result<Acquired> {
     let name = socket_name()?;
-    if forward(&name, path)? {
+    if forward(&name, paths)? {
         return Ok(Acquired::Forwarded);
     }
 
     let listener = match ListenerOptions::new().name(name.clone()).create_sync() {
         Ok(listener) => listener,
         Err(error) if error.kind() == io::ErrorKind::AddrInUse => {
-            if forward(&name, path)? {
+            if forward(&name, paths)? {
                 return Ok(Acquired::Forwarded);
             }
             return Err(error);
@@ -60,10 +60,18 @@ pub fn acquire(path: Option<&Path>, wake: impl Fn() + Send + Sync + 'static) -> 
     let (sender, incoming) = mpsc::channel();
     let thread = thread::spawn(move || {
         for connection in listener.incoming().flatten() {
-            let mut line = String::new();
-            if BufReader::new(connection).read_line(&mut line).is_ok() {
-                let path = PathBuf::from(line.trim_end_matches(['\r', '\n']));
-                if sender.send(path).is_ok() {
+            let mut request = String::new();
+            if connection.take(1024 * 1024).read_to_string(&mut request).is_ok() {
+                let mut sent = false;
+                if request.trim().is_empty() {
+                    sent = sender.send(PathBuf::new()).is_ok();
+                } else {
+                    for line in request.lines() {
+                        let path = PathBuf::from(line.trim_end_matches(['\r', '\n']));
+                        sent |= sender.send(path).is_ok();
+                    }
+                }
+                if sent {
                     wake();
                 }
             }
@@ -76,15 +84,19 @@ pub fn acquire(path: Option<&Path>, wake: impl Fn() + Send + Sync + 'static) -> 
     }))
 }
 
-fn forward(name: &Name<'_>, path: Option<&Path>) -> io::Result<bool> {
+fn forward(name: &Name<'_>, paths: &[PathBuf]) -> io::Result<bool> {
     let Ok(mut stream) = Stream::connect(name.borrow()) else {
         return Ok(false);
     };
-    let line = path
-        .map(|path| path.to_string_lossy().replace('\n', " "))
-        .unwrap_or_default();
-    stream.write_all(line.as_bytes())?;
-    stream.write_all(b"\n")?;
+    if paths.is_empty() {
+        stream.write_all(b"\n")?;
+    } else {
+        for path in paths {
+            let line = path.to_string_lossy().replace(['\r', '\n'], " ");
+            stream.write_all(line.as_bytes())?;
+            stream.write_all(b"\n")?;
+        }
+    }
     stream.flush()?;
     Ok(true)
 }

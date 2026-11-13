@@ -33,6 +33,11 @@ pub enum FileError {
     Cancelled,
 }
 
+/// The file modification time, when it can be read.
+pub fn modified(path: &Path) -> Option<std::time::SystemTime> {
+    fs::metadata(path).ok()?.modified().ok()
+}
+
 /// Load a text document and detect its encoding and line endings.
 pub fn load(path: &Path) -> Result<Document, FileError> {
     decode_bytes(read_limited(path)?, path, None)

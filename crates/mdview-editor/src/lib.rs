@@ -68,6 +68,9 @@ pub struct Editor {
     pub(crate) last_click: Option<(Instant, egui::Pos2, u8)>,
     pub(crate) accessibility_revision: Option<u64>,
     pub(crate) announced_selection: Option<(usize, usize)>,
+    pub(crate) identity: u64,
+    pub(crate) scroll_y: f32,
+    pub(crate) restore_scroll: Option<f32>,
 }
 
 impl Editor {
@@ -100,6 +103,9 @@ impl Editor {
             last_click: None,
             accessibility_revision: None,
             announced_selection: None,
+            identity: 0,
+            scroll_y: 0.0,
+            restore_scroll: None,
         };
         editor.ensure_layout();
         editor.ensure_language();
@@ -116,6 +122,33 @@ impl Editor {
     /// Text edits must go through the editor so selection and syntax state stay coherent.
     pub fn document_mut(&mut self) -> &mut Document {
         &mut self.document
+    }
+
+    /// Give the editor a stable identity for its scroll area.
+    pub fn set_identity(&mut self, identity: u64) {
+        self.identity = identity;
+    }
+
+    /// The last vertical scroll offset.
+    pub fn scroll_offset(&self) -> f32 {
+        self.scroll_y
+    }
+
+    /// Restore a vertical scroll offset on the next frame.
+    pub fn set_scroll_offset(&mut self, offset: f32) {
+        self.restore_scroll = Some(offset.max(0.0));
+    }
+
+    /// The cursor as a character index.
+    pub fn cursor(&self) -> usize {
+        self.cursor
+    }
+
+    /// Move the cursor and collapse the selection.
+    pub fn move_cursor_to(&mut self, index: usize) {
+        self.cursor = index.min(self.document.len_chars());
+        self.anchor = self.cursor;
+        self.scroll_to_cursor = true;
     }
 
     /// Replace the document and reset view state.
@@ -137,6 +170,18 @@ impl Editor {
         self.bracket_revision = None;
         self.ensure_layout();
         self.ensure_language();
+    }
+
+    /// Replace the document while keeping the cursor on the same line and column.
+    ///
+    /// External reloads use this so a file change does not jump the user to the start.
+    pub fn replace_document_preserving_position(&mut self, document: Document) {
+        let (line, column) = self.document.line_col(self.cursor);
+        self.replace_document(document);
+        let index = self.document.char_index(line, column);
+        self.cursor = index;
+        self.anchor = index;
+        self.scroll_to_cursor = false;
     }
 
     /// Update the theme mode; highlighting is refreshed on the next frame.

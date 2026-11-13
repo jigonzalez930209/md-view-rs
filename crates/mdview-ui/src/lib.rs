@@ -28,6 +28,34 @@ pub enum Command {
     New,
     /// Show the native open dialog.
     Open,
+    /// Show the native folder dialog.
+    OpenFolder,
+    /// Close the workspace folder.
+    CloseFolder,
+    /// Create a file in the workspace root.
+    NewFile,
+    /// Open a recent file by index.
+    OpenRecent(usize),
+    /// Open a recent workspace by index.
+    OpenRecentWorkspace(usize),
+    /// Clear the recent-file list.
+    ClearRecent,
+    /// Close the active tab.
+    CloseTab,
+    /// Close every clean tab except the active one.
+    CloseOtherTabs,
+    /// Close every clean tab.
+    CloseSavedTabs,
+    /// Move the active tab one position left.
+    MoveTabLeft,
+    /// Move the active tab one position right.
+    MoveTabRight,
+    /// Activate the next tab.
+    NextTab,
+    /// Activate the previous tab.
+    PreviousTab,
+    /// Show or hide the workspace sidebar.
+    ToggleSidebar,
     /// Save the current document.
     Save,
     /// Show the native Save As dialog.
