@@ -2,21 +2,38 @@
 
 use egui::{RichText, Ui};
 use mdview_i18n::{LanguagePreference, Translations};
+use mdview_model::Encoding;
 use mdview_theme::ThemeMode;
 
 use crate::Command;
 
+/// Inputs for the menu bar.
+pub struct MenuState<'a> {
+    /// Translator.
+    pub translations: &'a Translations,
+    /// Active language.
+    pub lang: craft_i18n::Lang,
+    /// Active theme.
+    pub theme: ThemeMode,
+    /// Language preference.
+    pub language: LanguagePreference,
+    /// Document name shown at the end of the bar.
+    pub document_name: &'a str,
+    /// Whether the document is dirty.
+    pub dirty: bool,
+    /// Whether soft wrap is enabled.
+    pub wrap: bool,
+    /// Whether line numbers are enabled.
+    pub line_numbers: bool,
+}
+
 /// Draw the menu bar and return the selected command.
-pub fn show_menu(
-    ui: &mut Ui,
-    translations: &Translations,
-    lang: craft_i18n::Lang,
-    theme: ThemeMode,
-    language: LanguagePreference,
-    document_name: &str,
-    dirty: bool,
-) -> Option<Command> {
+pub fn show_menu(ui: &mut Ui, state: MenuState<'_>) -> Option<Command> {
     let mut command = None;
+    let translations = state.translations;
+    let lang = state.lang;
+    let theme = state.theme;
+    let language = state.language;
     let t = |source: &str| translations.t(lang, source);
 
     ui.horizontal(|ui| {
@@ -38,9 +55,39 @@ pub fn show_menu(
                 command = Some(Command::SaveAs);
                 ui.close();
             }
+            ui.menu_button(t("Reopen with Encoding"), |ui| {
+                for encoding in [
+                    Encoding::Utf8,
+                    Encoding::Utf16Le,
+                    Encoding::Utf16Be,
+                    Encoding::Windows1252,
+                    Encoding::Iso8859_1,
+                    Encoding::ShiftJis,
+                ] {
+                    if ui.button(encoding.label()).clicked() {
+                        command = Some(Command::ReloadEncoding(encoding));
+                        ui.close();
+                    }
+                }
+            });
             ui.separator();
             if ui.button(t("Quit")).clicked() {
                 command = Some(Command::Quit);
+                ui.close();
+            }
+        });
+
+        ui.menu_button(t("Edit"), |ui| {
+            if ui.button(t("Find")).clicked() {
+                command = Some(Command::Find);
+                ui.close();
+            }
+            if ui.button(t("Replace")).clicked() {
+                command = Some(Command::Replace);
+                ui.close();
+            }
+            if ui.button(t("Go to Line")).clicked() {
+                command = Some(Command::GotoLine);
                 ui.close();
             }
         });
@@ -79,6 +126,15 @@ pub fn show_menu(
                     ui.close();
                 }
             });
+            ui.separator();
+            if ui.selectable_label(state.wrap, t("Word wrap")).clicked() {
+                command = Some(Command::ToggleWrap);
+                ui.close();
+            }
+            if ui.selectable_label(state.line_numbers, t("Line numbers")).clicked() {
+                command = Some(Command::ToggleLineNumbers);
+                ui.close();
+            }
         });
 
         ui.menu_button(t("Help"), |ui| {
@@ -89,8 +145,8 @@ pub fn show_menu(
         });
 
         ui.separator();
-        let marker = if dirty { " •" } else { "" };
-        ui.label(RichText::new(format!("{document_name}{marker}")).color(ui.visuals().weak_text_color()));
+        let marker = if state.dirty { " •" } else { "" };
+        ui.label(RichText::new(format!("{}{marker}", state.document_name)).color(ui.visuals().weak_text_color()));
     });
 
     command

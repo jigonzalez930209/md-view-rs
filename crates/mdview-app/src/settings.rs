@@ -15,6 +15,8 @@ pub struct Prefs {
     pub language: LanguageSettings,
     /// Window settings.
     pub window: WindowSettings,
+    /// Editor settings.
+    pub editor: EditorSettings,
 }
 
 impl Settings for Prefs {
@@ -64,6 +66,25 @@ pub struct WindowSettings {
     pub height: f32,
 }
 
+/// Editor view settings.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct EditorSettings {
+    /// Soft-wrap long lines.
+    pub wrap: bool,
+    /// Show the line-number gutter.
+    pub line_numbers: bool,
+}
+
+impl Default for EditorSettings {
+    fn default() -> Self {
+        Self {
+            wrap: false,
+            line_numbers: true,
+        }
+    }
+}
+
 impl Default for WindowSettings {
     fn default() -> Self {
         Self {
@@ -105,6 +126,8 @@ mod tests {
         assert_eq!(prefs.theme_mode(), ThemeMode::Light);
         assert_eq!(prefs.language_preference(), LanguagePreference::Auto);
         assert!(prefs.window.width > 0.0);
+        assert!(!prefs.editor.wrap);
+        assert!(prefs.editor.line_numbers);
     }
 
     #[test]

@@ -9,6 +9,7 @@ publish.workspace = true
 [dependencies]
 craft-i18n.workspace = true
 egui.workspace = true
+mdview-editor.workspace = true
 mdview-i18n.workspace = true
 mdview-model.workspace = true
 mdview-theme.workspace = true

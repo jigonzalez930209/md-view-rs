@@ -25,7 +25,8 @@
 |---|---|---|
 | H0 | NOT STARTED as a separate spike phase | The H1 shell uses conventional egui widgets. The H0 risk gates remain for the editor, Mermaid, LaTeX, and animated SVG milestones. |
 | H1 | IN PROGRESS | The workspace, shell, settings, i18n, base themes, atomic save, CLI, and single-instance path forwarding are implemented and tested on Linux. Native dialog interaction and macOS/Windows manual verification are pending. |
-| H2–H11 | NOT STARTED | — |
+| H2 | IN PROGRESS | Rope editor, virtualization, syntax highlighting, find/replace, go-to-line, encoding/EOL, wrap, and large-file mode are implemented and tested on Linux. IME, screen-reader, visual snapshots, and macOS/Windows manual checks remain. |
+| H3–H11 | NOT STARTED | — |
 
 ---
 
@@ -1002,9 +1003,32 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 
 **Dependencies.** H1.
 
+**Progress (`0.2.0`)**
+
+| Item | Status | Evidence |
+|---|---|---|
+| Rope buffer, revisions, dirty state | DONE | `mdview-model` document tests |
+| Grouped undo/redo | DONE | undo/deletion tests and editor scale fixture |
+| Virtualized editor, gutter, line numbers, current line | DONE (Linux; macOS/Windows pending) | 10k-line editor scale test; 10.5 MB / 220k-line large-mode UI smoke; manual save |
+| Syntax highlighting and lazy line cache | DONE | `mdview-syntax` language tests; visible-range cache |
+| Language detection for the curated set | DONE | 31 extensions/filenames tested |
+| Auto-indent, bracket/quote pairing, bracket matching | DONE | bracket/unit tests; manual auto-pair smoke |
+| Find/replace regex, next/previous, replace all | DONE | `mdview-editor` find tests |
+| Go-to-line | DONE | `mdview-editor` goto test |
+| Encoding detection and reopen | DONE | file-ops tests for UTF-8/UTF-16/Windows-1252; menu command |
+| BOM and LF/CRLF/CR preservation | DONE | file-ops round-trip tests |
+| Mixed EOL detection | DONE | model test; saves as LF with a warning |
+| Soft wrap | DONE (unit layout; visual check pending) | wrap layout path and scale test |
+| Large-file mode and 100 MB cap | DONE | 10k-line scale test; 100 MB limit test |
+| Clipboard operations | IN PROGRESS | copy/cut/paste event path; manual matrix pending |
+| IME | IN PROGRESS | commit path implemented; manual IME test pending |
+| Accessibility | IN PROGRESS | keyboard/focus/role/hint; screen-reader test pending |
+| Visual snapshots | PENDING | snapshot harness not yet implemented |
+| macOS/Windows manual verification | PENDING | local Linux verification only |
+
 **Verifiable acceptance criteria**
 
-- The 20 languages in A.5 highlight a fixture with no panics and stable spans.
+- The curated languages in A.5 highlight a fixture with no panics and stable spans.
 - Editing 10 MB / 200k lines is possible; large mode activates; the file saves without corruption.
 - Typing p95 ≤ 16 ms at 10k lines and ≤ 33 ms at 100k lines in large mode.
 - Undo/redo survives 10,000 random edits and returns exactly to the original text.
@@ -1607,7 +1631,7 @@ These decisions change scope or distribution; resolve them before H1/H6/H9.
 
 ### A.5 Languages with 1.0 highlighting
 
-Curated set (20): Markdown, Plain Text, Rust, Python, JavaScript, TypeScript, TSX/JSX, JSON/JSONC, YAML, TOML, HTML, CSS/SCSS, XML, SQL, Shell (bash/zsh), PowerShell, C, C++, C#, Go, Java. Kotlin, Swift, PHP, Ruby, Lua, Dockerfile, Makefile, INI, Diff, and GraphQL may be added if the size budget allows; the rest is Post-1.0.
+Curated set: Markdown, Plain Text, Rust, Python, JavaScript, TypeScript, TSX/JSX, JSON/JSONC, YAML, TOML, HTML, CSS/SCSS, XML, SQL, Shell (bash/zsh), C, C++, C#, Go, Java, Kotlin, Swift, PHP, Ruby, Lua, Dockerfile, Makefile, INI, Diff, and GraphQL. PowerShell is detected by filename but remains plain text until a syntax definition is added.
 
 Detection: extension, exact filename (`Dockerfile`, `Makefile`), shebang; fallback to plain text. Large mode disables highlighting.
 

@@ -12,3 +12,15 @@
 - Added a command-line interface (`--help`, `--version`, one optional file).
 - Added single-instance coordination and file-path forwarding through a local socket.
 - Added the first repository checks: formatting, Clippy, tests, and the 500-line file-length limit.
+
+## 0.2.0 — Virtualized code editor
+
+- Replaced the simple text area with a Rope-based, virtualized editor that paints only visible rows.
+- Added line numbers, current-line highlighting, cursor and selection rendering, and a monospace gutter.
+- Added grouping undo/redo, save points, dirty revisions, and clipboard operations.
+- Added syntax highlighting for the curated language set with a lazy per-line cache.
+- Added auto-indent, bracket and quote pairing, bracket matching, Tab/Shift+Tab indentation, and soft wrap.
+- Added regex find/replace, match highlighting, next/previous navigation, replace-all, and go-to-line.
+- Added encoding detection for UTF-8/UTF-16/Windows-1252/ISO-8859-1/Shift_JIS, reopen-with-encoding, BOM preservation, and LF/CRLF/CR/mixed EOL reporting.
+- Added a 10 MB/200k-line large-file mode, a 100 MB hard limit, and lazy syntax highlighting.
+- Added cursor line/column, selection count, language, encoding, EOL, wrap, and large-file status.

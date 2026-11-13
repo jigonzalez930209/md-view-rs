@@ -8,8 +8,9 @@ use craft_dialogs::{Answer, Dialogs, FileDialog, Message, MessageButtons, Messag
 use craft_keymap::Chord;
 use craft_settings::{Location, SaveStatus, SettingsStore};
 use eframe::egui;
+use mdview_editor::Editor;
 use mdview_i18n::{LanguagePreference, Translations};
-use mdview_model::Document;
+use mdview_model::{Document, Encoding, Eol};
 use mdview_theme::ThemeMode;
 use mdview_ui::{CloseChoice, Command};
 
@@ -34,7 +35,7 @@ pub struct MdViewApp {
     lang: craft_i18n::Lang,
     theme: ThemeMode,
     language: LanguagePreference,
-    document: Document,
+    editor: Editor,
     dialogs: Dialogs<DialogThen>,
     about_open: bool,
     close_prompt_open: bool,
@@ -69,13 +70,20 @@ impl MdViewApp {
             Dialogs::new(Arc::new(move || ctx.request_repaint()))
         };
 
+        let mut editor = Editor::new(Document::untitled());
+        if !editor.status().large_mode {
+            editor.set_wrap(snapshot.editor.wrap);
+        }
+        editor.set_line_numbers(snapshot.editor.line_numbers);
+        editor.set_light(theme == ThemeMode::Light);
+
         let mut app = Self {
             prefs,
             translations,
             lang,
             theme,
             language,
-            document: Document::untitled(),
+            editor,
             dialogs,
             about_open: false,
             close_prompt_open: false,
@@ -117,14 +125,30 @@ impl MdViewApp {
         );
     }
 
+    fn show_info(&mut self, description: impl Into<String>) {
+        self.dialogs.ask_message(
+            Message {
+                level: MessageLevel::Info,
+                title: self.t("Information").to_owned(),
+                description: description.into(),
+                buttons: MessageButtons::Ok,
+            },
+            DialogThen::Ignored,
+        );
+    }
+
     fn load_document(&mut self, path: &Path) -> Result<(), FileError> {
         let document = file_ops::load(path)?;
-        self.document = document;
+        self.editor.replace_document(document);
+        self.editor.set_light(self.theme == ThemeMode::Light);
+        if !self.editor.status().large_mode {
+            self.editor.set_wrap(self.prefs.get().editor.wrap);
+        }
         Ok(())
     }
 
     fn open_from_dialog(&mut self, path: &Path, ctx: &egui::Context) {
-        if self.document.is_dirty() {
+        if self.editor.document().is_dirty() {
             self.show_error(self.t("Save or discard your changes first."));
             return;
         }
@@ -145,8 +169,8 @@ impl MdViewApp {
     }
 
     fn ask_save_as(&mut self, close_after: bool) {
-        let name = if self.document.path().is_some() {
-            self.document.display_name()
+        let name = if self.editor.document().path().is_some() {
+            self.editor.document().display_name()
         } else {
             "untitled.md".to_owned()
         };
@@ -165,7 +189,7 @@ impl MdViewApp {
     }
 
     fn request_save(&mut self, close_after: bool) {
-        let Some(path) = self.document.path().map(PathBuf::from) else {
+        let Some(path) = self.editor.document().path().map(PathBuf::from) else {
             self.ask_save_as(close_after);
             return;
         };
@@ -173,10 +197,16 @@ impl MdViewApp {
     }
 
     fn save_to(&mut self, path: &Path, close_after: bool, ctx: Option<&egui::Context>) {
-        match file_ops::save(&self.document, path) {
+        match file_ops::save(self.editor.document(), path) {
             Ok(()) => {
-                self.document.set_path(path.to_path_buf());
-                self.document.mark_saved();
+                let mixed = self.editor.document().eol() == Eol::Mixed;
+                self.editor.document_mut().set_path(path.to_path_buf());
+                if mixed {
+                    self.editor.document_mut().mark_saved_with_eol(Eol::Lf);
+                    self.show_info(self.t("Mixed line endings were saved as LF."));
+                } else {
+                    self.editor.document_mut().mark_saved();
+                }
                 if let Some(ctx) = ctx {
                     self.update_title(ctx);
                 }
@@ -195,11 +225,11 @@ impl MdViewApp {
     }
 
     fn new_document(&mut self, ctx: &egui::Context) {
-        if self.document.is_dirty() {
+        if self.editor.document().is_dirty() {
             self.show_error(self.t("Save or discard your changes first."));
             return;
         }
-        self.document = Document::untitled();
+        self.editor.replace_document(Document::untitled());
         self.update_title(ctx);
     }
 
@@ -207,7 +237,7 @@ impl MdViewApp {
         match command {
             Command::New => self.new_document(ctx),
             Command::Open => {
-                if self.document.is_dirty() {
+                if self.editor.document().is_dirty() {
                     self.show_error(self.t("Save or discard your changes first."));
                 } else {
                     self.ask_open();
@@ -217,8 +247,23 @@ impl MdViewApp {
             Command::SaveAs => self.ask_save_as(false),
             Command::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             Command::About => self.about_open = true,
+            Command::Find => self.editor.open_find(false),
+            Command::Replace => self.editor.open_find(true),
+            Command::GotoLine => self.editor.open_goto(),
+            Command::ToggleWrap => {
+                self.editor.toggle_wrap();
+                let wrap = self.editor.status().wrap;
+                self.prefs.update(|prefs| prefs.editor.wrap = wrap);
+            }
+            Command::ToggleLineNumbers => {
+                self.editor.toggle_line_numbers();
+                let line_numbers = self.editor.status().line_numbers;
+                self.prefs.update(|prefs| prefs.editor.line_numbers = line_numbers);
+            }
+            Command::ReloadEncoding(encoding) => self.reload_encoding(ctx, encoding),
             Command::SetTheme(mode) => {
                 self.theme = mode;
+                self.editor.set_light(mode == ThemeMode::Light);
                 self.prefs.update(|prefs| prefs.set_theme_mode(mode));
                 mdview_theme::apply(ctx, mode);
             }
@@ -227,6 +272,24 @@ impl MdViewApp {
                 self.lang = self.translations.lang(preference);
                 self.prefs.update(|prefs| prefs.set_language_preference(preference));
             }
+        }
+    }
+
+    fn reload_encoding(&mut self, ctx: &egui::Context, encoding: Encoding) {
+        if self.editor.document().is_dirty() {
+            self.show_error(self.t("Save or discard your changes first."));
+            return;
+        }
+        let Some(path) = self.editor.document().path().map(PathBuf::from) else {
+            return;
+        };
+        match file_ops::load_with_encoding(&path, encoding) {
+            Ok(document) => {
+                self.editor.replace_document(document);
+                self.editor.set_light(self.theme == ThemeMode::Light);
+                self.update_title(ctx);
+            }
+            Err(error) => self.show_error(format!("{} {error}", self.t("Could not open file."))),
         }
     }
 
@@ -271,7 +334,7 @@ impl MdViewApp {
         if self.consume_shortcut(ctx, "Cmd+N") {
             self.new_document(ctx);
         } else if self.consume_shortcut(ctx, "Cmd+O") {
-            if !self.document.is_dirty() {
+            if !self.editor.document().is_dirty() {
                 self.ask_open();
             }
         } else if self.consume_shortcut(ctx, "Cmd+S") {
@@ -284,8 +347,8 @@ impl MdViewApp {
     }
 
     fn update_title(&mut self, ctx: &egui::Context) {
-        let marker = if self.document.is_dirty() { " •" } else { "" };
-        let title = format!("MD View — {}{marker}", self.document.display_name());
+        let marker = if self.editor.document().is_dirty() { " •" } else { "" };
+        let title = format!("MD View — {}{marker}", self.editor.document().display_name());
         if title != self.window_title {
             self.window_title.clone_from(&title);
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title));
@@ -294,7 +357,7 @@ impl MdViewApp {
 
     fn handle_close_request(&mut self, ctx: &egui::Context) {
         if ctx.input(|input| input.viewport().close_requested()) && !self.allow_close {
-            if self.document.is_dirty() {
+            if self.editor.document().is_dirty() {
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
                 self.close_prompt_open = true;
             } else {
@@ -325,7 +388,7 @@ impl eframe::App for MdViewApp {
         for path in forwarded {
             if path.as_os_str().is_empty() {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
-            } else if self.document.is_dirty() {
+            } else if self.editor.document().is_dirty() {
                 self.show_error(self.t("Save or discard your changes first."));
             } else if let Err(error) = self.load_document(&path) {
                 self.show_error(format!("{} {error}", self.t("Could not open file.")));
@@ -356,14 +419,19 @@ impl eframe::App for MdViewApp {
 
         let mut command = None;
         egui::Panel::top("menu_bar").show(ui, |ui| {
+            let status = self.editor.status();
             command = mdview_ui::show_menu(
                 ui,
-                &self.translations,
-                self.lang,
-                self.theme,
-                self.language,
-                &self.document.display_name(),
-                self.document.is_dirty(),
+                mdview_ui::MenuState {
+                    translations: &self.translations,
+                    lang: self.lang,
+                    theme: self.theme,
+                    language: self.language,
+                    document_name: &self.editor.document().display_name(),
+                    dirty: self.editor.document().is_dirty(),
+                    wrap: status.wrap,
+                    line_numbers: status.line_numbers,
+                },
             );
         });
         if let Some(command) = command {
@@ -371,18 +439,21 @@ impl eframe::App for MdViewApp {
         }
 
         egui::Panel::bottom("status_bar").show(ui, |ui| {
-            mdview_ui::show_status(ui, &self.translations, self.lang, &self.document);
+            mdview_ui::show_status(
+                ui,
+                &self.translations,
+                self.lang,
+                self.editor.document(),
+                &self.editor.status(),
+            );
         });
 
         let mut open_requested = false;
         egui::CentralPanel::default().show(ui, |ui| {
-            if self.document.path().is_none() && self.document.text().is_empty() {
+            if self.editor.document().path().is_none() && self.editor.document().is_empty() {
                 open_requested = mdview_ui::show_welcome(ui, &self.translations, self.lang);
             } else {
-                let response = mdview_editor::show(ui, &mut self.document);
-                if response.changed() {
-                    self.update_title(ui.ctx());
-                }
+                self.editor.show(ui);
             }
         });
         if open_requested {
