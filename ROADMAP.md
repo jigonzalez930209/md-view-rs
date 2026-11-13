@@ -1035,7 +1035,7 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 - Typing p95 ≤ 16 ms at 10k lines and ≤ 33 ms at 100k lines in large mode.
 - Undo/redo survives 10,000 random edits and returns exactly to the original text.
 - Regex find/replace respects case, word boundaries, and replace-all as a single transaction.
-- Encoding/EOL fixtures round-trip; a BOM file keeps its BOM; “Mixed” warns and is not silently normalized.
+- Encoding/EOL fixtures round-trip; a BOM file keeps its BOM; mixed line endings are preserved per line and reported as “Mixed”.
 - Full keyboard navigation; IME smoke test; no focus loss when switching tabs.
 
 **Required tests**
@@ -1648,7 +1648,7 @@ Detection: extension, exact filename (`Dockerfile`, `Makefile`), shebang; fallba
 | Shift_JIS | Yes (detection/conversion) |
 | Other `encoding_rs` encodings | Best effort; shown in “Reopen with encoding” |
 | LF/CRLF/CR EOL | Yes; preserve on save |
-| Mixed EOL | Yes; “Mixed” state + warning; never silently normalize |
+| Mixed EOL | Yes; “Mixed” state and per-line preservation on save |
 | Binary (NUL) | Rejected as text with a clear message |
 
 ### A.7 Manual three-OS matrix
