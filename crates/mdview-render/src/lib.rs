@@ -181,7 +181,7 @@ impl Default for Preview {
             pending_anchor: None,
             source_map: SourceMap::default(),
             anchors: BTreeMap::new(),
-            width: 820.0,
+            width: 760.0,
             user_scrolled: false,
             viewport: egui::Rect::NOTHING,
         }
@@ -327,30 +327,36 @@ impl Preview {
         let area_output: ScrollAreaOutput<()> = area.show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.add_space(8.0);
-            ui.scope(|ui| {
-                ui.set_max_width(self.width.min(ui.available_width()));
-                let Some(cached) = &self.cached else {
-                    return;
-                };
-                let mut ctx = blocks::BlockCtx {
-                    theme,
-                    light,
-                    highlighter: &self.highlighter,
-                    output: &mut output,
-                };
-                for block in &cached.document.blocks {
-                    let response = ui
-                        .scope(|ui| blocks::show_block(ui, block, &mut ctx, &mut media))
-                        .response;
-                    block_screens.push(BlockScreen {
-                        block_id: block.id,
-                        start_line: block.span.start_line,
-                        end_line: block.span.end_line,
-                        top: response.rect.top(),
-                        bottom: response.rect.bottom(),
-                    });
-                    ui.add_space(6.0);
-                }
+            let available = ui.available_width();
+            let width = self.width.min(available);
+            let margin = ((available - width) * 0.5).max(4.0);
+            ui.horizontal_top(|ui| {
+                ui.add_space(margin);
+                ui.vertical(|ui| {
+                    ui.set_width(width);
+                    let Some(cached) = &self.cached else {
+                        return;
+                    };
+                    let mut ctx = blocks::BlockCtx {
+                        theme,
+                        light,
+                        highlighter: &self.highlighter,
+                        output: &mut output,
+                    };
+                    for block in &cached.document.blocks {
+                        let response = ui
+                            .scope(|ui| blocks::show_block(ui, block, &mut ctx, &mut media))
+                            .response;
+                        block_screens.push(BlockScreen {
+                            block_id: block.id,
+                            start_line: block.span.start_line,
+                            end_line: block.span.end_line,
+                            top: response.rect.top(),
+                            bottom: response.rect.bottom(),
+                        });
+                        ui.add_space(6.0);
+                    }
+                });
             });
             ui.add_space(12.0);
         });

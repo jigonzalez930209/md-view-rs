@@ -18,6 +18,8 @@ pub enum LanguagePreference {
     English,
     /// Spanish.
     Spanish,
+    /// English source wrapped in pseudo-locale markers.
+    Pseudo,
 }
 
 impl LanguagePreference {
@@ -26,6 +28,7 @@ impl LanguagePreference {
         match value {
             "en" => Self::English,
             "es" => Self::Spanish,
+            "pseudo" => Self::Pseudo,
             _ => Self::Auto,
         }
     }
@@ -36,6 +39,7 @@ impl LanguagePreference {
             Self::Auto => "auto",
             Self::English => "en",
             Self::Spanish => "es",
+            Self::Pseudo => "pseudo",
         }
     }
 
@@ -48,6 +52,7 @@ impl LanguagePreference {
 /// The translated UI for the current session.
 pub struct Translations {
     i18n: I18n,
+    pseudo: bool,
 }
 
 impl std::fmt::Debug for Translations {
@@ -64,7 +69,19 @@ impl Translations {
         for problem in problems {
             warn!("translation catalog: {problem}");
         }
-        Self { i18n }
+        Self { i18n, pseudo: false }
+    }
+
+    /// Build a pseudo-locale translator that wraps every resolved string.
+    pub fn with_pseudo() -> Self {
+        let mut translations = Self::new();
+        translations.pseudo = true;
+        translations
+    }
+
+    /// Whether this translator uses pseudo-locale markers.
+    pub fn is_pseudo(&self) -> bool {
+        self.pseudo
     }
 
     /// Resolve a preference to a concrete language.
@@ -73,6 +90,7 @@ impl Translations {
             LanguagePreference::Auto => self.i18n.system_lang(),
             LanguagePreference::English => Lang::EN,
             LanguagePreference::Spanish => self.i18n.from_code("es").unwrap_or(Lang::EN),
+            LanguagePreference::Pseudo => Lang::EN,
         }
     }
 
@@ -81,7 +99,12 @@ impl Translations {
     /// The result is owned so callers can build small UI closures without tying the source
     /// literal to the translator's borrow. Translation rows are short and this remains cheap.
     pub fn t(&self, lang: Lang, source: &str) -> String {
-        self.i18n.t(lang, source).to_owned()
+        let text = self.i18n.t(lang, source);
+        if self.pseudo {
+            format!("[!{text}!]")
+        } else {
+            text.to_owned()
+        }
     }
 
     /// The language name in its own language.
@@ -127,11 +150,22 @@ mod tests {
     }
 
     #[test]
+    fn pseudo_locale_marks_every_string() {
+        let translations = Translations::with_pseudo();
+        assert_eq!(translations.t(craft_i18n::Lang::EN, "File"), "[!File!]");
+        assert_eq!(
+            translations.t(craft_i18n::Lang::EN, "Not translated"),
+            "[!Not translated!]"
+        );
+    }
+
+    #[test]
     fn language_preference_round_trips() {
         for preference in [
             LanguagePreference::Auto,
             LanguagePreference::English,
             LanguagePreference::Spanish,
+            LanguagePreference::Pseudo,
         ] {
             assert_eq!(LanguagePreference::from_setting(preference.as_setting()), preference);
         }

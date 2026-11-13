@@ -2,7 +2,7 @@
 
 A native Markdown, text, and code editor for Windows, macOS, and Linux, built with Rust and egui.
 
-The project is at the `0.7.0` workspace milestone: a native shell with document tabs, a lazy folder tree, debounced filesystem watching, session restore, conflict handling, a virtualized code editor, syntax highlighting, regex find/replace, encoding detection, mixed-EOL preservation, background large-file loading, atomic saves, and English/Spanish UI. Markdown files open in a token-styled reading view with GFM tables, tasks, footnotes, alerts, safe HTML, internal links, source mapping, and Edit/Reading modes. Split view keeps the editor and preview synchronized with block anchors. The reading view embeds local and cached remote images, static and animated SVG, LaTeX math, and native Mermaid diagrams, with a zoomable lightbox. Themes and packaging arrive in later milestones described in [ROADMAP.md](ROADMAP.md).
+The project is at the `0.8.0` workspace milestone: a native shell with document tabs, a lazy folder tree, debounced filesystem watching, session restore, conflict handling, a virtualized code editor, syntax highlighting, regex find/replace, encoding detection, mixed-EOL preservation, background large-file loading, atomic saves, and English/Spanish UI. Markdown files open in a token-styled reading view with GFM tables, tasks, footnotes, alerts, safe HTML, internal links, source mapping, and Edit/Reading modes. Split view keeps the editor and preview synchronized with block anchors. The reading view embeds local and cached remote images, static and animated SVG, LaTeX math, and native Mermaid diagrams, with a zoomable lightbox. Nine themes, a settings window, a command palette, text scaling, and accessibility polish are in place. Packaging arrives in the final milestone described in [ROADMAP.md](ROADMAP.md).
 
 ## Build
 
@@ -31,6 +31,7 @@ Read [AGENT.md](AGENT.md) before changing code. It defines the English-only repo
 - Milestone H5: resizable horizontal/vertical split, per-file ratios, block-anchor bidirectional synchronization, echo suppression, and a scroll-sync toggle.
 - Milestone H6: local/remote images, static SVG with security limits, LaTeX, Mermaid, media cache, worker isolation, lightbox, and private-network policy.
 - Milestone H7: bounded SVG animation, play/pause, reduced motion, fuzz/hostile corpus tests, 50 MB scale coverage, and large-file preview refusal.
+- Milestone H8: nine themes, contrast gates, settings, command palette, quick open, text scaling, pseudo-locale, and centered reading layout.
 - Hosted CI/CD is intentionally deferred until `1.0.0`, after the local feature set is operational. Verify changes locally with the commands below.
 
 ```sh

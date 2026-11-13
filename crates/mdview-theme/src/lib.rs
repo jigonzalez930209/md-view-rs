@@ -1,10 +1,20 @@
 //! Theme tokens and egui style application for MD View.
 //!
-//! Milestone H1 ships the light and dark base themes. The full GitHub, Dracula, and One Dark Pro
-//! families are added in H8; all colors then come from the same token structure.
+//! Nine stable theme identifiers cover the GitHub, Dracula, and One Dark Pro families. Every
+//! color used by the shell, editor, and preview comes from [`Theme`]; the application never
+//! invents a literal color. Contrast is validated in tests against WCAG 2.2 AA.
 
-use craft_ui::theme::WidgetPalette;
+#![deny(missing_docs)]
+
+mod apply;
+mod contrast;
+mod palette;
+
 use egui::{Color32, CornerRadius, Stroke};
+
+pub use apply::{apply, apply_id, apply_theme, effective_id, set_reduced_motion};
+pub use contrast::{contrast_ratio, relative_luminance};
+pub use palette::ThemeId;
 
 /// The active color mode.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -31,13 +41,15 @@ impl ThemeMode {
     }
 }
 
-/// The color tokens used by the shell, editor, and future Markdown renderer.
+/// The color tokens used by the shell, editor, Markdown renderer, and media.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Theme {
     /// Window and panel background.
     pub background: Color32,
     /// Raised surfaces such as menus and dialogs.
     pub surface: Color32,
+    /// A second raised surface for cards and hovered rows.
+    pub surface_raised: Color32,
     /// Sunken surfaces such as code blocks and text fields.
     pub sunken: Color32,
     /// Primary text.
@@ -56,48 +68,43 @@ pub struct Theme {
     pub hover: Color32,
     /// Error color.
     pub danger: Color32,
+    /// Warning color.
+    pub warning: Color32,
+    /// Success color.
+    pub success: Color32,
     /// Link color.
     pub link: Color32,
+    /// Scrollbar thumb.
+    pub scrollbar: Color32,
+    /// Keyboard focus ring.
+    pub focus: Color32,
+    /// Table header background.
+    pub table_header: Color32,
+    /// Zebra table row background.
+    pub table_zebra: Color32,
+    /// Block quote border.
+    pub quote_border: Color32,
+    /// Code block background.
+    pub code_background: Color32,
 }
 
 impl Theme {
-    /// The light theme.
+    /// The GitHub light theme.
     pub fn light() -> Self {
-        Self {
-            background: Color32::from_rgb(0xfb, 0xfb, 0xfa),
-            surface: Color32::from_rgb(0xff, 0xff, 0xff),
-            sunken: Color32::from_rgb(0xf3, 0xf4, 0xf6),
-            text: Color32::from_rgb(0x1f, 0x23, 0x28),
-            text_muted: Color32::from_rgb(0x65, 0x6d, 0x76),
-            accent: Color32::from_rgb(0x09, 0x69, 0xda),
-            accent_text: Color32::from_rgb(0xff, 0xff, 0xff),
-            border: Color32::from_rgb(0xd1, 0xd9, 0xe0),
-            selection: Color32::from_rgb(0xcf, 0xe3, 0xfb),
-            hover: Color32::from_rgb(0xef, 0xf2, 0xf5),
-            danger: Color32::from_rgb(0xcf, 0x22, 0x2e),
-            link: Color32::from_rgb(0x09, 0x69, 0xda),
-        }
+        palette::theme(ThemeId::GithubLight)
     }
 
-    /// The dark theme.
+    /// The GitHub dark theme.
     pub fn dark() -> Self {
-        Self {
-            background: Color32::from_rgb(0x1e, 0x1f, 0x22),
-            surface: Color32::from_rgb(0x26, 0x28, 0x2c),
-            sunken: Color32::from_rgb(0x15, 0x16, 0x18),
-            text: Color32::from_rgb(0xe6, 0xe6, 0xe6),
-            text_muted: Color32::from_rgb(0xa0, 0xa6, 0xad),
-            accent: Color32::from_rgb(0x4c, 0x9a, 0xff),
-            accent_text: Color32::from_rgb(0x0b, 0x1b, 0x2e),
-            border: Color32::from_rgb(0x3a, 0x3d, 0x42),
-            selection: Color32::from_rgb(0x2f, 0x4f, 0x74),
-            hover: Color32::from_rgb(0x33, 0x36, 0x3b),
-            danger: Color32::from_rgb(0xff, 0x7b, 0x72),
-            link: Color32::from_rgb(0x7c, 0xb8, 0xff),
-        }
+        palette::theme(ThemeId::GithubDark)
     }
 
-    /// The theme for a mode.
+    /// The tokens for a stable theme identifier.
+    pub fn for_id(id: ThemeId) -> Self {
+        palette::theme(id)
+    }
+
+    /// The base tokens for a mode.
     pub fn for_mode(mode: ThemeMode) -> Self {
         match mode {
             ThemeMode::Light => Self::light(),
@@ -107,55 +114,18 @@ impl Theme {
 
     /// Whether the surface is dark, used by media and syntax palettes.
     pub fn is_dark(&self) -> bool {
-        let luminance = 0.2126 * self.background.r() as f32
-            + 0.7152 * self.background.g() as f32
-            + 0.0722 * self.background.b() as f32;
-        luminance < 128.0
+        relative_luminance(self.background) < 0.5
     }
-}
 
-/// Apply a theme to an egui context.
-pub fn apply(ctx: &egui::Context, mode: ThemeMode) {
-    let theme = Theme::for_mode(mode);
-    let mut visuals = match mode {
-        ThemeMode::Light => egui::Visuals::light(),
-        ThemeMode::Dark => egui::Visuals::dark(),
-    };
-
-    visuals.panel_fill = theme.background;
-    visuals.window_fill = theme.surface;
-    visuals.extreme_bg_color = theme.sunken;
-    visuals.faint_bg_color = theme.hover;
-    visuals.hyperlink_color = theme.link;
-    visuals.selection.bg_fill = theme.selection;
-    visuals.selection.stroke = Stroke::new(1.0, theme.text);
-    visuals.window_stroke = Stroke::new(1.0, theme.border);
-
-    WidgetPalette {
-        noninteractive: theme.background,
-        inactive: theme.surface,
-        hovered: theme.hover,
-        active: theme.accent,
-        open: theme.surface,
+    /// A complete egui stroke for borders.
+    pub fn border_stroke(&self) -> Stroke {
+        Stroke::new(1.0, self.border)
     }
-    .apply_to(
-        &mut visuals.widgets,
-        CornerRadius::same(6),
-        Stroke::new(1.0, theme.text),
-    );
 
-    visuals.widgets.inactive.weak_bg_fill = theme.surface;
-    visuals.widgets.inactive.bg_stroke = Stroke::new(1.0, theme.border);
-    visuals.widgets.hovered.bg_stroke = Stroke::new(1.0, theme.border);
-    visuals.widgets.active.fg_stroke = Stroke::new(1.0, theme.accent_text);
-    visuals.override_text_color = Some(theme.text);
-
-    ctx.all_styles_mut(|style| {
-        style.visuals = visuals.clone();
-        style.spacing.item_spacing = egui::vec2(8.0, 6.0);
-        style.spacing.button_padding = egui::vec2(10.0, 4.0);
-        style.spacing.interact_size.y = 28.0;
-    });
+    /// The corner radius used by cards and inputs.
+    pub fn radius(&self) -> CornerRadius {
+        CornerRadius::same(6)
+    }
 }
 
 #[cfg(test)]
@@ -177,5 +147,40 @@ mod tests {
         assert_ne!(light.background, dark.background);
         assert_ne!(light.text, dark.text);
         assert_ne!(light.accent, dark.accent);
+    }
+
+    #[test]
+    fn every_theme_has_consistent_darkness() {
+        for id in ThemeId::ALL {
+            let theme = Theme::for_id(id);
+            assert_eq!(theme.is_dark(), id.mode() == ThemeMode::Dark, "{id:?}");
+        }
+    }
+
+    #[test]
+    fn contrast_meets_aa_for_primary_pairs() {
+        for id in ThemeId::ALL {
+            let theme = Theme::for_id(id);
+            for (foreground, background, label) in [
+                (theme.text, theme.background, "text/background"),
+                (theme.text, theme.surface, "text/surface"),
+                (theme.text_muted, theme.background, "muted/background"),
+                (theme.link, theme.background, "link/background"),
+                (theme.accent_text, theme.accent, "accent text/accent"),
+                (theme.danger, theme.background, "danger/background"),
+            ] {
+                let ratio = contrast_ratio(foreground, background);
+                assert!(ratio >= 4.5, "{id:?} {label}: {ratio:.2}");
+            }
+        }
+    }
+
+    #[test]
+    fn focus_and_components_reach_three_to_one() {
+        for id in ThemeId::ALL {
+            let theme = Theme::for_id(id);
+            assert!(contrast_ratio(theme.focus, theme.background) >= 3.0, "{id:?}");
+            assert!(contrast_ratio(theme.border, theme.background) >= 1.2, "{id:?}");
+        }
     }
 }

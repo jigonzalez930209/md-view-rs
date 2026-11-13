@@ -8,6 +8,8 @@ mod close_prompt;
 mod loading;
 mod menu;
 mod mode;
+mod palette;
+mod settings;
 mod status;
 mod welcome;
 
@@ -16,15 +18,17 @@ pub use close_prompt::{CloseChoice, show_close_prompt};
 pub use loading::show_loading;
 pub use menu::{MenuState, show_menu};
 pub use mode::ViewMode;
+pub use palette::{PaletteItem, show_palette};
+pub use settings::{SettingsView, show_settings};
 pub use status::show_status;
 pub use welcome::show_welcome;
 
 use mdview_i18n::LanguagePreference;
 use mdview_model::Encoding;
-use mdview_theme::ThemeMode;
+use mdview_theme::ThemeId;
 
 /// A command requested by the shell.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Command {
     /// Create an empty document.
     New,
@@ -90,8 +94,20 @@ pub enum Command {
     ToggleReduceMotion,
     /// Reload the current file with another encoding.
     ReloadEncoding(Encoding),
-    /// Switch the base theme.
-    SetTheme(ThemeMode),
+    /// Switch the theme variant.
+    SetThemeId(ThemeId),
+    /// Follow the system light/dark preference within the active family.
+    SetFollowSystem(bool),
     /// Switch the UI language.
     SetLanguage(LanguagePreference),
+    /// Set the text scale.
+    SetZoom(f32),
+    /// Activate a tab by index.
+    ActivateTab(usize),
+    /// Open the settings window.
+    Settings,
+    /// Open the command palette.
+    CommandPalette,
+    /// Open the quick-open file palette.
+    QuickOpen,
 }

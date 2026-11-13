@@ -139,14 +139,43 @@ impl MdViewApp {
                 self.sync_session();
             }
             Command::ReloadEncoding(encoding) => self.reload_encoding(ctx, encoding),
-            Command::SetTheme(mode) => {
-                self.theme = mode;
-                self.apply_theme(mode);
-                self.prefs.update(|prefs| prefs.set_theme_mode(mode));
-                mdview_theme::apply(ctx, mode);
+            Command::SetThemeId(id) => {
+                self.theme_id = id;
+                self.prefs.update(|prefs| prefs.set_theme_id(id));
+                self.resolve_theme(ctx);
+            }
+            Command::SetZoom(zoom) => {
+                let zoom = zoom.clamp(0.8, 2.0);
+                self.prefs.update(|prefs| prefs.appearance.zoom = zoom);
+                ctx.set_zoom_factor(zoom);
+            }
+            Command::ActivateTab(index) => {
+                self.tabs.set_active(index);
+                self.update_title(ctx);
+            }
+            Command::Settings => self.settings_open = true,
+            Command::CommandPalette => {
+                self.palette_open = true;
+                self.palette_files = false;
+                self.palette_query.clear();
+            }
+            Command::QuickOpen => {
+                self.palette_open = true;
+                self.palette_files = true;
+                self.palette_query.clear();
+            }
+            Command::SetFollowSystem(follow) => {
+                self.follow_system = follow;
+                self.prefs.update(|prefs| prefs.appearance.follow_system = follow);
+                self.resolve_theme(ctx);
             }
             Command::SetLanguage(preference) => {
                 self.language = preference;
+                self.translations = if preference == mdview_i18n::LanguagePreference::Pseudo {
+                    mdview_i18n::Translations::with_pseudo()
+                } else {
+                    mdview_i18n::Translations::new()
+                };
                 self.lang = self.translations.lang(preference);
                 self.prefs.update(|prefs| prefs.set_language_preference(preference));
             }
@@ -264,6 +293,20 @@ impl MdViewApp {
             self.handle_command(ctx, Command::SetMode(next));
         } else if self.consume_shortcut(ctx, "Cmd+Shift+E") {
             self.handle_command(ctx, Command::SetMode(mdview_ui::ViewMode::Split));
+        } else if self.consume_shortcut(ctx, "Cmd+Shift+P") {
+            self.handle_command(ctx, Command::CommandPalette);
+        } else if self.consume_shortcut(ctx, "Cmd+P") {
+            self.handle_command(ctx, Command::QuickOpen);
+        } else if self.consume_shortcut(ctx, "Cmd+,") {
+            self.handle_command(ctx, Command::Settings);
+        } else if self.consume_shortcut(ctx, "Cmd+=") {
+            let zoom = ctx.zoom_factor() + 0.1;
+            self.handle_command(ctx, Command::SetZoom(zoom));
+        } else if self.consume_shortcut(ctx, "Cmd+-") {
+            let zoom = ctx.zoom_factor() - 0.1;
+            self.handle_command(ctx, Command::SetZoom(zoom));
+        } else if self.consume_shortcut(ctx, "Cmd+0") {
+            self.handle_command(ctx, Command::SetZoom(1.0));
         } else if self.consume_shortcut(ctx, "Cmd+B") {
             self.sidebar.open = !self.sidebar.open;
             self.sync_session();

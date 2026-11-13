@@ -31,7 +31,8 @@
 | H5 | DONE (Linux) | Resizable split, per-file ratio, bidirectional block-anchor sync, echo suppression, hover-aware conflict resolution, and horizontal/vertical snapshots. |
 | H6 | DONE (Linux) | Bounded images/SVG/math/Mermaid media pipeline, remote cache, lightbox, worker isolation, and light/dark rich-content snapshots. |
 | H7 | DONE (Linux) | SMIL/CSS animation subset with 30 fps playback, reduced motion, offscreen pause, fuzz/hostile tests, and 50 MB scale coverage. |
-| H8–H11 | NOT STARTED | — |
+| H8 | DONE (Linux; screen-reader/platform checks deferred) | Nine theme variants, contrast tests, settings, command palette, quick open, scaling, pseudo-locale, centered reading layout, and UI snapshots. |
+| H9–H11 | NOT STARTED | — |
 
 ---
 
@@ -1319,14 +1320,25 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 - Snapshots of key screens in 3 representative themes and 1x/2x; no unapproved visual regressions.
 - Animation respects reduced motion and does not affect typing.
 
-**Required tests**
+**Progress (`0.8.0`)**
 
-- **Unit:** tokens, contrast, theme fallback, i18n keys.
-- **Integration:** live theme/language/scale changes; keyboard navigation.
-- **Snapshot:** shell, editor, preview, settings, conflicts, empty states, 9 themes (key screens), 1x/2x.
-- **Manual 3 OS:** NVDA/VoiceOver/Orca, keyboard, DPI, system theme, reduced motion.
+| Item | Status | Evidence |
+|---|---|---|
+| Nine themes with complete tokens | DONE | `theme` tests; `theme-*` snapshots |
+| Light/dark/system and stable IDs | DONE | `ThemeId` tests; settings migration; follow-system path |
+| No hardcoded UI colors | DONE (renderer syntax colors guarded) | token layer; contrast guard in code blocks |
+| WCAG AA primary pairs and focus | DONE | `contrast_meets_aa_for_primary_pairs`, `focus_and_components_reach_three_to_one` |
+| Typography, spacing, radii, focus, animation | DONE | `apply` tokens; 28-point targets; reduced-motion setting |
+| Settings window | DONE | `settings.png`; settings command and shortcuts |
+| Command palette and quick open | DONE | `palette.png`; `Cmd+Shift+P`/`Cmd+P` |
+| Centered 70–80ch reading column | DONE | preview snapshots |
+| Responsive sidebar and vertical split | DONE | existing split/sidebar behavior |
+| 80–200% scaling and DPI-safe layout | DONE (Linux) | zoom slider, shortcuts, persisted factor |
+| Complete English/Spanish shell text and pseudo-locale | DONE (content badges remain English) | catalog scan test, pseudo-locale test |
+| Accessibility audit | PARTIAL | focus, labels, keyboard, contrast, AccessKit editor; manual screen-reader checks deferred |
+| Snapshots of key screens | DONE | editor, preview, split, media, settings, palette, conflicts, themes |
+| Manual 3 OS | DEFERRED to 1.0.0 | [`docs/release-checks.md`](docs/release-checks.md) |
 
----
 
 ### H9 — Distribution, file associations, and updates (`0.9.0`)
 

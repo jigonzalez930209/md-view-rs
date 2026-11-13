@@ -107,8 +107,20 @@ impl MdViewApp {
         }
     }
 
-    /// Keep the editor theme in sync with the shell theme.
-    pub(crate) fn apply_theme(&mut self, mode: ThemeMode) {
-        self.tabs.set_light(mode == ThemeMode::Light);
+    /// Resolve the active theme against the system preference and apply it everywhere.
+    pub(crate) fn resolve_theme(&mut self, ctx: &egui::Context) {
+        let system_dark = ctx
+            .input(|input| input.raw.system_theme)
+            .is_some_and(|theme| theme == egui::Theme::Dark);
+        self.last_system_dark = system_dark;
+        self.effective_theme = if self.follow_system {
+            self.theme_id.follow_system(system_dark)
+        } else {
+            self.theme_id
+        };
+        self.theme = self.effective_theme.mode();
+        self.tabs.set_light(self.theme == ThemeMode::Light);
+        mdview_theme::apply_id(ctx, self.effective_theme);
+        ctx.request_repaint();
     }
 }

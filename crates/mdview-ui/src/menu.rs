@@ -3,7 +3,7 @@
 use egui::{RichText, Ui};
 use mdview_i18n::{LanguagePreference, Translations};
 use mdview_model::Encoding;
-use mdview_theme::ThemeMode;
+use mdview_theme::{ThemeId, ThemeMode};
 
 use crate::{Command, ViewMode};
 
@@ -13,8 +13,12 @@ pub struct MenuState<'a> {
     pub translations: &'a Translations,
     /// Active language.
     pub lang: craft_i18n::Lang,
-    /// Active theme.
+    /// Active theme mode.
     pub theme: ThemeMode,
+    /// Active theme identifier.
+    pub theme_id: ThemeId,
+    /// Whether the family follows the system mode.
+    pub follow_system: bool,
     /// Language preference.
     pub language: LanguagePreference,
     /// Document name shown at the end of the bar.
@@ -197,6 +201,15 @@ pub fn show_menu(ui: &mut Ui, state: MenuState<'_>) -> Option<Command> {
         });
 
         ui.menu_button(t("Edit"), |ui| {
+            if ui.button(t("Command Palette…")).clicked() {
+                command = Some(Command::CommandPalette);
+                ui.close();
+            }
+            if ui.button(t("Quick Open…")).clicked() {
+                command = Some(Command::QuickOpen);
+                ui.close();
+            }
+            ui.separator();
             if ui.button(t("Find")).clicked() {
                 command = Some(Command::Find);
                 ui.close();
@@ -257,14 +270,28 @@ pub fn show_menu(ui: &mut Ui, state: MenuState<'_>) -> Option<Command> {
             });
             ui.separator();
             ui.menu_button(t("Appearance"), |ui| {
-                if ui.selectable_label(theme == ThemeMode::Light, t("Light")).clicked() {
-                    command = Some(Command::SetTheme(ThemeMode::Light));
+                if ui.selectable_label(state.follow_system, t("Follow system")).clicked() {
+                    command = Some(Command::SetFollowSystem(!state.follow_system));
                     ui.close();
                 }
-                if ui.selectable_label(theme == ThemeMode::Dark, t("Dark")).clicked() {
-                    command = Some(Command::SetTheme(ThemeMode::Dark));
-                    ui.close();
+                ui.separator();
+                for family in ["GitHub", "Dracula", "One Dark Pro"] {
+                    ui.menu_button(family, |ui| {
+                        for id in ThemeId::ALL.into_iter().filter(|id| id.family() == family) {
+                            if ui.selectable_label(state.theme_id == id, id.label()).clicked() {
+                                command = Some(Command::SetThemeId(id));
+                                ui.close();
+                            }
+                        }
+                    });
                 }
+                ui.separator();
+                let mode = if theme == ThemeMode::Dark {
+                    "Dark base"
+                } else {
+                    "Light base"
+                };
+                ui.label(egui::RichText::new(mode).weak());
             });
             ui.menu_button(t("Language"), |ui| {
                 if ui
@@ -288,6 +315,13 @@ pub fn show_menu(ui: &mut Ui, state: MenuState<'_>) -> Option<Command> {
                     command = Some(Command::SetLanguage(LanguagePreference::Spanish));
                     ui.close();
                 }
+                if ui
+                    .selectable_label(language == LanguagePreference::Pseudo, t("Pseudo-locale"))
+                    .clicked()
+                {
+                    command = Some(Command::SetLanguage(LanguagePreference::Pseudo));
+                    ui.close();
+                }
             });
             ui.separator();
             if ui
@@ -308,6 +342,10 @@ pub fn show_menu(ui: &mut Ui, state: MenuState<'_>) -> Option<Command> {
         });
 
         ui.menu_button(t("Help"), |ui| {
+            if ui.button(t("Settings…")).clicked() {
+                command = Some(Command::Settings);
+                ui.close();
+            }
             if ui.button(t("About MD View")).clicked() {
                 command = Some(Command::About);
                 ui.close();

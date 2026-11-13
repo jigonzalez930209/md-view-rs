@@ -174,7 +174,7 @@ fn show_table(
         .show(ui, |ui| {
             egui::Grid::new(ui.next_auto_id())
                 .striped(true)
-                .min_col_width(24.0)
+                .min_col_width(72.0)
                 .show(ui, |ui| {
                     for (index, cell) in head.iter().enumerate() {
                         let align = alignments.get(index).copied().unwrap_or_default();
@@ -331,6 +331,11 @@ fn show_plain_code(ui: &mut Ui, language: Option<&str>, text: &str, math: bool, 
                         .color
                         .map(|[r, g, b]| Color32::from_rgb(r, g, b))
                         .unwrap_or(ctx.theme.text);
+                    let color = if mdview_theme::contrast_ratio(color, ctx.theme.code_background) < 3.0 {
+                        ctx.theme.text
+                    } else {
+                        color
+                    };
                     job.append(
                         &span.text,
                         0.0,

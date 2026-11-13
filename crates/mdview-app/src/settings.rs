@@ -2,6 +2,8 @@
 
 use craft_settings::Settings;
 use mdview_i18n::LanguagePreference;
+use mdview_theme::ThemeId;
+#[cfg(test)]
 use mdview_theme::ThemeMode;
 use serde::{Deserialize, Serialize};
 
@@ -57,14 +59,20 @@ impl Default for MediaSettings {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
 pub struct Appearance {
-    /// `light` or `dark`.
+    /// Stable theme identifier (`github-light`, `dracula`, ...).
     pub theme: String,
+    /// Follow the system light/dark preference within the active family.
+    pub follow_system: bool,
+    /// Text scale from 0.8 to 2.0.
+    pub zoom: f32,
 }
 
 impl Default for Appearance {
     fn default() -> Self {
         Self {
-            theme: "light".to_owned(),
+            theme: "github-light".to_owned(),
+            follow_system: false,
+            zoom: 1.0,
         }
     }
 }
@@ -197,9 +205,20 @@ impl Default for WindowSettings {
 }
 
 impl Prefs {
+    /// The saved theme identifier.
+    pub fn theme_id(&self) -> ThemeId {
+        ThemeId::from_setting(&self.appearance.theme)
+    }
+
+    /// Whether the active family follows the system mode.
+    pub fn follow_system(&self) -> bool {
+        self.appearance.follow_system
+    }
+
     /// The saved theme mode.
+    #[cfg(test)]
     pub fn theme_mode(&self) -> ThemeMode {
-        ThemeMode::from_setting(&self.appearance.theme)
+        self.theme_id().mode()
     }
 
     /// The saved language preference.
@@ -207,9 +226,9 @@ impl Prefs {
         LanguagePreference::from_setting(&self.language.language)
     }
 
-    /// Store the theme mode.
-    pub fn set_theme_mode(&mut self, mode: ThemeMode) {
-        self.appearance.theme = mode.as_setting().to_owned();
+    /// Store the theme identifier.
+    pub fn set_theme_id(&mut self, id: ThemeId) {
+        self.appearance.theme = id.as_setting().to_owned();
     }
 
     /// Store the language preference.
@@ -225,7 +244,9 @@ mod tests {
     #[test]
     fn defaults_are_stable() {
         let prefs = Prefs::default();
-        assert_eq!(prefs.theme_mode(), ThemeMode::Light);
+        assert_eq!(prefs.theme_id(), ThemeId::GithubLight);
+        assert_eq!(prefs.theme_mode(), mdview_theme::ThemeMode::Light);
+        assert!(!prefs.follow_system());
         assert_eq!(prefs.language_preference(), LanguagePreference::Auto);
         assert!(prefs.window.width > 0.0);
         assert!(!prefs.editor.wrap);
@@ -262,7 +283,7 @@ mod tests {
     #[test]
     fn settings_round_trip() {
         let mut prefs = Prefs::default();
-        prefs.set_theme_mode(ThemeMode::Dark);
+        prefs.set_theme_id(ThemeId::Dracula);
         prefs.set_language_preference(LanguagePreference::Spanish);
         prefs.session.remember_recent("/tmp/a.md");
         prefs.session.remember_recent("/tmp/b.md");
@@ -278,5 +299,6 @@ mod tests {
         let text = toml::to_string(&prefs).expect("serialize prefs");
         let read: Prefs = toml::from_str(&text).expect("deserialize prefs");
         assert_eq!(read, prefs);
+        assert_eq!(read.theme_id(), ThemeId::Dracula);
     }
 }

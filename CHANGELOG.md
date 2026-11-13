@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.0 — Themes, polished UI, and accessibility
+
+- Added nine stable theme variants across GitHub, Dracula, and One Dark Pro, with complete color tokens, legacy ID migration, and follow-system family switching.
+- Added WCAG 2.2 contrast gates for every variant and regenerated the visual snapshots for the new palette.
+- Added a settings window for theme, text scale, language, editor behavior, media policy, animations, and reduced motion.
+- Added command palette (`Cmd+Shift+P`), quick open (`Cmd+P`), settings (`Cmd+,`), and 80–200% text scaling shortcuts.
+- Added a centered 70–80-character reading column, improved table sizing, 28-point controls, focus strokes, and consistent radii.
+- Added the pseudo-locale, completed the Spanish UI catalog for shell strings, and localized all settings and palette labels.
+- Added settings and palette snapshots plus three theme reference snapshots.
+- Documented the theme, accessibility, and UI contracts in `docs/themes.md`.
+
 ## 0.7.0 — Animated SVG and hardening
 
 - Added a bounded SMIL and CSS animation engine for SVG: `animate`, `animateTransform`, `set`, `@keyframes`, keyTimes, linear/discrete interpolation, repeat, and begin delays.

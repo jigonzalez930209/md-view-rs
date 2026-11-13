@@ -7,7 +7,7 @@ use crate::app::MdViewApp;
 impl MdViewApp {
     /// Paint the active tab as an editor and preview split.
     pub(crate) fn show_split(&mut self, ui: &mut egui::Ui, index: usize) {
-        let theme = mdview_theme::Theme::for_mode(self.theme);
+        let theme = mdview_theme::Theme::for_id(self.effective_theme);
         let light = self.theme == mdview_theme::ThemeMode::Light;
         let identity = self
             .tabs

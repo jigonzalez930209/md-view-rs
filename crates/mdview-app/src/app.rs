@@ -7,7 +7,7 @@ use craft_dialogs::{Dialogs, FileDialog, Message, MessageButtons, MessageLevel};
 use craft_settings::{Location, SettingsStore};
 use eframe::egui;
 use mdview_i18n::{LanguagePreference, Translations};
-use mdview_theme::ThemeMode;
+use mdview_theme::{ThemeId, ThemeMode};
 use mdview_ui::CloseChoice;
 use mdview_workspace::Workspace;
 
@@ -37,6 +37,14 @@ pub struct MdViewApp {
     pub(crate) translations: Translations,
     pub(crate) lang: craft_i18n::Lang,
     pub(crate) theme: ThemeMode,
+    pub(crate) theme_id: ThemeId,
+    pub(crate) effective_theme: ThemeId,
+    pub(crate) follow_system: bool,
+    pub(crate) last_system_dark: bool,
+    pub(crate) settings_open: bool,
+    pub(crate) palette_open: bool,
+    pub(crate) palette_query: String,
+    pub(crate) palette_files: bool,
     pub(crate) language: LanguagePreference,
     pub(crate) tabs: TabSet,
     pub(crate) dialogs: Dialogs<DialogThen>,
@@ -71,9 +79,24 @@ impl MdViewApp {
             log::warn!("settings: {report:?}");
         }
         let snapshot = prefs.get().clone();
-        let theme = snapshot.theme_mode();
+        let theme_id = snapshot.theme_id();
+        let follow_system = snapshot.follow_system();
+        let system_dark = cc
+            .egui_ctx
+            .input(|input| input.raw.system_theme)
+            .is_some_and(|theme| theme == egui::Theme::Dark);
+        let effective_theme = if follow_system {
+            theme_id.follow_system(system_dark)
+        } else {
+            theme_id
+        };
+        let theme = effective_theme.mode();
         let language = snapshot.language_preference();
-        let translations = Translations::new();
+        let translations = if language == LanguagePreference::Pseudo {
+            Translations::with_pseudo()
+        } else {
+            Translations::new()
+        };
         let lang = translations.lang(language);
         let dialogs = {
             let ctx = cc.egui_ctx.clone();
@@ -96,6 +119,14 @@ impl MdViewApp {
             translations,
             lang,
             theme,
+            theme_id,
+            effective_theme,
+            follow_system,
+            last_system_dark: system_dark,
+            settings_open: false,
+            palette_open: false,
+            palette_query: String::new(),
+            palette_files: false,
             language,
             tabs,
             dialogs,
@@ -114,7 +145,8 @@ impl MdViewApp {
             lightbox: None,
         };
 
-        mdview_theme::apply(&cc.egui_ctx, theme);
+        mdview_theme::apply_theme(&cc.egui_ctx, theme_id, follow_system);
+        cc.egui_ctx.set_zoom_factor(snapshot.appearance.zoom.clamp(0.8, 2.0));
         let media = snapshot.media.clone();
         app.media.set_policy(MediaPolicy {
             remote_images: media.remote_images,
