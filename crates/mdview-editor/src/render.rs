@@ -371,7 +371,7 @@ impl Editor {
             row += rows_for(self.display_widths.get(index).copied().unwrap_or(0), columns);
         }
         let text = self.document.line(line);
-        row + display_col(&text, column) / columns.max(1)
+        row + display_col(&text, column).saturating_sub(1) / columns
     }
 }
 
