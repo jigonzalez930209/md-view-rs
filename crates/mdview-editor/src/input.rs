@@ -68,6 +68,10 @@ impl Editor {
                 Event::Text(text) => self.insert_text(&text),
                 Event::Paste(text) => self.insert_text(&text),
                 Event::Ime(egui::ImeEvent::Commit(text)) => self.apply_ime_commit(&text),
+                Event::Ime(egui::ImeEvent::DeleteSurrounding {
+                    before_chars,
+                    after_chars,
+                }) => self.delete_surrounding(before_chars, after_chars),
                 Event::Copy => self.copy_selection(ui),
                 Event::Cut => {
                     self.copy_selection(ui);
@@ -231,6 +235,17 @@ impl Editor {
 
     pub(crate) fn apply_ime_commit(&mut self, text: &str) {
         self.insert_text(text);
+    }
+
+    fn delete_surrounding(&mut self, before_chars: usize, after_chars: usize) {
+        let start = self.cursor.saturating_sub(before_chars);
+        let end = (self.cursor + after_chars).min(self.document.len_chars());
+        if start < end {
+            self.document.delete_range(start, end);
+            self.cursor = start;
+            self.anchor = start;
+            self.scroll_to_cursor = true;
+        }
     }
 
     fn replace_selection(&mut self, text: &str) {
