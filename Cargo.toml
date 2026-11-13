@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*", "xtask"]
 
 [workspace.package]
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 rust-version = "1.95"
 license = "MIT OR Apache-2.0"
@@ -35,12 +35,25 @@ mdview-i18n = { path = "crates/mdview-i18n" }
 mdview-app = { path = "crates/mdview-app" }
 
 pulldown-cmark = "0.13"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "tiff"] }
+usvg = "=0.48.1"
+resvg = "=0.48.1"
+ureq = { version = "3.5", default-features = false, features = ["rustls"] }
+ratex-parser = "0.1.14"
+ratex-layout = "0.1.14"
+ratex-types = "0.1.14"
+ratex-svg = { version = "0.1.14", features = ["embed-fonts"] }
+fontdb = "0.24"
+mermaid-rs-renderer = { version = "0.3.1", default-features = false }
+blake3 = "1.8"
+mime = "0.3"
 
 craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5", default-features = false }
 craft-settings = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5" }
 craft-atomic = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5" }
 craft-dialogs = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5" }
 craft-docpath = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5" }
+craft-svg = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5", features = ["tree"] }
 craft-quit = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5", features = ["egui"] }
 craft-i18n = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5" }
 craft-keymap = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5", features = ["egui"] }
@@ -54,6 +67,7 @@ notify = "8.2"
 notify-debouncer-full = "0.7"
 ignore = "0.4"
 open = "5"
+dirs = "6"
 similar = "2"
 serde = { version = "1", features = ["derive"] }
 syntect = { version = "5.3", default-features = false, features = ["default-fancy", "parsing", "dump-load", "plist-load", "yaml-load", "regex-fancy"] }

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0 — Images, SVG, math, and Mermaid
+
+- Added `mdview-media`: bounded local/remote image loading, disk caching with ETag revalidation, image decoding with size limits, static SVG parsing/rasterization, RaTeX math rendering, and native Mermaid rendering.
+- Added a background media worker with a 16 MB stack, generation-based cancellation, and a 64 MB LRU texture cache.
+- Added inline images and image lightbox with 50%/100%/200% zoom; missing media shows an inline reason.
+- Added static SVG security checks for scripts, `javascript:`, `foreignObject`, entities, and external resources.
+- Added LaTeX inline/display/`math` fence rendering with embedded KaTeX fonts and dark-theme color.
+- Added Mermaid fences with fit-to-width rendering, a zoomable lightbox, source fallback, and a 20-diagram Tier A test.
+- Added `View → Media` toggles for remote images and private-network hosts; private networks stay blocked by default.
+- Added rich-content light/dark snapshots and a 100-formula corpus test.
+
 ## 0.5.0 — Split view and synchronized scrolling
 
 - Added a resizable 50/50 split with the editor on the left and the reading view on the right; narrow windows stack the preview below the editor.

@@ -52,11 +52,11 @@ and dark modes. Regenerate deliberately with:
 UPDATE_SNAPSHOTS=1 cargo test -p mdview-render
 ```
 
-## Known limits in `0.5.0`
+## Known limits in `0.6.0`
 
-- Images and math paint as labeled placeholders; media arrives in `0.6.0`.
 - Tables are horizontally compact rather than scrollable; wide-table polish arrives with the
   theme and layout milestone.
 - Split mode reparses the document when its revision changes and repaints the visible frame;
   per-block incremental layout is not yet cached.
+- Media security and caching details are in [`media.md`](media.md).
 - Cross-platform manual checks are deferred to the `1.0.0` release gate.

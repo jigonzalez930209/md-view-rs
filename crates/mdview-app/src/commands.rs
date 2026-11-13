@@ -150,6 +150,14 @@ impl MdViewApp {
                 self.lang = self.translations.lang(preference);
                 self.prefs.update(|prefs| prefs.set_language_preference(preference));
             }
+            Command::ToggleRemoteMedia => {
+                let remote = !self.prefs.get().media.remote_images;
+                self.prefs.update(|prefs| prefs.media.remote_images = remote);
+            }
+            Command::TogglePrivateNetworks => {
+                let private = !self.prefs.get().media.private_networks;
+                self.prefs.update(|prefs| prefs.media.private_networks = private);
+            }
             Command::ToggleSyncScroll => {
                 let sync = !self.prefs.get().editor.sync_scroll;
                 self.prefs.update(|prefs| prefs.editor.sync_scroll = sync);

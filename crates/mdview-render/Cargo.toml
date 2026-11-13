@@ -9,6 +9,7 @@ publish.workspace = true
 [dependencies]
 egui.workspace = true
 mdview-markdown.workspace = true
+mdview-media.workspace = true
 mdview-syntax.workspace = true
 mdview-theme.workspace = true
 
@@ -19,4 +20,6 @@ workspace = true
 egui = { workspace = true, features = ["default_fonts"] }
 mdview-editor.workspace = true
 mdview-model.workspace = true
+image.workspace = true
+tempfile = "3"
 egui_kittest = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a", features = ["wgpu", "snapshot"] }

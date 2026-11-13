@@ -80,6 +80,10 @@ pub enum Command {
     SetMode(ViewMode),
     /// Toggle split scroll synchronization.
     ToggleSyncScroll,
+    /// Toggle remote image loading.
+    ToggleRemoteMedia,
+    /// Toggle private-network image loading.
+    TogglePrivateNetworks,
     /// Reload the current file with another encoding.
     ReloadEncoding(Encoding),
     /// Switch the base theme.

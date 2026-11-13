@@ -20,9 +20,11 @@ mod source_map;
 
 use std::collections::{BTreeMap, hash_map::DefaultHasher};
 use std::hash::{Hash, Hasher};
+use std::path::PathBuf;
 
 use egui::{Ui, scroll_area::ScrollAreaOutput};
 use mdview_markdown::{LinkKind, MarkdownDocument, parse};
+use mdview_media::{MediaKind, MediaRequest};
 use mdview_syntax::Highlighter;
 use mdview_theme::Theme;
 
@@ -37,6 +39,73 @@ pub struct LinkActivation {
     pub kind: LinkKind,
 }
 
+/// The state of one media item requested by the preview.
+#[derive(Clone)]
+pub enum MediaState {
+    /// The item is being loaded.
+    Loading,
+    /// The item is ready as a texture.
+    Ready(egui::TextureHandle),
+    /// The item could not be produced.
+    Error(String),
+}
+
+/// A media resolver supplied by the application.
+pub trait MediaProvider {
+    /// Resolve one media request. The application may return `Loading` and complete later.
+    fn resolve(&mut self, ctx: &egui::Context, request: &MediaRequest) -> MediaState;
+}
+
+/// Per-paint media inputs.
+pub struct MediaContext<'a> {
+    /// Directory of the current document for relative paths.
+    pub base: Option<PathBuf>,
+    /// Application resolver.
+    pub provider: &'a mut dyn MediaProvider,
+}
+
+impl MediaContext<'_> {
+    /// Build a request with the preview's limits.
+    pub fn request(
+        &self,
+        ctx: &egui::Context,
+        kind: MediaKind,
+        source: &str,
+        max_width: f32,
+        dark: bool,
+    ) -> MediaRequest {
+        let pixels_per_point = ctx.pixels_per_point().max(1.0);
+        let mut request = MediaRequest::new(kind, source);
+        request.base.clone_from(&self.base);
+        request.max_width = (max_width * pixels_per_point).clamp(32.0, 4096.0) as u32;
+        request.max_height = 4096;
+        request.dark = dark;
+        request
+    }
+
+    /// Resolve a media item with the preview's limits.
+    pub fn load(
+        &mut self,
+        ctx: &egui::Context,
+        kind: MediaKind,
+        source: &str,
+        max_width: f32,
+        dark: bool,
+    ) -> MediaState {
+        let request = self.request(ctx, kind, source, max_width, dark);
+        self.provider.resolve(ctx, &request)
+    }
+}
+
+/// A request to open the image lightbox.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MediaLightbox {
+    /// The resolved request for the image.
+    pub request: MediaRequest,
+    /// Alternative text shown in the window title and placeholder.
+    pub alt: String,
+}
+
 /// What the preview reported during one paint.
 #[derive(Clone, Debug, Default)]
 pub struct PreviewOutput {
@@ -46,6 +115,8 @@ pub struct PreviewOutput {
     pub anchor: Option<String>,
     /// Whether the user copied a code block.
     pub copied: bool,
+    /// An image the user asked to inspect.
+    pub lightbox: Option<MediaLightbox>,
     pub(crate) anchors_screen: Vec<(String, f32)>,
 }
 
@@ -181,6 +252,31 @@ impl Preview {
 
     /// Paint the preview and report link and copy interactions.
     pub fn show(&mut self, ui: &mut Ui, source: &str, theme: &Theme, light: bool) -> PreviewOutput {
+        self.show_internal(ui, source, theme, light, None)
+    }
+
+    /// Paint the preview and resolve media through the application provider.
+    pub fn show_with_media(
+        &mut self,
+        ui: &mut Ui,
+        source: &str,
+        theme: &Theme,
+        light: bool,
+        base: Option<PathBuf>,
+        provider: &mut dyn MediaProvider,
+    ) -> PreviewOutput {
+        let mut media = MediaContext { base, provider };
+        self.show_internal(ui, source, theme, light, Some(&mut media))
+    }
+
+    fn show_internal(
+        &mut self,
+        ui: &mut Ui,
+        source: &str,
+        theme: &Theme,
+        light: bool,
+        media: Option<&mut MediaContext<'_>>,
+    ) -> PreviewOutput {
         let key = hash(source);
         if self.cached.as_ref().map(|cached| cached.key) != Some(key) {
             if let Some((line, fraction)) = self.source_map.line_at_offset(self.scroll).or(self.pending_line) {
@@ -196,6 +292,7 @@ impl Preview {
 
         let mut output = PreviewOutput::default();
         let mut block_screens = Vec::new();
+        let mut media = media;
 
         let mut area = egui::ScrollArea::vertical()
             .id_salt("mdview-markdown-preview")
@@ -220,7 +317,9 @@ impl Preview {
                     output: &mut output,
                 };
                 for block in &cached.document.blocks {
-                    let response = ui.scope(|ui| blocks::show_block(ui, block, &mut ctx)).response;
+                    let response = ui
+                        .scope(|ui| blocks::show_block(ui, block, &mut ctx, &mut media))
+                        .response;
                     block_screens.push(BlockScreen {
                         block_id: block.id,
                         start_line: block.span.start_line,

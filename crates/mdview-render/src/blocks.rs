@@ -4,11 +4,13 @@ use std::path::PathBuf;
 
 use egui::{Align, Color32, FontId, Label, Layout, RichText, TextFormat, Ui};
 use mdview_markdown::{Alignment, Block, BlockKind, Inline, ListItem, QuoteKind};
+use mdview_media::MediaKind;
 use mdview_syntax::Highlighter;
 use mdview_theme::Theme;
 
 use crate::PreviewOutput;
 use crate::inline::{show_inlines, text_of};
+use crate::{MediaContext, MediaLightbox, MediaState};
 
 /// Shared painting state.
 pub(crate) struct BlockCtx<'a> {
@@ -29,17 +31,33 @@ pub(crate) fn heading_size(level: u8) -> f32 {
     }
 }
 
-pub(crate) fn show_blocks(ui: &mut Ui, blocks: &[Block], ctx: &mut BlockCtx<'_>) {
+pub(crate) fn show_blocks(
+    ui: &mut Ui,
+    blocks: &[Block],
+    ctx: &mut BlockCtx<'_>,
+    media: &mut Option<&mut MediaContext<'_>>,
+) {
     for block in blocks {
-        show_block(ui, block, ctx);
+        show_block(ui, block, ctx, media);
         ui.add_space(6.0);
     }
 }
 
-pub(crate) fn show_block(ui: &mut Ui, block: &Block, ctx: &mut BlockCtx<'_>) {
+pub(crate) fn show_block(
+    ui: &mut Ui,
+    block: &Block,
+    ctx: &mut BlockCtx<'_>,
+    media: &mut Option<&mut MediaContext<'_>>,
+) {
     match &block.kind {
         BlockKind::Paragraph(inlines) => {
-            show_inlines(ui, inlines, ctx.theme, ctx.output);
+            show_inlines(
+                ui,
+                inlines,
+                ctx.theme,
+                ctx.output,
+                media.as_mut().map(|context| &mut **context),
+            );
         }
         BlockKind::Heading { level, anchor, inlines } => {
             let text = text_of(inlines);
@@ -55,7 +73,7 @@ pub(crate) fn show_block(ui: &mut Ui, block: &Block, ctx: &mut BlockCtx<'_>) {
             ctx.output.anchors_screen.push((anchor.clone(), response.rect.top()));
         }
         BlockKind::Code { language, text, math } => {
-            show_code(ui, language.as_deref(), text, *math, ctx);
+            show_code(ui, language.as_deref(), text, *math, ctx, media);
         }
         BlockKind::Html(html) => {
             egui::Frame::new()
@@ -81,11 +99,13 @@ pub(crate) fn show_block(ui: &mut Ui, block: &Block, ctx: &mut BlockCtx<'_>) {
                         ui.label(RichText::new(title).strong().color(alert_color(*kind, ctx.theme)));
                         ui.add_space(2.0);
                     }
-                    show_blocks(ui, blocks, ctx);
+                    show_blocks(ui, blocks, ctx, media);
                 });
         }
-        BlockKind::List { ordered, start, items } => show_list(ui, *ordered, *start, items, ctx),
-        BlockKind::Table { alignments, head, rows } => show_table(ui, alignments, head, rows, ctx),
+        BlockKind::List { ordered, start, items } => {
+            show_list(ui, *ordered, *start, items, ctx, media);
+        }
+        BlockKind::Table { alignments, head, rows } => show_table(ui, alignments, head, rows, ctx, media),
         BlockKind::Rule => {
             ui.separator();
         }
@@ -108,13 +128,20 @@ pub(crate) fn show_block(ui: &mut Ui, block: &Block, ctx: &mut BlockCtx<'_>) {
                             ctx.output.anchor = Some(format!("fnref-{label}"));
                         }
                     });
-                    show_blocks(ui, blocks, ctx);
+                    show_blocks(ui, blocks, ctx, media);
                 });
         }
     }
 }
 
-fn show_list(ui: &mut Ui, ordered: bool, start: u64, items: &[ListItem], ctx: &mut BlockCtx<'_>) {
+fn show_list(
+    ui: &mut Ui,
+    ordered: bool,
+    start: u64,
+    items: &[ListItem],
+    ctx: &mut BlockCtx<'_>,
+    media: &mut Option<&mut MediaContext<'_>>,
+) {
     for (index, item) in items.iter().enumerate() {
         ui.horizontal_top(|ui| {
             let marker = match item.task {
@@ -127,7 +154,7 @@ fn show_list(ui: &mut Ui, ordered: bool, start: u64, items: &[ListItem], ctx: &m
             ui.label(RichText::new(marker).color(ctx.theme.text_muted).strong());
             ui.add_space(4.0);
             ui.vertical(|ui| {
-                show_blocks(ui, &item.blocks, ctx);
+                show_blocks(ui, &item.blocks, ctx, media);
             });
         });
     }
@@ -139,6 +166,7 @@ fn show_table(
     head: &[Vec<Inline>],
     rows: &[Vec<Vec<Inline>>],
     ctx: &mut BlockCtx<'_>,
+    media: &mut Option<&mut MediaContext<'_>>,
 ) {
     egui::Frame::new()
         .stroke(egui::Stroke::new(1.0, ctx.theme.border))
@@ -150,13 +178,13 @@ fn show_table(
                 .show(ui, |ui| {
                     for (index, cell) in head.iter().enumerate() {
                         let align = alignments.get(index).copied().unwrap_or_default();
-                        table_cell(ui, cell, align, ctx, true);
+                        table_cell(ui, cell, align, ctx, media, true);
                     }
                     ui.end_row();
                     for row in rows {
                         for (index, cell) in row.iter().enumerate() {
                             let align = alignments.get(index).copied().unwrap_or_default();
-                            table_cell(ui, cell, align, ctx, false);
+                            table_cell(ui, cell, align, ctx, media, false);
                         }
                         ui.end_row();
                     }
@@ -164,7 +192,14 @@ fn show_table(
         });
 }
 
-fn table_cell(ui: &mut Ui, inlines: &[Inline], alignment: Alignment, ctx: &mut BlockCtx<'_>, header: bool) {
+fn table_cell(
+    ui: &mut Ui,
+    inlines: &[Inline],
+    alignment: Alignment,
+    ctx: &mut BlockCtx<'_>,
+    media: &mut Option<&mut MediaContext<'_>>,
+    header: bool,
+) {
     let layout = match alignment {
         Alignment::Right => Layout::right_to_left(Align::Center),
         Alignment::Center => Layout::centered_and_justified(egui::Direction::LeftToRight),
@@ -175,12 +210,87 @@ fn table_cell(ui: &mut Ui, inlines: &[Inline], alignment: Alignment, ctx: &mut B
             let text = text_of(inlines);
             ui.label(RichText::new(text).strong().color(ctx.theme.text));
         } else {
-            show_inlines(ui, inlines, ctx.theme, ctx.output);
+            show_inlines(
+                ui,
+                inlines,
+                ctx.theme,
+                ctx.output,
+                media.as_mut().map(|context| &mut **context),
+            );
         }
     });
 }
 
-fn show_code(ui: &mut Ui, language: Option<&str>, text: &str, math: bool, ctx: &mut BlockCtx<'_>) {
+fn show_code(
+    ui: &mut Ui,
+    language: Option<&str>,
+    text: &str,
+    math: bool,
+    ctx: &mut BlockCtx<'_>,
+    media: &mut Option<&mut MediaContext<'_>>,
+) {
+    if math && show_media_block(ui, MediaKind::Math, text, ctx, media) {
+        return;
+    }
+    if language.is_some_and(|language| language.eq_ignore_ascii_case("mermaid")) {
+        if show_media_block(ui, MediaKind::Mermaid, text, ctx, media) {
+            return;
+        }
+        ui.label(
+            RichText::new("Could not render this Mermaid diagram; showing the source.")
+                .small()
+                .color(ctx.theme.danger),
+        );
+    }
+    show_plain_code(ui, language, text, math, ctx);
+}
+
+fn show_media_block(
+    ui: &mut Ui,
+    kind: MediaKind,
+    source: &str,
+    ctx: &mut BlockCtx<'_>,
+    media: &mut Option<&mut MediaContext<'_>>,
+) -> bool {
+    let Some(media_context) = media.as_mut().map(|context| &mut **context) else {
+        return false;
+    };
+    let width = ui.available_width().max(64.0);
+    let request = media_context.request(ui.ctx(), kind, source, width, ctx.theme.is_dark());
+    match media_context.provider.resolve(ui.ctx(), &request) {
+        MediaState::Loading => {
+            ui.horizontal(|ui| {
+                ui.spinner();
+                ui.label(RichText::new("Rendering...").small().color(ctx.theme.text_muted));
+            });
+            true
+        }
+        MediaState::Ready(texture) => {
+            let points = texture.size_vec2() / ui.ctx().pixels_per_point().max(1.0);
+            let scale = (width / points.x).min(1.0);
+            let response = ui
+                .add(
+                    egui::Image::new(&texture)
+                        .fit_to_exact_size(points * scale)
+                        .sense(egui::Sense::click()),
+                )
+                .on_hover_cursor(egui::CursorIcon::ZoomIn);
+            if response.clicked() {
+                ctx.output.lightbox = Some(MediaLightbox {
+                    request,
+                    alt: format!("{} view", kind.label()),
+                });
+            }
+            true
+        }
+        MediaState::Error(error) => {
+            ui.label(RichText::new(error).small().color(ctx.theme.danger));
+            false
+        }
+    }
+}
+
+fn show_plain_code(ui: &mut Ui, language: Option<&str>, text: &str, math: bool, ctx: &mut BlockCtx<'_>) {
     egui::Frame::new()
         .fill(ctx.theme.sunken)
         .stroke(egui::Stroke::new(1.0, ctx.theme.border))

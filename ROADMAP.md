@@ -29,7 +29,8 @@
 | H3 | DONE (Linux; OS-rename identity matching deferred) | Tabs, lazy sidebar, watcher with polling fallback, clean reload, conflict diff, missing-file state, file operations, recent files/workspaces, multi-path opening, and session restore are implemented and tested on Linux. Snapshots cover sidebar, tabs, conflict banner, and diff. |
 | H4 | DONE (Linux) | CommonMark/GFM AST with spans, reading view, safe HTML, links, alerts, tasks, tables, footnotes, code highlighting, source map, per-mode scroll, light/dark snapshots, and app tests. |
 | H5 | DONE (Linux) | Resizable split, per-file ratio, bidirectional block-anchor sync, echo suppression, hover-aware conflict resolution, and horizontal/vertical snapshots. |
-| H6–H11 | NOT STARTED | — |
+| H6 | DONE (Linux) | Bounded images/SVG/math/Mermaid media pipeline, remote cache, lightbox, worker isolation, and light/dark rich-content snapshots. |
+| H7–H11 | NOT STARTED | — |
 
 ---
 
@@ -1229,14 +1230,23 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 - Theme changes recolor syntax, math, and Mermaid without reloading images.
 - Cache memory stays within budget and is released on tab close.
 
-**Required tests**
+**Progress (`0.6.0`)**
 
-- **Unit:** path validation, limits, cache, delimiter parsing, errors.
-- **Integration:** local HTTP server for success/404/timeout; hostile SVG; huge images.
-- **Snapshot:** images, SVG, 10 formulas, 10 Mermaid diagrams, placeholders, and errors in light/dark.
-- **Manual 3 OS:** high DPI, offline, proxy, accented/spaced paths, zoom.
+| Item | Status | Evidence |
+|---|---|---|
+| Local images: relative, absolute, `file:`, validation | DONE | `local_images_decode`; `craft-docpath` resolution |
+| Remote images: ureq, disk cache, ETag, limits, retry | DONE | `remote_images_cache_and_revalidate`; 12 s timeout; 32 MB limit |
+| Remote images disabled / LAN blocked by default | DONE | `MediaPolicy`; `private_network_detection`; View → Media |
+| Static SVG: limits, fonts, DPR, no scripts/external resources | DONE | `renders_a_basic_svg`, `scripts_and_external_resources_are_refused`, `nesting_beyond_the_limit_fails_cleanly` |
+| LaTeX inline/display/math fence, cache, errors | DONE | `one_hundred_formulas_render`, `invalid_math_reports_an_error`, dark-pixel test |
+| Mermaid fences, theme, fit to width, diagnostic | DONE | `twenty_tier_a_diagrams_render`, `unsupported_diagrams_report_an_error` |
+| Image lightbox and zoom | DONE (code path; manual click pending) | `lightbox.rs`; image click sets `MediaLightbox` |
+| Media worker concurrency and cancellation | DONE | dedicated worker, generation-filtered results, `the_worker_loads_a_local_image` |
+| LRU cache budget and tab-close release | DONE | `MediaCache` tests; 64 MB cap; `clear_cache` |
+| Security tests: path traversal, hostile SVG, malicious URL, huge image | DONE | media unit tests; unsafe scheme tests in `links` |
+| Rich-content light/dark snapshots | DONE | `media-light.png`, `media-dark.png` |
+| Manual 3 OS | DEFERRED to 1.0.0 | [`docs/release-checks.md`](docs/release-checks.md) |
 
----
 
 ### H7 — Animated SVG and hardening (`0.7.0`)
 

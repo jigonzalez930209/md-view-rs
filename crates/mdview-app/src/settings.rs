@@ -19,11 +19,32 @@ pub struct Prefs {
     pub editor: EditorSettings,
     /// Restored session and recent files.
     pub session: SessionSettings,
+    /// Media loading policy.
+    pub media: MediaSettings,
 }
 
 impl Settings for Prefs {
     const APP_ID: &'static str = "mdview";
     const SCHEMA_VERSION: u32 = 1;
+}
+
+/// Media loading policy.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(default)]
+pub struct MediaSettings {
+    /// Fetch remote images referenced by documents.
+    pub remote_images: bool,
+    /// Allow URLs that resolve to private network addresses.
+    pub private_networks: bool,
+}
+
+impl Default for MediaSettings {
+    fn default() -> Self {
+        Self {
+            remote_images: true,
+            private_networks: false,
+        }
+    }
 }
 
 /// Theme and density settings.
@@ -204,6 +225,8 @@ mod tests {
         assert!(!prefs.editor.wrap);
         assert!(prefs.editor.line_numbers);
         assert!(prefs.editor.sync_scroll);
+        assert!(prefs.media.remote_images);
+        assert!(!prefs.media.private_networks);
         assert!(prefs.session.sidebar_open);
         assert!(prefs.session.open_files.is_empty());
         assert_eq!(prefs.session.sidebar_width, 260.0);

@@ -96,6 +96,7 @@ impl MdViewApp {
             return;
         }
         self.tabs.close(index);
+        self.media.clear_cache();
         self.sync_session();
         self.update_title(ctx);
     }

@@ -2,9 +2,10 @@
 
 use egui::{Label, RichText, Sense, Ui};
 use mdview_markdown::{Inline, LinkKind, plain_text};
+use mdview_media::MediaKind;
 use mdview_theme::Theme;
 
-use crate::{LinkActivation, PreviewOutput};
+use crate::{LinkActivation, MediaContext, MediaLightbox, MediaState, PreviewOutput};
 
 /// One styled run of inline text.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -21,6 +22,7 @@ pub(crate) struct Segment {
     pub link: Option<LinkTarget>,
     pub image: bool,
     pub math: bool,
+    pub display_math: bool,
     pub footnote: Option<String>,
 }
 
@@ -101,7 +103,8 @@ fn flatten(inlines: &[Inline], style: &Segment, html: &mut HtmlState, out: &mut 
             Inline::Math { tex, display } => {
                 let mut segment = style.clone();
                 segment.math = true;
-                segment.text = if *display { format!("Math: {tex}") } else { tex.clone() };
+                segment.display_math = *display;
+                segment.text.clone_from(tex);
                 push_segment(segment, html, out);
             }
             Inline::FootnoteReference(label) => {
@@ -164,22 +167,38 @@ fn apply_html(raw: &str, html: &mut HtmlState, style: &Segment, out: &mut Vec<Se
 }
 
 /// Paint one inline sequence in the current layout.
-pub(crate) fn show_inlines(ui: &mut Ui, inlines: &[Inline], theme: &Theme, output: &mut PreviewOutput) {
+pub(crate) fn show_inlines(
+    ui: &mut Ui,
+    inlines: &[Inline],
+    theme: &Theme,
+    output: &mut PreviewOutput,
+    mut media: Option<&mut MediaContext<'_>>,
+) {
     let segments = segments(inlines);
-    let mut first = true;
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
         for segment in &segments {
-            if !first && !segment.monospace {
-                ui.add_space(0.0);
-            }
-            first = false;
-            show_segment(ui, segment, theme, output);
+            let next = media.as_deref_mut();
+            show_segment(ui, segment, theme, output, next);
         }
     });
 }
 
-fn show_segment(ui: &mut Ui, segment: &Segment, theme: &Theme, output: &mut PreviewOutput) {
+fn show_segment(
+    ui: &mut Ui,
+    segment: &Segment,
+    theme: &Theme,
+    output: &mut PreviewOutput,
+    media: Option<&mut MediaContext<'_>>,
+) {
+    if segment.math {
+        show_math(ui, segment, theme, media);
+        return;
+    }
+    if segment.image {
+        show_image(ui, segment, theme, output, media);
+        return;
+    }
     let mut text = RichText::new(&segment.text).color(theme.text);
     if segment.strong {
         text = text.strong();
@@ -205,12 +224,6 @@ fn show_segment(ui: &mut Ui, segment: &Segment, theme: &Theme, output: &mut Prev
     if segment.superscript {
         text = text.size(11.0);
     }
-    if segment.image {
-        text = text.italics().color(theme.text_muted);
-    }
-    if segment.math {
-        text = text.italics().color(theme.accent);
-    }
     if let Some(footnote) = &segment.footnote {
         text = text.color(theme.link).size(11.0).strong();
         let response = ui.add(Label::new(text).sense(Sense::click())).on_hover_text("Footnote");
@@ -223,9 +236,12 @@ fn show_segment(ui: &mut Ui, segment: &Segment, theme: &Theme, output: &mut Prev
         text = text.color(theme.link).underline();
     }
     if segment.link.is_some() || segment.image {
-        let response = ui
+        let mut response = ui
             .add(Label::new(text).sense(Sense::click()))
             .on_hover_cursor(egui::CursorIcon::PointingHand);
+        if let Some(target) = &segment.link {
+            response = response.on_hover_text(&target.destination);
+        }
         if response.clicked()
             && let Some(target) = &segment.link
         {
@@ -237,8 +253,94 @@ fn show_segment(ui: &mut Ui, segment: &Segment, theme: &Theme, output: &mut Prev
     } else {
         ui.add(Label::new(text));
     }
-    if segment.image {
-        ui.add_space(2.0);
+}
+
+fn show_image(
+    ui: &mut Ui,
+    segment: &Segment,
+    theme: &Theme,
+    output: &mut PreviewOutput,
+    media: Option<&mut MediaContext<'_>>,
+) {
+    let Some(target) = &segment.link else {
+        return;
+    };
+    let max_width = ui.available_width().clamp(32.0, 720.0);
+    let alt = segment.text.clone();
+    let Some(media_context) = media else {
+        ui.label(RichText::new(&alt).italics().color(theme.text_muted));
+        return;
+    };
+    let request = media_context.request(
+        ui.ctx(),
+        MediaKind::Image,
+        &target.destination,
+        max_width,
+        theme.is_dark(),
+    );
+    match media_context.provider.resolve(ui.ctx(), &request) {
+        MediaState::Loading => {
+            ui.spinner();
+            ui.label(RichText::new(&alt).italics().color(theme.text_muted));
+        }
+        MediaState::Ready(texture) => {
+            let points = texture.size_vec2() / ui.ctx().pixels_per_point().max(1.0);
+            let scale = (max_width / points.x).min(1.0);
+            let response = ui
+                .add(
+                    egui::Image::new(&texture)
+                        .fit_to_exact_size(points * scale)
+                        .sense(Sense::click()),
+                )
+                .on_hover_text(if alt.is_empty() {
+                    target.destination.clone()
+                } else {
+                    alt.clone()
+                });
+            if response.clicked() {
+                output.lightbox = Some(MediaLightbox {
+                    request: request.clone(),
+                    alt,
+                });
+            }
+        }
+        MediaState::Error(error) => {
+            egui::Frame::new()
+                .fill(theme.sunken)
+                .stroke(egui::Stroke::new(1.0, theme.danger))
+                .inner_margin(6.0)
+                .show(ui, |ui| {
+                    ui.label(RichText::new(&alt).italics().color(theme.text_muted));
+                    ui.label(RichText::new(error).small().color(theme.danger));
+                });
+        }
+    }
+}
+
+fn show_math(ui: &mut Ui, segment: &Segment, theme: &Theme, media: Option<&mut MediaContext<'_>>) {
+    let Some(media_context) = media else {
+        ui.label(RichText::new(&segment.text).italics().color(theme.accent));
+        return;
+    };
+    let max_width = ui.available_width().clamp(32.0, 480.0);
+    match media_context.load(ui.ctx(), MediaKind::Math, &segment.text, max_width, theme.is_dark()) {
+        MediaState::Loading => {
+            ui.spinner();
+        }
+        MediaState::Ready(texture) => {
+            let points = texture.size_vec2() / ui.ctx().pixels_per_point().max(1.0);
+            let max_height = if segment.display_math { 40.0 } else { 22.0 };
+            let scale = (max_width / points.x).min(max_height / points.y).min(1.0);
+            ui.add(egui::Image::new(&texture).fit_to_exact_size(points * scale));
+        }
+        MediaState::Error(error) => {
+            ui.label(
+                RichText::new(format!("{}\n{error}", segment.text))
+                    .italics()
+                    .small()
+                    .color(theme.danger),
+            );
+        }
     }
 }
 

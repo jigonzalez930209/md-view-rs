@@ -104,6 +104,14 @@ impl Theme {
             ThemeMode::Dark => Self::dark(),
         }
     }
+
+    /// Whether the surface is dark, used by media and syntax palettes.
+    pub fn is_dark(&self) -> bool {
+        let luminance = 0.2126 * self.background.r() as f32
+            + 0.7152 * self.background.g() as f32
+            + 0.0722 * self.background.b() as f32;
+        luminance < 128.0
+    }
 }
 
 /// Apply a theme to an egui context.

@@ -13,6 +13,7 @@ use mdview_workspace::Workspace;
 
 use crate::cli::CliAction;
 use crate::document_ops::DiffState;
+use crate::media_runtime::{MediaPolicy, MediaRuntime};
 use crate::settings::Prefs;
 use crate::sidebar::Sidebar;
 use crate::single_instance::Primary;
@@ -50,6 +51,8 @@ pub struct MdViewApp {
     pub(crate) diff: Option<DiffState>,
     pub(crate) last_file_poll: Instant,
     pub(crate) last_window_poll: Instant,
+    pub(crate) media: MediaRuntime,
+    pub(crate) lightbox: Option<crate::lightbox::LightboxState>,
 }
 
 impl MdViewApp {
@@ -107,9 +110,16 @@ impl MdViewApp {
             diff: None,
             last_file_poll: Instant::now(),
             last_window_poll: Instant::now(),
+            media: MediaRuntime::new(&cc.egui_ctx),
+            lightbox: None,
         };
 
         mdview_theme::apply(&cc.egui_ctx, theme);
+        let media = snapshot.media.clone();
+        app.media.set_policy(MediaPolicy {
+            remote_images: media.remote_images,
+            private_networks: media.private_networks,
+        });
         let width = snapshot.window.width.clamp(640.0, 10_000.0);
         let height = snapshot.window.height.clamp(420.0, 10_000.0);
         cc.egui_ctx

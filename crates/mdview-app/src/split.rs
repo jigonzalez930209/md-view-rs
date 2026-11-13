@@ -32,9 +32,23 @@ impl MdViewApp {
                 .default_size(available * ratio)
                 .min_size(120.0)
                 .show(ui, |ui| {
+                    let base = self
+                        .tabs
+                        .tabs()
+                        .get(index)
+                        .and_then(|tab| tab.editor.document().path())
+                        .and_then(std::path::Path::parent)
+                        .map(std::path::Path::to_path_buf);
                     if let Some(tab) = self.tabs.tab_mut(index) {
                         tab.ensure_preview();
-                        preview_output = Some(tab.preview.show(ui, &tab.preview_source, &theme, light));
+                        preview_output = Some(tab.preview.show_with_media(
+                            ui,
+                            &tab.preview_source,
+                            &theme,
+                            light,
+                            base,
+                            &mut self.media,
+                        ));
                     }
                 });
             let height = panel.response.rect.height();
@@ -53,9 +67,23 @@ impl MdViewApp {
                 .default_size(available * ratio)
                 .min_size(200.0)
                 .show(ui, |ui| {
+                    let base = self
+                        .tabs
+                        .tabs()
+                        .get(index)
+                        .and_then(|tab| tab.editor.document().path())
+                        .and_then(std::path::Path::parent)
+                        .map(std::path::Path::to_path_buf);
                     if let Some(tab) = self.tabs.tab_mut(index) {
                         tab.ensure_preview();
-                        preview_output = Some(tab.preview.show(ui, &tab.preview_source, &theme, light));
+                        preview_output = Some(tab.preview.show_with_media(
+                            ui,
+                            &tab.preview_source,
+                            &theme,
+                            light,
+                            base,
+                            &mut self.media,
+                        ));
                     }
                 });
             let width = panel.response.rect.width();
@@ -85,6 +113,13 @@ impl MdViewApp {
         });
 
         if let Some(output) = preview_output {
+            if let Some(lightbox) = output.lightbox.clone() {
+                self.lightbox = Some(crate::lightbox::LightboxState {
+                    request: lightbox.request,
+                    alt: lightbox.alt,
+                    scale: 1.0,
+                });
+            }
             self.handle_preview_output(output, ui.ctx());
         }
     }

@@ -18,6 +18,7 @@ craft-i18n.workspace = true
 craft-keymap.workspace = true
 craft-quit.workspace = true
 craft-settings.workspace = true
+dirs.workspace = true
 chardetng = "1.0"
 eframe.workspace = true
 egui.workspace = true
@@ -28,6 +29,7 @@ log.workspace = true
 mdview-editor.workspace = true
 mdview-i18n.workspace = true
 mdview-markdown.workspace = true
+mdview-media.workspace = true
 mdview-model.workspace = true
 mdview-render.workspace = true
 mdview-workspace.workspace = true
@@ -40,6 +42,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 egui = { workspace = true, features = ["default_fonts"] }
+image.workspace = true
 egui_kittest = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a", features = ["wgpu", "snapshot"] }
 tempfile = "3"
 toml = "0.8"

@@ -122,6 +122,12 @@ impl eframe::App for MdViewApp {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.poll_load(ctx);
         self.poll_workspace(ctx);
+        let media = self.prefs.get().media.clone();
+        self.media.set_policy(crate::media_runtime::MediaPolicy {
+            remote_images: media.remote_images,
+            private_networks: media.private_networks,
+        });
+        self.media.poll(ctx);
         let forwarded = self.primary.as_ref().map(Primary::take_paths).unwrap_or_default();
         for path in forwarded {
             self.handle_external_path(&path, ctx);
@@ -193,6 +199,8 @@ impl eframe::App for MdViewApp {
                     mode: self.tabs.active().mode,
                     is_markdown: self.tabs.active().is_markdown(),
                     sync_scroll: self.prefs.get().editor.sync_scroll,
+                    remote_images: self.prefs.get().media.remote_images,
+                    private_networks: self.prefs.get().media.private_networks,
                 },
             );
         });
@@ -228,9 +236,24 @@ impl eframe::App for MdViewApp {
                     mdview_ui::ViewMode::View => {
                         let theme = mdview_theme::Theme::for_mode(self.theme);
                         let light = self.theme == mdview_theme::ThemeMode::Light;
+                        let base = self
+                            .tabs
+                            .active()
+                            .editor
+                            .document()
+                            .path()
+                            .and_then(std::path::Path::parent)
+                            .map(std::path::Path::to_path_buf);
                         let tab = self.tabs.active_mut();
                         tab.ensure_preview();
-                        preview_output = Some(tab.preview.show(ui, &tab.preview_source, &theme, light));
+                        preview_output = Some(tab.preview.show_with_media(
+                            ui,
+                            &tab.preview_source,
+                            &theme,
+                            light,
+                            base,
+                            &mut self.media,
+                        ));
                     }
                     mdview_ui::ViewMode::Split => {
                         let index = self.tabs.active_index();
@@ -243,6 +266,13 @@ impl eframe::App for MdViewApp {
             self.ask_open();
         }
         if let Some(output) = preview_output {
+            if let Some(lightbox) = output.lightbox.clone() {
+                self.lightbox = Some(crate::lightbox::LightboxState {
+                    request: lightbox.request,
+                    alt: lightbox.alt,
+                    scale: 1.0,
+                });
+            }
             self.handle_preview_output(output, ui.ctx());
         }
 
@@ -252,6 +282,7 @@ impl eframe::App for MdViewApp {
         if self.close_prompt_open {
             self.show_close_prompt(ui.ctx());
         }
+        self.show_lightbox(ui.ctx());
         if let Some(job) = &self.pending_load {
             ui.ctx().request_repaint_after(std::time::Duration::from_millis(50));
             let cancel = mdview_ui::show_loading(ui.ctx(), &self.translations, self.lang, job.path(), job.progress());

@@ -43,6 +43,10 @@ pub struct MenuState<'a> {
     pub is_markdown: bool,
     /// Whether split scrolling is synchronized.
     pub sync_scroll: bool,
+    /// Whether remote images may load.
+    pub remote_images: bool,
+    /// Whether private-network images may load.
+    pub private_networks: bool,
 }
 
 /// Draw the menu bar and return the selected command.
@@ -228,6 +232,25 @@ pub fn show_menu(ui: &mut Ui, state: MenuState<'_>) -> Option<Command> {
                 command = Some(Command::ToggleSyncScroll);
                 ui.close();
             }
+            ui.menu_button(t("Media"), |ui| {
+                if ui
+                    .selectable_label(state.remote_images, t("Load remote images"))
+                    .clicked()
+                {
+                    command = Some(Command::ToggleRemoteMedia);
+                    ui.close();
+                }
+                if ui
+                    .add_enabled(
+                        state.remote_images,
+                        egui::Button::new(t("Allow private network images")).selected(state.private_networks),
+                    )
+                    .clicked()
+                {
+                    command = Some(Command::TogglePrivateNetworks);
+                    ui.close();
+                }
+            });
             ui.separator();
             ui.menu_button(t("Appearance"), |ui| {
                 if ui.selectable_label(theme == ThemeMode::Light, t("Light")).clicked() {
