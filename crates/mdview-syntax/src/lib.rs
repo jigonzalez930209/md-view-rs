@@ -4,6 +4,7 @@
 //! whole document and cached by the editor; large-file mode disables it.
 
 use std::path::Path;
+use std::sync::{Arc, OnceLock};
 
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, Theme, ThemeSet};
@@ -49,6 +50,12 @@ impl Highlighter {
             syntaxes: two_face::syntax::extra_newlines(),
             themes: ThemeSet::load_defaults(),
         }
+    }
+
+    /// A process-wide highlighter shared by every editor and preview.
+    pub fn shared() -> Arc<Self> {
+        static SHARED: OnceLock<Arc<Highlighter>> = OnceLock::new();
+        SHARED.get_or_init(|| Arc::new(Highlighter::new())).clone()
     }
 
     /// Highlight a document. `light` selects a light or dark syntax palette.

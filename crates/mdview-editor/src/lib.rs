@@ -10,6 +10,7 @@ mod input;
 mod render;
 mod scroll;
 
+use std::sync::Arc;
 use std::time::Instant;
 
 use mdview_model::{Document, Encoding, Eol, Indentation};
@@ -52,7 +53,7 @@ pub struct Editor {
     pub(crate) line_numbers: bool,
     pub(crate) light: bool,
     pub(crate) large_mode: bool,
-    pub(crate) highlighter: Highlighter,
+    pub(crate) highlighter: Arc<Highlighter>,
     pub(crate) highlight_cache: mdview_syntax::HighlightCache,
     pub(crate) highlight_revision: Option<u64>,
     pub(crate) language: String,
@@ -93,7 +94,7 @@ impl Editor {
             line_numbers: true,
             light: true,
             large_mode,
-            highlighter: Highlighter::new(),
+            highlighter: Highlighter::shared(),
             highlight_cache: mdview_syntax::HighlightCache::default(),
             highlight_revision: None,
             language: "Plain Text".to_owned(),

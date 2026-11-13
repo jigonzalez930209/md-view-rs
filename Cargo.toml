@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*", "xtask"]
 
 [workspace.package]
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 rust-version = "1.95"
 license = "MIT OR Apache-2.0"
@@ -44,6 +44,7 @@ ratex-layout = "0.1.14"
 ratex-types = "0.1.14"
 ratex-svg = { version = "0.1.14", features = ["embed-fonts"] }
 fontdb = "0.24"
+roxmltree = "0.21"
 mermaid-rs-renderer = { version = "0.3.1", default-features = false }
 blake3 = "1.8"
 mime = "0.3"

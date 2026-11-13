@@ -5,7 +5,7 @@ use mdview_markdown::{Inline, LinkKind, plain_text};
 use mdview_media::MediaKind;
 use mdview_theme::Theme;
 
-use crate::{LinkActivation, MediaContext, MediaLightbox, MediaState, PreviewOutput};
+use crate::{AnimationStatus, LinkActivation, MediaContext, MediaLightbox, MediaState, PreviewOutput};
 
 /// One styled run of inline text.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -278,6 +278,8 @@ fn show_image(
         max_width,
         theme.is_dark(),
     );
+    let key = request.cache_key();
+    let status = media_context.provider.animation_status(&key);
     match media_context.provider.resolve(ui.ctx(), &request) {
         MediaState::Loading => {
             ui.spinner();
@@ -297,6 +299,12 @@ fn show_image(
                 } else {
                     alt.clone()
                 });
+            media_context
+                .provider
+                .mark_visible(&key, ui.is_rect_visible(response.rect));
+            if let Some(label) = animation_label(status) {
+                ui.label(RichText::new(label).small().color(theme.text_muted));
+            }
             if response.clicked() {
                 output.lightbox = Some(MediaLightbox {
                     request: request.clone(),
@@ -314,6 +322,15 @@ fn show_image(
                     ui.label(RichText::new(error).small().color(theme.danger));
                 });
         }
+    }
+}
+
+fn animation_label(status: AnimationStatus) -> Option<&'static str> {
+    match status {
+        AnimationStatus::None => None,
+        AnimationStatus::Playing => Some("Animated"),
+        AnimationStatus::Paused => Some("Animation paused"),
+        AnimationStatus::Unsupported => Some("Animation not fully supported"),
     }
 }
 

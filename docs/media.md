@@ -64,6 +64,12 @@ media generation, so in-flight results from the closed tab are dropped instead o
 textures. Loading runs on one dedicated worker thread with a 16 MB stack for the recursive SVG
 parser; the UI never blocks on disk, network, or rasterization.
 
+## Animation
+
+Animated SVG uses the bounded SMIL/CSS runtime documented in [`animation.md`](animation.md).
+Frames advance at 30 fps only while visible; play/pause and reduced motion live under
+**View → Media**.
+
 ## Visual references
 
 `crates/mdview-render/tests/snapshots/media-light.png` and `media-dark.png` cover a local PNG, an

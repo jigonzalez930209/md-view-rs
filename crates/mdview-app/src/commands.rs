@@ -158,6 +158,16 @@ impl MdViewApp {
                 let private = !self.prefs.get().media.private_networks;
                 self.prefs.update(|prefs| prefs.media.private_networks = private);
             }
+            Command::ToggleAnimations => {
+                let animate = !self.prefs.get().media.animate_svg;
+                self.prefs.update(|prefs| prefs.media.animate_svg = animate);
+                self.media.set_playing(animate);
+            }
+            Command::ToggleReduceMotion => {
+                let reduce = !self.prefs.get().media.reduce_motion;
+                self.prefs.update(|prefs| prefs.media.reduce_motion = reduce);
+                self.media.set_reduced_motion(reduce);
+            }
             Command::ToggleSyncScroll => {
                 let sync = !self.prefs.get().editor.sync_scroll;
                 self.prefs.update(|prefs| prefs.editor.sync_scroll = sync);

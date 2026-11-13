@@ -30,7 +30,8 @@
 | H4 | DONE (Linux) | CommonMark/GFM AST with spans, reading view, safe HTML, links, alerts, tasks, tables, footnotes, code highlighting, source map, per-mode scroll, light/dark snapshots, and app tests. |
 | H5 | DONE (Linux) | Resizable split, per-file ratio, bidirectional block-anchor sync, echo suppression, hover-aware conflict resolution, and horizontal/vertical snapshots. |
 | H6 | DONE (Linux) | Bounded images/SVG/math/Mermaid media pipeline, remote cache, lightbox, worker isolation, and light/dark rich-content snapshots. |
-| H7–H11 | NOT STARTED | — |
+| H7 | DONE (Linux) | SMIL/CSS animation subset with 30 fps playback, reduced motion, offscreen pause, fuzz/hostile tests, and 50 MB scale coverage. |
+| H8–H11 | NOT STARTED | — |
 
 ---
 
@@ -1272,14 +1273,24 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 - 50 MB / 100k lines opens and edits in large mode; preview is disabled with a notice.
 - H0 typing/scroll/memory budgets are met or scope is adjusted.
 
-**Required tests**
+**Progress (`0.7.0`)**
 
-- **Unit:** timeline, interpolation, attributes, limits.
-- **Integration:** frames, pause, reduced motion, large files.
-- **Snapshot:** frames at fixed times, static fallback, 1x/2x.
-- **Manual 3 OS:** CPU, battery, hidden windows, DPI.
+| Item | Status | Evidence |
+|---|---|---|
+| SMIL animate/animateTransform/set subset | DONE | 19 animation fixtures in `svg_anim/tests.rs` |
+| CSS @keyframes subset | DONE | class, ID, and inline CSS fixtures |
+| 30 fps playback, play/pause, reduced motion | DONE | `MediaRuntime` animation tests; View → Media toggles |
+| Offscreen pause and close cancellation | DONE | `mark_visible`; generation filter; cache-clear test |
+| Unsupported feature badge and static fallback | DONE | `unsupported_motion_is_reported`; renderer badge |
+| 15 fixtures reproduce frames | DONE | 19 fixtures including raster frame differences |
+| Fuzzing / hostile corpus | DONE | `mdview-markdown/tests/fuzz.rs`; `mdview-media/tests/hostile.rs` |
+| 50 MB / 100k-line large mode | DONE | `mdview-editor/tests/large.rs` |
+| Preview disabled for large files | DONE | large-file mode guard and status notice |
+| 100 open/close cycles | DONE | `one_hundred_open_close_cycles_stay_stable` |
+| CPU/memory/frame budgets | PARTIAL | 30 fps cap, LRU budgets, shared highlighter; no automated profiler |
+| Snapshot at fixed animation times | DONE | `raster_frames_differ_over_time` |
+| Manual 3 OS | DEFERRED to 1.0.0 | [`docs/release-checks.md`](docs/release-checks.md) |
 
----
 
 ### H8 — Themes, polished UI, and accessibility (`0.8.0`)
 

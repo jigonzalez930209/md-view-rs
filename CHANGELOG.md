@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0 — Animated SVG and hardening
+
+- Added a bounded SMIL and CSS animation engine for SVG: `animate`, `animateTransform`, `set`, `@keyframes`, keyTimes, linear/discrete interpolation, repeat, and begin delays.
+- Added 30 fps animated-SVG playback with play/pause, reduced motion, offscreen pause, and generation-based cancellation on tab close.
+- Added an “Animated”/“Animation not fully supported” badge and static-first fallback for unsupported motion features.
+- Added shared syntax highlighting so opening and closing tabs no longer rebuilds the syntax and theme sets.
+- Added depth-limited Markdown parsing: nesting beyond 64 levels is flattened instead of overflowing the stack.
+- Added fuzz-style random and hostile corpus tests for Markdown, SVG, LaTeX, and Mermaid.
+- Added a 50 MB / >100k-line editor test, a 100 open/close cycle test, and large-file preview refusal with a notice.
+- Added `docs/animation.md` with the supported subset and verification matrix.
+
 ## 0.6.0 — Images, SVG, math, and Mermaid
 
 - Added `mdview-media`: bounded local/remote image loading, disk caching with ETag revalidation, image decoding with size limits, static SVG parsing/rasterization, RaTeX math rendering, and native Mermaid rendering.

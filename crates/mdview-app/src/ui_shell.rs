@@ -127,6 +127,8 @@ impl eframe::App for MdViewApp {
             remote_images: media.remote_images,
             private_networks: media.private_networks,
         });
+        self.media.set_playing(media.animate_svg);
+        self.media.set_reduced_motion(media.reduce_motion);
         self.media.poll(ctx);
         let forwarded = self.primary.as_ref().map(Primary::take_paths).unwrap_or_default();
         for path in forwarded {
@@ -201,6 +203,8 @@ impl eframe::App for MdViewApp {
                     sync_scroll: self.prefs.get().editor.sync_scroll,
                     remote_images: self.prefs.get().media.remote_images,
                     private_networks: self.prefs.get().media.private_networks,
+                    animate_svg: self.prefs.get().media.animate_svg,
+                    reduce_motion: self.prefs.get().media.reduce_motion,
                 },
             );
         });
@@ -229,6 +233,13 @@ impl eframe::App for MdViewApp {
             if document.path().is_none() && document.is_empty() {
                 open_requested = mdview_ui::show_welcome(ui, &self.translations, self.lang);
             } else {
+                if self.tabs.active().is_markdown() && self.tabs.active().is_large() {
+                    ui.label(
+                        egui::RichText::new(self.t("Preview disabled for large files."))
+                            .small()
+                            .color(ui.visuals().warn_fg_color),
+                    );
+                }
                 match self.tabs.active().mode {
                     mdview_ui::ViewMode::Edit => {
                         self.tabs.editor_mut().show(ui);

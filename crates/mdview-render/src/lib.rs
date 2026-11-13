@@ -21,6 +21,7 @@ mod source_map;
 use std::collections::{BTreeMap, hash_map::DefaultHasher};
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use egui::{Ui, scroll_area::ScrollAreaOutput};
 use mdview_markdown::{LinkKind, MarkdownDocument, parse};
@@ -50,10 +51,31 @@ pub enum MediaState {
     Error(String),
 }
 
+/// The playback state of an animated item, shown as a badge.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AnimationStatus {
+    /// Not animated.
+    None,
+    /// Playing.
+    Playing,
+    /// Paused by the user, reduced motion, or visibility.
+    Paused,
+    /// The animation uses unsupported features; the first frame is shown.
+    Unsupported,
+}
+
 /// A media resolver supplied by the application.
 pub trait MediaProvider {
     /// Resolve one media request. The application may return `Loading` and complete later.
     fn resolve(&mut self, ctx: &egui::Context, request: &MediaRequest) -> MediaState;
+
+    /// Report whether a resolved item is visible in the viewport.
+    fn mark_visible(&mut self, _key: &str, _visible: bool) {}
+
+    /// The animation badge state for a cache key.
+    fn animation_status(&mut self, _key: &str) -> AnimationStatus {
+        AnimationStatus::None
+    }
 }
 
 /// Per-paint media inputs.
@@ -136,7 +158,7 @@ struct BlockScreen {
 /// The Markdown preview widget and its scroll/cache state.
 pub struct Preview {
     cached: Option<Cached>,
-    highlighter: Highlighter,
+    highlighter: Arc<Highlighter>,
     scroll: f32,
     pending_scroll: Option<f32>,
     pending_line: Option<(usize, f32)>,
@@ -152,7 +174,7 @@ impl Default for Preview {
     fn default() -> Self {
         Self {
             cached: None,
-            highlighter: Highlighter::new(),
+            highlighter: Highlighter::shared(),
             scroll: 0.0,
             pending_scroll: None,
             pending_line: None,

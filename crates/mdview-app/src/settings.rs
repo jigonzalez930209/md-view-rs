@@ -36,6 +36,10 @@ pub struct MediaSettings {
     pub remote_images: bool,
     /// Allow URLs that resolve to private network addresses.
     pub private_networks: bool,
+    /// Play animated SVG content.
+    pub animate_svg: bool,
+    /// Show static frames instead of motion.
+    pub reduce_motion: bool,
 }
 
 impl Default for MediaSettings {
@@ -43,6 +47,8 @@ impl Default for MediaSettings {
         Self {
             remote_images: true,
             private_networks: false,
+            animate_svg: true,
+            reduce_motion: false,
         }
     }
 }

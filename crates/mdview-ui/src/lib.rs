@@ -84,6 +84,10 @@ pub enum Command {
     ToggleRemoteMedia,
     /// Toggle private-network image loading.
     TogglePrivateNetworks,
+    /// Toggle SVG animation playback.
+    ToggleAnimations,
+    /// Toggle reduced motion.
+    ToggleReduceMotion,
     /// Reload the current file with another encoding.
     ReloadEncoding(Encoding),
     /// Switch the base theme.

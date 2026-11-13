@@ -47,6 +47,10 @@ pub struct MenuState<'a> {
     pub remote_images: bool,
     /// Whether private-network images may load.
     pub private_networks: bool,
+    /// Whether SVG animations play.
+    pub animate_svg: bool,
+    /// Whether reduced motion is on.
+    pub reduce_motion: bool,
 }
 
 /// Draw the menu bar and return the selected command.

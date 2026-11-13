@@ -16,6 +16,7 @@ mermaid-rs-renderer.workspace = true
 ratex-layout.workspace = true
 ratex-parser.workspace = true
 ratex-types.workspace = true
+roxmltree.workspace = true
 ratex-svg.workspace = true
 resvg.workspace = true
 thiserror.workspace = true

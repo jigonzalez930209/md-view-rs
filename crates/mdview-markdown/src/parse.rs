@@ -2,7 +2,7 @@
 
 use std::ops::Range;
 
-use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
+use pulldown_cmark::{CodeBlockKind, Event, Parser, Tag, TagEnd};
 
 use crate::ast::{Block, BlockKind, FrontMatter, Heading, Inline, Link, ListItem, MarkdownDocument, Span, plain_text};
 use crate::slug::Slugger;
@@ -11,24 +11,15 @@ use lines::LineIndex;
 mod convert;
 mod lines;
 mod links;
+mod nesting;
+mod options;
 mod table;
+
+pub use options::options;
 
 use convert::{alignment, empty_to_none, heading_level, quote_kind};
 
 pub use links::classify;
-
-/// Parser options for CommonMark + GFM.
-pub fn options() -> Options {
-    Options::ENABLE_TABLES
-        | Options::ENABLE_FOOTNOTES
-        | Options::ENABLE_STRIKETHROUGH
-        | Options::ENABLE_TASKLISTS
-        | Options::ENABLE_HEADING_ATTRIBUTES
-        | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
-        | Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS
-        | Options::ENABLE_MATH
-        | Options::ENABLE_GFM
-}
 
 /// Parse Markdown into a spanned document.
 pub fn parse(source: &str) -> MarkdownDocument {
@@ -45,6 +36,7 @@ pub fn parse(source: &str) -> MarkdownDocument {
         headings: Vec::new(),
         links: Vec::new(),
         front_matter: None,
+        depth: 0,
     };
     let blocks = parser.parse_blocks(BlockEnd::Document);
     MarkdownDocument {
@@ -115,7 +107,11 @@ struct EventParser<'a> {
     headings: Vec<Heading>,
     links: Vec<Link>,
     front_matter: Option<FrontMatter>,
+    depth: usize,
 }
+
+/// Maximum nested containers before the parser flattens the remainder as text.
+const MAX_NESTING: usize = 64;
 
 impl<'a> EventParser<'a> {
     fn peek(&self) -> Option<&(Event<'a>, Range<usize>)> {
@@ -192,7 +188,14 @@ impl<'a> EventParser<'a> {
                 }
                 Event::Start(Tag::BlockQuote(kind)) => {
                     self.cursor += 1;
-                    let inner = self.parse_blocks(BlockEnd::BlockQuote);
+                    let inner = if self.depth >= MAX_NESTING {
+                        self.collect_block_text()
+                    } else {
+                        self.depth += 1;
+                        let inner = self.parse_blocks(BlockEnd::BlockQuote);
+                        self.depth -= 1;
+                        inner
+                    };
                     let end_range = self.consumed_end();
                     let span = self.span(range.start..end_range.end);
                     self.push_block(
@@ -218,7 +221,14 @@ impl<'a> EventParser<'a> {
                                     }
                                     _ => None,
                                 };
-                                let item_blocks = self.parse_blocks(BlockEnd::Item);
+                                let item_blocks = if self.depth >= MAX_NESTING {
+                                    self.collect_until_block_end(BlockEnd::Item)
+                                } else {
+                                    self.depth += 1;
+                                    let blocks = self.parse_blocks(BlockEnd::Item);
+                                    self.depth -= 1;
+                                    blocks
+                                };
                                 items.push(ListItem {
                                     task,
                                     blocks: item_blocks,
@@ -245,7 +255,14 @@ impl<'a> EventParser<'a> {
                 }
                 Event::Start(Tag::FootnoteDefinition(label)) => {
                     self.cursor += 1;
-                    let inner = self.parse_blocks(BlockEnd::Footnote);
+                    let inner = if self.depth >= MAX_NESTING {
+                        self.collect_block_text()
+                    } else {
+                        self.depth += 1;
+                        let inner = self.parse_blocks(BlockEnd::Footnote);
+                        self.depth -= 1;
+                        inner
+                    };
                     let span = self.span(range.start..self.consumed_end().end);
                     self.push_block(
                         &mut blocks,
@@ -387,22 +404,29 @@ impl<'a> EventParser<'a> {
                 }
                 Event::Start(Tag::Emphasis) => {
                     self.cursor += 1;
-                    let (children, _) = self.parse_inlines(InlineEnd::Emphasis);
+                    let children = self.nested_inlines(InlineEnd::Emphasis);
                     inlines.push(Inline::Emphasis(children));
                 }
                 Event::Start(Tag::Strong) => {
                     self.cursor += 1;
-                    let (children, _) = self.parse_inlines(InlineEnd::Strong);
+                    let children = self.nested_inlines(InlineEnd::Strong);
                     inlines.push(Inline::Strong(children));
                 }
                 Event::Start(Tag::Strikethrough) => {
                     self.cursor += 1;
-                    let (children, _) = self.parse_inlines(InlineEnd::Strikethrough);
+                    let children = self.nested_inlines(InlineEnd::Strikethrough);
                     inlines.push(Inline::Strikethrough(children));
                 }
                 Event::Start(Tag::Link { dest_url, title, .. }) => {
                     self.cursor += 1;
-                    let (children, inner_end) = self.parse_inlines(InlineEnd::Link);
+                    let (children, inner_end) = if self.depth >= MAX_NESTING {
+                        (self.collect_inline_text(), range.clone())
+                    } else {
+                        self.depth += 1;
+                        let result = self.parse_inlines(InlineEnd::Link);
+                        self.depth -= 1;
+                        result
+                    };
                     let span = self.span(range.start..inner_end.end);
                     let destination = dest_url.into_string();
                     let title = empty_to_none(title.into_string());
@@ -423,7 +447,14 @@ impl<'a> EventParser<'a> {
                 }
                 Event::Start(Tag::Image { dest_url, title, .. }) => {
                     self.cursor += 1;
-                    let (children, inner_end) = self.parse_inlines(InlineEnd::Image);
+                    let (children, inner_end) = if self.depth >= MAX_NESTING {
+                        (self.collect_inline_text(), range.clone())
+                    } else {
+                        self.depth += 1;
+                        let result = self.parse_inlines(InlineEnd::Image);
+                        self.depth -= 1;
+                        result
+                    };
                     let span = self.span(range.start..inner_end.end);
                     let source_url = dest_url.into_string();
                     let title = empty_to_none(title.into_string());

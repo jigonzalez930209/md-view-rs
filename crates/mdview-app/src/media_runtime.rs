@@ -1,14 +1,14 @@
-//! Background media loading and texture cache for the application.
+//! Background media loading, texture cache, and SVG animation playback.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use eframe::egui;
-use mdview_media::{MediaRequest, Raster};
-use mdview_render::{MediaProvider, MediaState};
+use mdview_media::{MediaRequest, Raster, render_svg_frame};
+use mdview_render::{AnimationStatus, MediaProvider, MediaState};
 
 /// Media policy from preferences.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -41,18 +41,52 @@ pub struct MediaRuntime {
     policy: MediaPolicy,
     cache_dir: Option<PathBuf>,
     generation: u64,
+    playbacks: HashMap<String, Playback>,
+    playing: bool,
+    reduced_motion: bool,
 }
 
 struct Job {
     key: String,
     request: MediaRequest,
     generation: u64,
+    mode: JobMode,
+}
+
+enum JobMode {
+    Load,
+    Frame { source: String, time: f32 },
 }
 
 struct Completed {
     key: String,
-    result: Result<Raster, String>,
+    request: MediaRequest,
+    result: Result<CompletedMedia, String>,
     generation: u64,
+    is_frame: bool,
+}
+
+struct CompletedMedia {
+    raster: Raster,
+    animation: Option<AnimationInfo>,
+    source: Option<String>,
+}
+
+struct AnimationInfo {
+    duration: f32,
+    unsupported: bool,
+}
+
+struct Playback {
+    request: MediaRequest,
+    source: String,
+    duration: f32,
+    unsupported: bool,
+    frame_time: f32,
+    last_tick: Instant,
+    visible: bool,
+    frame_pending: bool,
+    failed: bool,
 }
 
 struct TextureEntry {
@@ -71,15 +105,36 @@ impl MediaRuntime {
             .stack_size(16 * 1024 * 1024)
             .spawn(move || {
                 while let Ok(job) = job_receiver.recv() {
+                    let is_frame = matches!(job.mode, JobMode::Frame { .. });
+                    let request = job.request.clone();
                     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        job.request.load().map_err(|error| error.to_string())
+                        match job.mode {
+                            JobMode::Load => job.request.load_with_animation().map(|loaded| CompletedMedia {
+                                raster: loaded.raster,
+                                animation: loaded.animation_duration.map(|duration| AnimationInfo {
+                                    duration,
+                                    unsupported: loaded.animation_unsupported,
+                                }),
+                                source: loaded.svg_source,
+                            }),
+                            JobMode::Frame { source, time } => {
+                                render_svg_frame(&source, time, &job.request).map(|raster| CompletedMedia {
+                                    raster,
+                                    animation: None,
+                                    source: None,
+                                })
+                            }
+                        }
+                        .map_err(|error| error.to_string())
                     }))
                     .unwrap_or_else(|_| Err("The media renderer failed unexpectedly.".to_owned()));
                     if completed
                         .send(Completed {
                             key: job.key,
+                            request,
                             result,
                             generation: job.generation,
+                            is_frame,
                         })
                         .is_err()
                     {
@@ -102,6 +157,9 @@ impl MediaRuntime {
             policy: MediaPolicy::default(),
             cache_dir: dirs::cache_dir().map(|directory| directory.join("mdview").join("media")),
             generation: 0,
+            playbacks: HashMap::new(),
+            playing: true,
+            reduced_motion: false,
         }
     }
 
@@ -110,7 +168,17 @@ impl MediaRuntime {
         self.policy = policy;
     }
 
-    /// Drop every cached texture and error. Called when a media consumer closes.
+    /// Enable or pause all SVG animations.
+    pub fn set_playing(&mut self, playing: bool) {
+        self.playing = playing;
+    }
+
+    /// Show only the first animation frame when reduced motion is requested.
+    pub fn set_reduced_motion(&mut self, reduced: bool) {
+        self.reduced_motion = reduced;
+    }
+
+    /// Drop every cached texture and animation. Called when a media consumer closes.
     pub fn clear_cache(&mut self) {
         self.generation = self.generation.wrapping_add(1);
         self.textures.clear();
@@ -118,9 +186,10 @@ impl MediaRuntime {
         self.bytes = 0;
         self.errors.clear();
         self.pending.clear();
+        self.playbacks.clear();
     }
 
-    /// Upload completed rasters and drop stale entries.
+    /// Upload completed rasters, advance animations, and schedule the next frame.
     pub fn poll(&mut self, ctx: &egui::Context) {
         while let Ok(completed) = self.receiver.try_recv() {
             if completed.generation != self.generation {
@@ -128,29 +197,96 @@ impl MediaRuntime {
             }
             self.pending.remove(&completed.key);
             match completed.result {
-                Ok(raster) if raster.is_consistent() && raster.width > 0 && raster.height > 0 => {
+                Ok(media) if media.raster.is_consistent() && media.raster.width > 0 && media.raster.height > 0 => {
                     let image = egui::ColorImage::from_rgba_unmultiplied(
-                        [raster.width as usize, raster.height as usize],
-                        &raster.rgba,
+                        [media.raster.width as usize, media.raster.height as usize],
+                        &media.raster.rgba,
                     );
                     let texture = ctx.load_texture(
                         format!("mdview-media-{}", completed.key),
                         image,
                         egui::TextureOptions::LINEAR,
                     );
-                    self.insert_texture(completed.key, texture, raster.byte_len());
+                    self.insert_texture(completed.key.clone(), texture, media.raster.byte_len());
+                    if let (Some(animation), Some(source)) = (media.animation, media.source) {
+                        self.playbacks.insert(
+                            completed.key.clone(),
+                            Playback {
+                                request: completed.request.clone(),
+                                source,
+                                duration: animation.duration.max(0.05),
+                                unsupported: animation.unsupported,
+                                frame_time: 0.0,
+                                last_tick: Instant::now(),
+                                visible: false,
+                                frame_pending: false,
+                                failed: false,
+                            },
+                        );
+                    }
+                    if completed.is_frame
+                        && let Some(playback) = self.playbacks.get_mut(&completed.key)
+                    {
+                        playback.frame_pending = false;
+                    }
                 }
                 Ok(_) => {
                     self.errors
-                        .insert(completed.key, "Media has no visible pixels.".to_owned());
+                        .insert(completed.key.clone(), "Media has no visible pixels.".to_owned());
+                    self.mark_frame_failed(&completed.key);
                 }
                 Err(error) => {
-                    self.errors.insert(completed.key, error);
+                    self.errors.insert(completed.key.clone(), error);
+                    self.mark_frame_failed(&completed.key);
                 }
             }
         }
+        self.tick_animations(ctx);
         if !self.pending.is_empty() {
             ctx.request_repaint_after(Duration::from_millis(40));
+        }
+    }
+
+    fn mark_frame_failed(&mut self, key: &str) {
+        if let Some(playback) = self.playbacks.get_mut(key) {
+            playback.frame_pending = false;
+            playback.failed = true;
+        }
+    }
+
+    fn tick_animations(&mut self, ctx: &egui::Context) {
+        if !self.playing || self.reduced_motion {
+            return;
+        }
+        let now = Instant::now();
+        let Some(sender) = self.sender.clone() else {
+            return;
+        };
+        let mut active = false;
+        for (key, playback) in &mut self.playbacks {
+            if playback.unsupported || playback.failed || !playback.visible || playback.frame_pending {
+                continue;
+            }
+            let elapsed = now.duration_since(playback.last_tick);
+            if elapsed < Duration::from_millis(33) {
+                continue;
+            }
+            playback.frame_time = (playback.frame_time + elapsed.as_secs_f32()) % playback.duration;
+            playback.last_tick = now;
+            playback.frame_pending = true;
+            active = true;
+            let _ = sender.send(Job {
+                key: key.clone(),
+                request: playback.request.clone(),
+                generation: self.generation,
+                mode: JobMode::Frame {
+                    source: playback.source.clone(),
+                    time: playback.frame_time,
+                },
+            });
+        }
+        if active || self.playbacks.values().any(|playback| playback.visible) {
+            ctx.request_repaint_after(Duration::from_millis(16));
         }
     }
 
@@ -174,6 +310,7 @@ impl MediaRuntime {
             };
             if let Some(entry) = self.textures.remove(&oldest) {
                 self.bytes = self.bytes.saturating_sub(entry.bytes);
+                self.playbacks.remove(&oldest);
             }
         }
     }
@@ -191,8 +328,11 @@ impl MediaRuntime {
 impl MediaProvider for MediaRuntime {
     fn resolve(&mut self, _ctx: &egui::Context, request: &MediaRequest) -> MediaState {
         let key = request.cache_key();
-        if let Some(texture) = self.cached(&key) {
-            return MediaState::Ready(texture.clone());
+        if let Some(texture) = self.cached(&key).cloned() {
+            if let Some(playback) = self.playbacks.get_mut(&key) {
+                playback.visible = true;
+            }
+            return MediaState::Ready(texture);
         }
         if let Some(error) = self.errors.get(&key) {
             return MediaState::Error(error.clone());
@@ -212,6 +352,7 @@ impl MediaProvider for MediaRuntime {
                 key: key.clone(),
                 request,
                 generation: self.generation,
+                mode: JobMode::Load,
             })
             .is_err()
         {
@@ -219,6 +360,26 @@ impl MediaProvider for MediaRuntime {
         }
         self.pending.insert(key);
         MediaState::Loading
+    }
+
+    fn mark_visible(&mut self, key: &str, visible: bool) {
+        if let Some(playback) = self.playbacks.get_mut(key) {
+            playback.visible = visible;
+        }
+    }
+
+    fn animation_status(&mut self, key: &str) -> AnimationStatus {
+        let Some(playback) = self.playbacks.get(key) else {
+            return AnimationStatus::None;
+        };
+        if playback.unsupported || playback.failed {
+            return AnimationStatus::Unsupported;
+        }
+        if !self.playing || self.reduced_motion || !playback.visible {
+            AnimationStatus::Paused
+        } else {
+            AnimationStatus::Playing
+        }
     }
 }
 
@@ -254,6 +415,41 @@ mod tests {
         }
         assert!(runtime.cached_bytes() > 0);
         assert!(matches!(runtime.resolve(&ctx, &request), MediaState::Ready(_)));
+    }
+
+    #[test]
+    fn animated_svgs_are_detected_and_advance() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        std::fs::write(
+            directory.path().join("pulse.svg"),
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="#ff0000"><animate attributeName="opacity" values="0;1" dur="0.2s" repeatCount="indefinite"/></rect></svg>"##,
+        )
+        .expect("svg");
+        let ctx = egui::Context::default();
+        let mut runtime = MediaRuntime::new(&ctx);
+        let mut request = MediaRequest::new(mdview_media::MediaKind::Image, "pulse.svg");
+        request.base = Some(directory.path().to_path_buf());
+        assert!(matches!(runtime.resolve(&ctx, &request), MediaState::Loading));
+        for _ in 0..200 {
+            runtime.poll(&ctx);
+            if runtime.animation_status(&request.cache_key()) != AnimationStatus::None {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let key = request.cache_key();
+        runtime.mark_visible(&key, true);
+        assert_eq!(runtime.animation_status(&key), AnimationStatus::Playing);
+        runtime.mark_visible(&key, false);
+        assert_eq!(runtime.animation_status(&key), AnimationStatus::Paused);
+        runtime.mark_visible(&key, true);
+        runtime.set_playing(false);
+        assert_eq!(runtime.animation_status(&key), AnimationStatus::Paused);
+        runtime.set_playing(true);
+        runtime.set_reduced_motion(true);
+        assert_eq!(runtime.animation_status(&key), AnimationStatus::Paused);
+        runtime.clear_cache();
+        assert_eq!(runtime.animation_status(&key), AnimationStatus::None);
     }
 
     #[test]

@@ -40,7 +40,8 @@ impl DocumentTab {
     /// Build a tab from a document.
     pub fn new(document: Document, disk_mtime: Option<SystemTime>) -> Self {
         static NEXT_ID: AtomicU64 = AtomicU64::new(1);
-        let mode = if document.path().is_some_and(is_markdown_path) {
+        let large = document.len_bytes() > 10 * 1024 * 1024 || document.line_count() > 200_000;
+        let mode = if !large && document.path().is_some_and(is_markdown_path) {
             ViewMode::View
         } else {
             ViewMode::Edit
@@ -78,9 +79,14 @@ impl DocumentTab {
         self.editor.document().path().is_some_and(is_markdown_path)
     }
 
-    /// Set the presentation, refusing reading view for non-Markdown files.
+    /// Whether the document is in large-file mode.
+    pub fn is_large(&self) -> bool {
+        self.editor.status().large_mode
+    }
+
+    /// Set the presentation, refusing preview modes for non-Markdown and large files.
     pub fn set_mode(&mut self, mode: ViewMode) {
-        self.mode = if mode == ViewMode::View && !self.is_markdown() {
+        self.mode = if mode.shows_preview() && (!self.is_markdown() || self.is_large()) {
             ViewMode::Edit
         } else {
             mode

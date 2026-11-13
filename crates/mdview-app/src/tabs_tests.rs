@@ -135,3 +135,29 @@ fn preview_source_refreshes_with_the_document_revision() {
     tab.editor.document_mut().replace_range(0, 0, "# ");
     assert_eq!(tab.ensure_preview(), "# hello\n");
 }
+
+#[test]
+fn large_markdown_files_force_edit_mode() {
+    let text = "x".repeat(10 * 1024 * 1024 + 1);
+    let document = Document::from_loaded(PathBuf::from("/tmp/huge.md"), text, Eol::Lf, Encoding::Utf8, false);
+    let mut tab = DocumentTab::new(document, None);
+    assert!(tab.is_large());
+    assert_eq!(tab.mode, ViewMode::Edit);
+    tab.set_mode(ViewMode::View);
+    assert_eq!(tab.mode, ViewMode::Edit);
+    tab.set_mode(ViewMode::Split);
+    assert_eq!(tab.mode, ViewMode::Edit);
+}
+
+#[test]
+fn one_hundred_open_close_cycles_stay_stable() {
+    let mut tabs = TabSet::new(true, false, true);
+    for index in 0..100 {
+        let path = format!("/tmp/cycle-{index}.md");
+        tabs.open(document(&path), None);
+        let active = tabs.active_index();
+        tabs.close(active);
+    }
+    assert_eq!(tabs.len(), 1);
+    assert!(tabs.active().editor.document().path().is_none());
+}

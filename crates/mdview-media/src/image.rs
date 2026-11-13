@@ -177,7 +177,7 @@ pub fn load_bytes(bytes: &[u8], request: &MediaRequest) -> Result<Raster, MediaE
     })
 }
 
-fn looks_like_svg(bytes: &[u8]) -> bool {
+pub(crate) fn looks_like_svg(bytes: &[u8]) -> bool {
     let head = &bytes[..bytes.len().min(512)];
     let text = String::from_utf8_lossy(head).trim_start().to_ascii_lowercase();
     text.starts_with("<svg")

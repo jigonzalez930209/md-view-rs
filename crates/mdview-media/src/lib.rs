@@ -12,6 +12,7 @@ mod image;
 mod math;
 mod mermaid;
 mod svg;
+pub mod svg_anim;
 
 use std::path::PathBuf;
 
@@ -22,6 +23,7 @@ pub use image::load_bytes;
 pub use math::render_math;
 pub use mermaid::render_mermaid;
 pub use svg::rasterize_svg;
+pub use svg_anim::{Animation, frame_svg, parse as parse_animation};
 
 /// The kind of media to produce.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -179,6 +181,72 @@ pub enum MediaError {
     /// The requested output has no pixels.
     #[error("Media has no visible pixels.")]
     EmptyImage,
+}
+
+/// A loaded media item, with animation metadata when the source is animated SVG.
+#[derive(Clone, Debug)]
+pub struct LoadedMedia {
+    /// The first frame or decoded image.
+    pub raster: Raster,
+    /// Animation duration in seconds.
+    pub animation_duration: Option<f32>,
+    /// Whether the animation uses unsupported features.
+    pub animation_unsupported: bool,
+    /// The SVG source retained for later frames.
+    pub svg_source: Option<String>,
+}
+
+impl MediaRequest {
+    /// Load a media item and detect whether an SVG is animated.
+    pub fn load_with_animation(&self) -> Result<LoadedMedia, MediaError> {
+        match self.kind {
+            MediaKind::Image | MediaKind::Svg => {
+                let bytes = image::read_source(self)?;
+                if image::looks_like_svg(&bytes) {
+                    let source = String::from_utf8_lossy(&bytes).into_owned();
+                    if let Some(animation) = parse_animation(&source).map_err(MediaError::Svg)? {
+                        let first = frame_svg(&source, &animation, 0.0);
+                        let raster = rasterize_svg(first.as_bytes(), self)?;
+                        return Ok(LoadedMedia {
+                            raster,
+                            animation_duration: Some(animation.duration),
+                            animation_unsupported: animation.unsupported,
+                            svg_source: Some(source),
+                        });
+                    }
+                    let raster = load_bytes(&bytes, self)?;
+                    return Ok(LoadedMedia {
+                        raster,
+                        animation_duration: None,
+                        animation_unsupported: false,
+                        svg_source: None,
+                    });
+                }
+                let raster = load_bytes(&bytes, self)?;
+                Ok(LoadedMedia {
+                    raster,
+                    animation_duration: None,
+                    animation_unsupported: false,
+                    svg_source: None,
+                })
+            }
+            _ => self.load().map(|raster| LoadedMedia {
+                raster,
+                animation_duration: None,
+                animation_unsupported: false,
+                svg_source: None,
+            }),
+        }
+    }
+}
+
+/// Render one frame of an animated SVG source at a given time.
+pub fn render_svg_frame(source: &str, time: f32, request: &MediaRequest) -> Result<Raster, MediaError> {
+    let animation = parse_animation(source)
+        .map_err(MediaError::Svg)?
+        .ok_or_else(|| MediaError::Svg("The SVG has no animation.".to_owned()))?;
+    let frame = frame_svg(source, &animation, time);
+    rasterize_svg(frame.as_bytes(), request)
 }
 
 /// Maximum bytes accepted for one image or SVG source.
