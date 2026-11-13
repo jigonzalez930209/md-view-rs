@@ -41,6 +41,8 @@ pub struct MenuState<'a> {
     pub mode: ViewMode,
     /// Whether the active document is Markdown.
     pub is_markdown: bool,
+    /// Whether split scrolling is synchronized.
+    pub sync_scroll: bool,
 }
 
 /// Draw the menu bar and return the selected command.
@@ -216,6 +218,16 @@ pub fn show_menu(ui: &mut Ui, state: MenuState<'_>) -> Option<Command> {
                     }
                 }
             });
+            if ui
+                .add_enabled(
+                    state.mode == ViewMode::Split,
+                    egui::Button::new(t("Synchronize scrolling")).selected(state.sync_scroll),
+                )
+                .clicked()
+            {
+                command = Some(Command::ToggleSyncScroll);
+                ui.close();
+            }
             ui.separator();
             ui.menu_button(t("Appearance"), |ui| {
                 if ui.selectable_label(theme == ThemeMode::Light, t("Light")).clicked() {

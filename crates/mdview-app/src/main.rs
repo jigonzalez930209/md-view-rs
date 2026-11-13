@@ -12,6 +12,7 @@ mod reading;
 mod settings;
 mod sidebar;
 mod single_instance;
+mod split;
 mod tabs;
 mod ui_shell;
 mod workspace_flow;

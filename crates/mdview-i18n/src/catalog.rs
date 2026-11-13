@@ -113,6 +113,7 @@ pub(crate) const SPANISH: &str = concat!(
     "\tEdit mode\tModo edición\n",
     "\tReading view\tVista de lectura\n",
     "\tSplit view\tVista dividida\n",
+    "\tSynchronize scrolling\tSincronizar desplazamiento\n",
     "\tCopy code\tCopiar código\n",
     "\tBack to reference\tVolver a la referencia\n",
     "\tFootnote\tNota al pie\n",

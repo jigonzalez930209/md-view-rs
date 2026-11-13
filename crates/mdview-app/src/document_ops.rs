@@ -70,6 +70,11 @@ impl MdViewApp {
             {
                 tab.set_mode(crate::tabs::ViewMode::from_setting(mode));
             }
+            if let Some(ratio) = session.tab_split_ratio.get(&text).copied()
+                && let Some(tab) = self.tabs.tab_mut(index)
+            {
+                tab.restore_split_ratio(ratio);
+            }
         }
         self.sync_session();
     }
@@ -265,6 +270,17 @@ impl MdViewApp {
                     .map(|path| (path.to_string_lossy().into_owned(), tab.mode.as_setting().to_owned()))
             })
             .collect::<std::collections::BTreeMap<_, _>>();
+        let tab_split_ratio = self
+            .tabs
+            .tabs()
+            .iter()
+            .filter_map(|tab| {
+                tab.editor
+                    .document()
+                    .path()
+                    .map(|path| (path.to_string_lossy().into_owned(), tab.split_ratio))
+            })
+            .collect::<std::collections::BTreeMap<_, _>>();
         let sidebar_open = self.sidebar.open;
         let sidebar_width = self.sidebar.width;
         let show_hidden = self.sidebar.show_hidden;
@@ -276,6 +292,7 @@ impl MdViewApp {
             prefs.session.tab_scroll = tab_scroll;
             prefs.session.tab_view_scroll = tab_view_scroll;
             prefs.session.tab_modes = tab_modes;
+            prefs.session.tab_split_ratio = tab_split_ratio;
             prefs.session.sidebar_open = sidebar_open;
             prefs.session.sidebar_width = sidebar_width;
             prefs.session.show_hidden = show_hidden;

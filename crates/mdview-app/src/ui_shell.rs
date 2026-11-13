@@ -192,6 +192,7 @@ impl eframe::App for MdViewApp {
                     tab_count: self.tabs.len(),
                     mode: self.tabs.active().mode,
                     is_markdown: self.tabs.active().is_markdown(),
+                    sync_scroll: self.prefs.get().editor.sync_scroll,
                 },
             );
         });
@@ -224,12 +225,16 @@ impl eframe::App for MdViewApp {
                     mdview_ui::ViewMode::Edit => {
                         self.tabs.editor_mut().show(ui);
                     }
-                    mdview_ui::ViewMode::View | mdview_ui::ViewMode::Split => {
+                    mdview_ui::ViewMode::View => {
                         let theme = mdview_theme::Theme::for_mode(self.theme);
                         let light = self.theme == mdview_theme::ThemeMode::Light;
                         let tab = self.tabs.active_mut();
                         tab.ensure_preview();
                         preview_output = Some(tab.preview.show(ui, &tab.preview_source, &theme, light));
+                    }
+                    mdview_ui::ViewMode::Split => {
+                        let index = self.tabs.active_index();
+                        self.show_split(ui, index);
                     }
                 }
             }

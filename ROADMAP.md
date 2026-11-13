@@ -28,7 +28,8 @@
 | H2 | DONE (Linux) | Rope editor, virtualization, syntax highlighting, tab/space detection, find/replace, go-to-line, encoding/EOL, mixed-EOL preservation, wrap, background large-file loading, progress/cancellation, IME commit coverage, AccessKit role/value/selection announcements, and four light/dark × wrap snapshots are implemented and tested on Linux. |
 | H3 | DONE (Linux; OS-rename identity matching deferred) | Tabs, lazy sidebar, watcher with polling fallback, clean reload, conflict diff, missing-file state, file operations, recent files/workspaces, multi-path opening, and session restore are implemented and tested on Linux. Snapshots cover sidebar, tabs, conflict banner, and diff. |
 | H4 | DONE (Linux) | CommonMark/GFM AST with spans, reading view, safe HTML, links, alerts, tasks, tables, footnotes, code highlighting, source map, per-mode scroll, light/dark snapshots, and app tests. |
-| H5–H11 | NOT STARTED | — |
+| H5 | DONE (Linux) | Resizable split, per-file ratio, bidirectional block-anchor sync, echo suppression, hover-aware conflict resolution, and horizontal/vertical snapshots. |
+| H6–H11 | NOT STARTED | — |
 
 ---
 
@@ -1182,14 +1183,24 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 - Switching modes, resizing, or changing themes preserves the visible anchor.
 - The split maintains 60 fps with a 1 MB document.
 
-**Required tests**
+**Progress (`0.5.0`)**
 
-- **Unit:** anchor transforms, interpolation, echo suppression.
-- **Integration:** scroll harness with simulated events; resize; mode switch.
-- **Snapshot:** 50/50 and vertical split with tall blocks.
-- **Manual 3 OS:** wheel, trackpad, keyboard, DPI, narrow windows.
+| Item | Status | Evidence |
+|---|---|---|
+| Editor left / preview right split, resizable | DONE (Linux) | `mdview-050-split.png`; `split.rs` panels |
+| Vertical split in narrow windows | DONE | `vertical_split_snapshot`; narrow threshold in `show_split` |
+| Per-tab ratio and session restore | DONE | `tab_split_ratio` settings test; `split_ratio` on `DocumentTab` |
+| Block source map, anchors, interpolation | DONE | `source_map` tests; `line_offsets_round_trip` |
+| Editor ↔ preview synchronization | DONE (Linux) | `first_visible_line`/`scroll_to_line`; app sync path |
+| Programmatic echo suppression | DONE | `programmatic_scroll`; `one_thousand_scroll_pairs_do_not_oscillate` |
+| Tall blocks interpolate without jumping | DONE | `anchors_preserve_anchor_across_rerender`; fraction mapping |
+| Both panes scroll in one frame | DONE | `choose_source` tests; hovered pane wins |
+| Sync toggle | DONE | View menu; `sync_scroll` preference |
+| Anchor preserved across re-render | DONE | `Preview::restore_anchor`; source-map preservation |
+| Incremental re-render | PARTIAL | Parse cache avoids unchanged reparses; block painting remains full-frame |
+| Split snapshots | DONE | `split-horizontal.png`, `split-vertical.png` |
+| Manual 3 OS | DEFERRED to 1.0.0 | [`docs/release-checks.md`](docs/release-checks.md) |
 
----
 
 ### H6 — Rich content (`0.6.0`)
 

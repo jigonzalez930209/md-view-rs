@@ -51,8 +51,15 @@ impl Editor {
         let mut area = ScrollArea::both()
             .auto_shrink([false, false])
             .id_salt(("editor_scroll", self.identity));
+        let mut programmatic = false;
         if let Some(offset) = self.restore_scroll.take() {
             area = area.vertical_scroll_offset(offset);
+            programmatic = true;
+        }
+        if let Some((line, fraction)) = self.pending_line.take() {
+            let row = self.line_to_row(line);
+            area = area.vertical_scroll_offset((row as f32 + fraction) * row_height);
+            programmatic = true;
         }
         let output = area.show_viewport(ui, |ui, viewport| {
             let (painted, painter) =
@@ -228,7 +235,15 @@ impl Editor {
                 columns,
             });
         });
-        self.scroll_y = output.state.clamped_offset().y;
+        let new_scroll = output.state.clamped_offset().y;
+        if !programmatic && (new_scroll - self.scroll_y).abs() > 0.5 {
+            self.user_scrolled = true;
+        }
+        self.scroll_y = new_scroll;
+        self.last_row_height = row_height;
+        self.last_columns = columns;
+        self.viewport_rect = output.inner_rect;
+        self.programmatic_scroll = false;
 
         let response = response.unwrap_or_else(|| ui.allocate_exact_size(Vec2::ZERO, Sense::hover()).1);
         let geometry = geometry.unwrap_or(Geometry {
@@ -399,7 +414,7 @@ impl Editor {
     }
 }
 
-fn rows_for(width: usize, columns: usize) -> usize {
+pub(crate) fn rows_for(width: usize, columns: usize) -> usize {
     if columns == 0 {
         1
     } else {

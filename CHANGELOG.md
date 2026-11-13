@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 — Split view and synchronized scrolling
+
+- Added a resizable 50/50 split with the editor on the left and the reading view on the right; narrow windows stack the preview below the editor.
+- Added per-file split ratios persisted in the session and restored on reopen.
+- Added bidirectional block-anchor scroll synchronization with line/fraction interpolation, block preservation across re-renders, and programmatic scroll echo suppression.
+- Added a hover-aware rule when both panes scroll in one frame and a `Synchronize scrolling` toggle in the View menu.
+- Added editor scroll APIs (`first_visible_line`, `scroll_to_line`, user-scroll reporting) and preview viewport/anchor reporting.
+- Added split layout snapshots (horizontal and vertical), editor scroll tests, and a 1,000-frame oscillation test.
+
 ## 0.4.0 — Markdown reading view
 
 - Added `mdview-markdown`, a spanned CommonMark 0.31 + GFM AST with tables, task lists, strikethrough, autolinks, footnotes, alerts, hidden front matter, math events, heading anchors, and link classification.

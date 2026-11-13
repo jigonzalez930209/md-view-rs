@@ -73,6 +73,8 @@ pub struct Preview {
     source_map: SourceMap,
     anchors: BTreeMap<String, f32>,
     width: f32,
+    user_scrolled: bool,
+    viewport: egui::Rect,
 }
 
 impl Default for Preview {
@@ -87,6 +89,8 @@ impl Default for Preview {
             source_map: SourceMap::default(),
             anchors: BTreeMap::new(),
             width: 820.0,
+            user_scrolled: false,
+            viewport: egui::Rect::NOTHING,
         }
     }
 }
@@ -105,6 +109,16 @@ impl Preview {
     /// Request a scroll offset on the next paint.
     pub fn set_scroll_offset(&mut self, offset: f32) {
         self.pending_scroll = Some(offset.max(0.0));
+    }
+
+    /// Whether the user scrolled this frame, consuming the flag.
+    pub fn take_user_scroll(&mut self) -> bool {
+        std::mem::take(&mut self.user_scrolled)
+    }
+
+    /// The preview viewport rectangle from the last paint.
+    pub fn viewport_rect(&self) -> egui::Rect {
+        self.viewport
     }
 
     /// Scroll to a zero-based source line, preserving an intra-line fraction.
@@ -186,6 +200,7 @@ impl Preview {
         let mut area = egui::ScrollArea::vertical()
             .id_salt("mdview-markdown-preview")
             .auto_shrink([false, false]);
+        let programmatic = self.pending_scroll.is_some();
         if let Some(offset) = self.pending_scroll.take() {
             area = area.vertical_scroll_offset(offset);
         }
@@ -242,7 +257,11 @@ impl Preview {
             anchor_map.insert(anchor.clone(), (screen_y - content_origin).max(0.0));
         }
         self.anchors = anchor_map;
+        if !programmatic && (scroll - self.scroll).abs() > 0.5 {
+            self.user_scrolled = true;
+        }
         self.scroll = scroll;
+        self.viewport = area_output.inner_rect;
 
         if let Some((line, fraction)) = self.pending_line.take()
             && let Some(offset) = self.source_map.offset_for_line(line, fraction)

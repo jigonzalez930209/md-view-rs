@@ -150,6 +150,11 @@ impl MdViewApp {
                 self.lang = self.translations.lang(preference);
                 self.prefs.update(|prefs| prefs.set_language_preference(preference));
             }
+            Command::ToggleSyncScroll => {
+                let sync = !self.prefs.get().editor.sync_scroll;
+                self.prefs.update(|prefs| prefs.editor.sync_scroll = sync);
+                self.sync_session();
+            }
             Command::SetMode(mode) => {
                 let index = self.tabs.active_index();
                 self.tabs.set_mode(index, mode);

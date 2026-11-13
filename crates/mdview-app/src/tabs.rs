@@ -30,6 +30,8 @@ pub struct DocumentTab {
     pub conflict: bool,
     /// Whether the backing file no longer exists.
     pub missing: bool,
+    /// Fraction of the split used by the preview (0.2–0.8).
+    pub split_ratio: f32,
     preview_revision: Option<u64>,
     pub(crate) preview_source: String,
 }
@@ -52,6 +54,7 @@ impl DocumentTab {
             disk_mtime,
             conflict: false,
             missing: false,
+            split_ratio: 0.5,
             preview_revision: None,
             preview_source: String::new(),
         }
@@ -102,6 +105,13 @@ impl DocumentTab {
     /// Restore a view scroll offset from the session.
     pub fn restore_view_scroll(&mut self, offset: f32) {
         self.preview.set_scroll_offset(offset);
+    }
+
+    /// Restore the split ratio from the session.
+    pub fn restore_split_ratio(&mut self, ratio: f32) {
+        if ratio.is_finite() {
+            self.split_ratio = ratio.clamp(0.2, 0.8);
+        }
     }
 }
 

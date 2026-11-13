@@ -76,6 +76,8 @@ pub struct EditorSettings {
     pub wrap: bool,
     /// Show the line-number gutter.
     pub line_numbers: bool,
+    /// Synchronize editor and preview scrolling in split view.
+    pub sync_scroll: bool,
 }
 
 impl Default for EditorSettings {
@@ -83,6 +85,7 @@ impl Default for EditorSettings {
         Self {
             wrap: false,
             line_numbers: true,
+            sync_scroll: true,
         }
     }
 }
@@ -111,6 +114,8 @@ pub struct SessionSettings {
     pub tab_view_scroll: std::collections::BTreeMap<String, f32>,
     /// Per-file presentation mode (`edit`, `view`, or `split`).
     pub tab_modes: std::collections::BTreeMap<String, String>,
+    /// Per-file split ratio; the fraction used by the preview pane.
+    pub tab_split_ratio: std::collections::BTreeMap<String, f32>,
     /// Whether the workspace tree shows dotfiles.
     pub show_hidden: bool,
     /// Whether the workspace tree respects `.gitignore`.
@@ -130,6 +135,7 @@ impl Default for SessionSettings {
             tab_scroll: std::collections::BTreeMap::new(),
             tab_view_scroll: std::collections::BTreeMap::new(),
             tab_modes: std::collections::BTreeMap::new(),
+            tab_split_ratio: std::collections::BTreeMap::new(),
             show_hidden: false,
             respect_gitignore: true,
         }
@@ -197,6 +203,7 @@ mod tests {
         assert!(prefs.window.width > 0.0);
         assert!(!prefs.editor.wrap);
         assert!(prefs.editor.line_numbers);
+        assert!(prefs.editor.sync_scroll);
         assert!(prefs.session.sidebar_open);
         assert!(prefs.session.open_files.is_empty());
         assert_eq!(prefs.session.sidebar_width, 260.0);

@@ -78,6 +78,8 @@ pub enum Command {
     ToggleLineNumbers,
     /// Switch the document presentation mode.
     SetMode(ViewMode),
+    /// Toggle split scroll synchronization.
+    ToggleSyncScroll,
     /// Reload the current file with another encoding.
     ReloadEncoding(Encoding),
     /// Switch the base theme.

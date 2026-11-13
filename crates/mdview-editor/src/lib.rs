@@ -8,6 +8,7 @@ mod find;
 mod goto;
 mod input;
 mod render;
+mod scroll;
 
 use std::time::Instant;
 
@@ -71,6 +72,12 @@ pub struct Editor {
     pub(crate) identity: u64,
     pub(crate) scroll_y: f32,
     pub(crate) restore_scroll: Option<f32>,
+    pub(crate) pending_line: Option<(usize, f32)>,
+    pub(crate) last_row_height: f32,
+    pub(crate) last_columns: usize,
+    pub(crate) user_scrolled: bool,
+    pub(crate) programmatic_scroll: bool,
+    pub(crate) viewport_rect: egui::Rect,
 }
 
 impl Editor {
@@ -106,6 +113,12 @@ impl Editor {
             identity: 0,
             scroll_y: 0.0,
             restore_scroll: None,
+            pending_line: None,
+            last_row_height: 17.0,
+            last_columns: 0,
+            user_scrolled: false,
+            programmatic_scroll: false,
+            viewport_rect: egui::Rect::NOTHING,
         };
         editor.ensure_layout();
         editor.ensure_language();
@@ -122,21 +135,6 @@ impl Editor {
     /// Text edits must go through the editor so selection and syntax state stay coherent.
     pub fn document_mut(&mut self) -> &mut Document {
         &mut self.document
-    }
-
-    /// Give the editor a stable identity for its scroll area.
-    pub fn set_identity(&mut self, identity: u64) {
-        self.identity = identity;
-    }
-
-    /// The last vertical scroll offset.
-    pub fn scroll_offset(&self) -> f32 {
-        self.scroll_y
-    }
-
-    /// Restore a vertical scroll offset on the next frame.
-    pub fn set_scroll_offset(&mut self, offset: f32) {
-        self.restore_scroll = Some(offset.max(0.0));
     }
 
     /// The cursor as a character index.
