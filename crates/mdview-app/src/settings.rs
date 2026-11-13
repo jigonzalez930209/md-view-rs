@@ -105,8 +105,12 @@ pub struct SessionSettings {
     pub recent_files: Vec<String>,
     /// Most recent workspace folders, newest first.
     pub recent_workspaces: Vec<String>,
-    /// Per-file vertical scroll offsets.
+    /// Per-file vertical scroll offsets for the editor.
     pub tab_scroll: std::collections::BTreeMap<String, f32>,
+    /// Per-file vertical scroll offsets for the reading view.
+    pub tab_view_scroll: std::collections::BTreeMap<String, f32>,
+    /// Per-file presentation mode (`edit`, `view`, or `split`).
+    pub tab_modes: std::collections::BTreeMap<String, String>,
     /// Whether the workspace tree shows dotfiles.
     pub show_hidden: bool,
     /// Whether the workspace tree respects `.gitignore`.
@@ -124,6 +128,8 @@ impl Default for SessionSettings {
             recent_files: Vec::new(),
             recent_workspaces: Vec::new(),
             tab_scroll: std::collections::BTreeMap::new(),
+            tab_view_scroll: std::collections::BTreeMap::new(),
+            tab_modes: std::collections::BTreeMap::new(),
             show_hidden: false,
             respect_gitignore: true,
         }
@@ -228,6 +234,11 @@ mod tests {
         assert_eq!(prefs.session.recent_files, ["/tmp/a.md", "/tmp/b.md"]);
         prefs.session.remember_recent_workspace("/tmp/project");
         prefs.session.tab_scroll.insert("/tmp/a.md".to_owned(), 42.0);
+        prefs.session.tab_view_scroll.insert("/tmp/a.md".to_owned(), 84.0);
+        prefs
+            .session
+            .tab_modes
+            .insert("/tmp/a.md".to_owned(), "split".to_owned());
         let text = toml::to_string(&prefs).expect("serialize prefs");
         let read: Prefs = toml::from_str(&text).expect("deserialize prefs");
         assert_eq!(read, prefs);

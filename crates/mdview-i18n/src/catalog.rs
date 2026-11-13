@@ -109,5 +109,12 @@ pub(crate) const SPANISH: &str = concat!(
     "\tThe recent workspace no longer exists.\tEl espacio de trabajo reciente ya no existe.\n",
     "\tDiscard your unsaved changes and reload the disk version?\t¿Descartar tus cambios sin guardar y recargar la versión del disco?\n",
     "\tKeep your buffer and overwrite the disk version when you save?\t¿Conservar tu búfer y sobrescribir la versión del disco al guardar?\n",
+    "\tMode\tModo\n",
+    "\tEdit mode\tModo edición\n",
+    "\tReading view\tVista de lectura\n",
+    "\tSplit view\tVista dividida\n",
+    "\tCopy code\tCopiar código\n",
+    "\tBack to reference\tVolver a la referencia\n",
+    "\tFootnote\tNota al pie\n",
     "@id\tlanguage.name\tEspañol\n",
 );

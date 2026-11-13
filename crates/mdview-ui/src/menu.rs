@@ -5,7 +5,7 @@ use mdview_i18n::{LanguagePreference, Translations};
 use mdview_model::Encoding;
 use mdview_theme::ThemeMode;
 
-use crate::Command;
+use crate::{Command, ViewMode};
 
 /// Inputs for the menu bar.
 pub struct MenuState<'a> {
@@ -37,6 +37,10 @@ pub struct MenuState<'a> {
     pub tab_index: usize,
     /// Number of open tabs.
     pub tab_count: usize,
+    /// Active presentation mode.
+    pub mode: ViewMode,
+    /// Whether the active document is Markdown.
+    pub is_markdown: bool,
 }
 
 /// Draw the menu bar and return the selected command.
@@ -198,6 +202,21 @@ pub fn show_menu(ui: &mut Ui, state: MenuState<'_>) -> Option<Command> {
         });
 
         ui.menu_button(t("View"), |ui| {
+            ui.menu_button(t("Mode"), |ui| {
+                for mode in [ViewMode::Edit, ViewMode::View, ViewMode::Split] {
+                    if ui
+                        .add_enabled(
+                            state.is_markdown || mode == ViewMode::Edit,
+                            egui::Button::new(t(mode.label())).selected(state.mode == mode),
+                        )
+                        .clicked()
+                    {
+                        command = Some(Command::SetMode(mode));
+                        ui.close();
+                    }
+                }
+            });
+            ui.separator();
             ui.menu_button(t("Appearance"), |ui| {
                 if ui.selectable_label(theme == ThemeMode::Light, t("Light")).clicked() {
                     command = Some(Command::SetTheme(ThemeMode::Light));

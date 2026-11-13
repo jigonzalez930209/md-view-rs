@@ -27,7 +27,8 @@
 | H1 | DONE (Linux) | Native shell, settings, i18n, base themes, atomic save, CLI, and single-instance path forwarding are implemented and tested on Linux. Native dialog interaction is exercised by the H3 sidebar operations; macOS/Windows checks are deferred to 1.0.0. |
 | H2 | DONE (Linux) | Rope editor, virtualization, syntax highlighting, tab/space detection, find/replace, go-to-line, encoding/EOL, mixed-EOL preservation, wrap, background large-file loading, progress/cancellation, IME commit coverage, AccessKit role/value/selection announcements, and four light/dark × wrap snapshots are implemented and tested on Linux. |
 | H3 | DONE (Linux; OS-rename identity matching deferred) | Tabs, lazy sidebar, watcher with polling fallback, clean reload, conflict diff, missing-file state, file operations, recent files/workspaces, multi-path opening, and session restore are implemented and tested on Linux. Snapshots cover sidebar, tabs, conflict banner, and diff. |
-| H4–H11 | NOT STARTED | — |
+| H4 | DONE (Linux) | CommonMark/GFM AST with spans, reading view, safe HTML, links, alerts, tasks, tables, footnotes, code highlighting, source map, per-mode scroll, light/dark snapshots, and app tests. |
+| H5–H11 | NOT STARTED | — |
 
 ---
 
@@ -1129,6 +1130,25 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 - Dangerous HTML is neither executed nor interpreted; it is shown as text or discarded with a warning.
 - A 1 MB Markdown file opens the view in ≤ 1 s; editing is not blocked.
 - View/Edit mode preserves scroll per mode.
+
+**Progress (`0.4.0`)**
+
+| Item | Status | Evidence |
+|---|---|---|
+| Spanned CommonMark + GFM AST | DONE | `cargo test -p mdview-markdown`; every-block-span and corpus tests |
+| Tables, tasks, strikethrough, autolinks, footnotes, alerts | DONE | parser tests for tables, tasks, footnotes, and GFM alerts |
+| Heading anchors, explicit IDs, hidden front matter, math events | DONE | heading/slug/front-matter/math parser tests |
+| Reading view: headings, paragraphs, emphasis, lists, quotes, tables, code, rules | DONE | `preview_light_snapshot`, `preview_dark_snapshot` |
+| Code fences with highlighting and copy | DONE (Linux) | snapshot; `Copy` action; syntax cache reused from `mdview-syntax` |
+| Safe HTML subset and hostile HTML handling | DONE | `inline::segments` drops scripts/styles/iframes; snapshot includes inline code/links |
+| Internal links: anchors, workspace files, heading scroll | DONE | `links` unit tests; `Preview::scroll_to_anchor`; app link handler |
+| External links in the platform browser | DONE (Linux; manual desktop check pending) | `open::that` path in `reading.rs` |
+| View/Edit modes per tab and per-mode scroll | DONE | `tabs` mode tests; `tab_view_scroll`, `tab_modes` session tests |
+| Parse/layout cache and block virtualization | DONE | hash-keyed parse cache; `Preview::source_map` |
+| Content accessibility: selectable text and labels | DONE (baseline) | selectable labels; full a11y audit deferred to H8 |
+| 1 MB render without blocking | DONE | `large_document_parses_quickly` in `mdview-markdown`; view paints incrementally |
+| Light/dark reading snapshots | DONE | `crates/mdview-render/tests/snapshots/` |
+| Manual 3 OS | DEFERRED to 1.0.0 | [`docs/release-checks.md`](docs/release-checks.md) |
 
 **Required tests**
 

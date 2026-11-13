@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0 — Markdown reading view
+
+- Added `mdview-markdown`, a spanned CommonMark 0.31 + GFM AST with tables, task lists, strikethrough, autolinks, footnotes, alerts, hidden front matter, math events, heading anchors, and link classification.
+- Added deterministic GitHub-style heading slugs with explicit `{#id}` support and collision suffixes.
+- Added `mdview-render`, a token-styled reading view for headings, paragraphs, emphasis, strong, strikethrough, links, lists, task lists, block quotes/alerts, tables, code fences with syntax highlighting and copy, rules, footnotes with backlinks, math placeholders, and safe inline HTML (`br`, `sub`, `sup`, `kbd`, `mark`); other HTML is shown as text or discarded and never executed.
+- Added per-tab Edit/Reading presentation modes and automatic reading view for Markdown files.
+- Added internal link handling: anchors scroll in place; workspace links resolve with `craft-docpath`, open or activate a tab, and scroll to the heading; external links open in the platform browser.
+- Added a block source map with interpolation, re-render anchor preservation, and validation.
+- Added editor and preview scroll offsets per mode to the persisted session.
+- Added light/dark reading-view snapshots and parser, link, source-map, mode, and session tests.
+
 ## 0.1.0 — Native shell foundation
 
 - Added the Cargo workspace and the initial `mdview-*` crate boundaries.

@@ -150,6 +150,20 @@ impl MdViewApp {
                 self.lang = self.translations.lang(preference);
                 self.prefs.update(|prefs| prefs.set_language_preference(preference));
             }
+            Command::SetMode(mode) => {
+                let index = self.tabs.active_index();
+                self.tabs.set_mode(index, mode);
+                let effective = self.tabs.active().mode;
+                self.prefs.update(|prefs| {
+                    if let Some(path) = self.tabs.active().editor.document().path() {
+                        prefs
+                            .session
+                            .tab_modes
+                            .insert(path.to_string_lossy().into_owned(), effective.as_setting().to_owned());
+                    }
+                });
+                self.sync_session();
+            }
         }
     }
 
@@ -217,6 +231,16 @@ impl MdViewApp {
             self.ask_save_as(false);
         } else if self.consume_shortcut(ctx, "Cmd+W") {
             self.close_tab(self.tabs.active_index(), ctx);
+        } else if self.consume_shortcut(ctx, "Cmd+E") {
+            let mode = self.tabs.active().mode;
+            let next = if mode == mdview_ui::ViewMode::Edit {
+                mdview_ui::ViewMode::View
+            } else {
+                mdview_ui::ViewMode::Edit
+            };
+            self.handle_command(ctx, Command::SetMode(next));
+        } else if self.consume_shortcut(ctx, "Cmd+Shift+E") {
+            self.handle_command(ctx, Command::SetMode(mdview_ui::ViewMode::Split));
         } else if self.consume_shortcut(ctx, "Cmd+B") {
             self.sidebar.open = !self.sidebar.open;
             self.sync_session();

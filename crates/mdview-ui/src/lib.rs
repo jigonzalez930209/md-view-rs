@@ -7,6 +7,7 @@ mod about;
 mod close_prompt;
 mod loading;
 mod menu;
+mod mode;
 mod status;
 mod welcome;
 
@@ -14,6 +15,7 @@ pub use about::show_about;
 pub use close_prompt::{CloseChoice, show_close_prompt};
 pub use loading::show_loading;
 pub use menu::{MenuState, show_menu};
+pub use mode::ViewMode;
 pub use status::show_status;
 pub use welcome::show_welcome;
 
@@ -74,6 +76,8 @@ pub enum Command {
     ToggleWrap,
     /// Toggle line numbers.
     ToggleLineNumbers,
+    /// Switch the document presentation mode.
+    SetMode(ViewMode),
     /// Reload the current file with another encoding.
     ReloadEncoding(Encoding),
     /// Switch the base theme.

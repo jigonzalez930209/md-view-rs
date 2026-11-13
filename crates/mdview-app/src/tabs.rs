@@ -10,31 +10,50 @@ use std::time::SystemTime;
 
 use eframe::egui;
 use mdview_editor::Editor;
+use mdview_markdown::is_markdown_path;
 use mdview_model::Document;
+use mdview_render::Preview;
+
+pub use mdview_ui::ViewMode;
 
 /// One open document and its disk reconciliation state.
 pub struct DocumentTab {
     /// The editor and its document.
     pub editor: Editor,
+    /// The rendered Markdown view and its scroll state.
+    pub preview: Preview,
+    /// The active presentation.
+    pub mode: ViewMode,
     /// The file modification time recorded after the last load or save.
     pub disk_mtime: Option<SystemTime>,
     /// Whether the file changed on disk while this tab had unsaved edits.
     pub conflict: bool,
     /// Whether the backing file no longer exists.
     pub missing: bool,
+    preview_revision: Option<u64>,
+    pub(crate) preview_source: String,
 }
 
 impl DocumentTab {
     /// Build a tab from a document.
     pub fn new(document: Document, disk_mtime: Option<SystemTime>) -> Self {
         static NEXT_ID: AtomicU64 = AtomicU64::new(1);
+        let mode = if document.path().is_some_and(is_markdown_path) {
+            ViewMode::View
+        } else {
+            ViewMode::Edit
+        };
         let mut editor = Editor::new(document);
         editor.set_identity(NEXT_ID.fetch_add(1, Ordering::Relaxed));
         Self {
             editor,
+            preview: Preview::new(),
+            mode,
             disk_mtime,
             conflict: false,
             missing: false,
+            preview_revision: None,
+            preview_source: String::new(),
         }
     }
 
@@ -49,6 +68,40 @@ impl DocumentTab {
             ""
         };
         format!("{name}{marker}")
+    }
+
+    /// Whether the tab is a Markdown document that can be read.
+    pub fn is_markdown(&self) -> bool {
+        self.editor.document().path().is_some_and(is_markdown_path)
+    }
+
+    /// Set the presentation, refusing reading view for non-Markdown files.
+    pub fn set_mode(&mut self, mode: ViewMode) {
+        self.mode = if mode == ViewMode::View && !self.is_markdown() {
+            ViewMode::Edit
+        } else {
+            mode
+        };
+    }
+
+    /// Refresh the cached Markdown source when the document revision changes.
+    pub fn ensure_preview(&mut self) -> &str {
+        let revision = self.editor.document().revision();
+        if self.preview_revision != Some(revision) {
+            self.preview_source = self.editor.document().snapshot();
+            self.preview_revision = Some(revision);
+        }
+        &self.preview_source
+    }
+
+    /// The view scroll offset for the session.
+    pub fn view_scroll(&self) -> f32 {
+        self.preview.scroll_offset()
+    }
+
+    /// Restore a view scroll offset from the session.
+    pub fn restore_view_scroll(&mut self, offset: f32) {
+        self.preview.set_scroll_offset(offset);
     }
 }
 
@@ -139,6 +192,13 @@ impl TabSet {
     /// One tab by index, mutably.
     pub fn tab_mut(&mut self, index: usize) -> Option<&mut DocumentTab> {
         self.tabs.get_mut(index)
+    }
+
+    /// Select a presentation mode for one tab.
+    pub fn set_mode(&mut self, index: usize, mode: ViewMode) {
+        if let Some(tab) = self.tabs.get_mut(index) {
+            tab.set_mode(mode);
+        }
     }
 
     /// Reapply the set's view settings to one tab, for example after a reload.
@@ -343,117 +403,5 @@ pub fn show_tab_bar(
 }
 
 #[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use egui_kittest::Harness;
-    use mdview_i18n::Translations;
-    use mdview_model::{Encoding, Eol};
-
-    use super::*;
-
-    fn document(path: &str) -> Document {
-        Document::from_loaded(
-            PathBuf::from(path),
-            "hello\n".to_owned(),
-            Eol::Lf,
-            Encoding::Utf8,
-            false,
-        )
-    }
-
-    #[test]
-    fn tab_bar_snapshot() {
-        let translations = Translations::new();
-        let lang = translations.lang(mdview_i18n::LanguagePreference::English);
-        let infos = vec![
-            TabInfo {
-                label: "notes.md".to_owned(),
-                dirty: false,
-                conflict: false,
-                missing: false,
-            },
-            TabInfo {
-                label: "main.rs •".to_owned(),
-                dirty: true,
-                conflict: false,
-                missing: false,
-            },
-            TabInfo {
-                label: "deleted.md!".to_owned(),
-                dirty: false,
-                conflict: false,
-                missing: true,
-            },
-        ];
-        let mut harness = Harness::builder()
-            .with_size(egui::vec2(620.0, 44.0))
-            .build_ui(move |ui| {
-                show_tab_bar(ui, &infos, 1, &translations, lang);
-            });
-        harness.run();
-        harness.snapshot("tab-bar");
-    }
-
-    #[test]
-    fn opening_the_same_path_reuses_the_tab() {
-        let mut tabs = TabSet::new(true, false, true);
-        let first = tabs.open(document("/tmp/a.md"), None);
-        tabs.new_untitled();
-        let again = tabs.open(document("/tmp/a.md"), None);
-        assert_eq!(first, again);
-        assert_eq!(tabs.len(), 2);
-        assert_eq!(tabs.active_index(), first);
-    }
-
-    #[test]
-    fn opening_a_document_replaces_a_pristine_untitled_tab() {
-        let mut tabs = TabSet::new(true, false, true);
-        tabs.open(document("/tmp/a.md"), None);
-        assert_eq!(tabs.len(), 1);
-        assert_eq!(
-            tabs.active().editor.document().path(),
-            Some(std::path::Path::new("/tmp/a.md"))
-        );
-    }
-
-    #[test]
-    fn moving_tabs_reorders_and_tracks_the_active_tab() {
-        let mut tabs = TabSet::new(true, false, true);
-        tabs.open(document("/tmp/a.md"), None);
-        tabs.open(document("/tmp/b.md"), None);
-        tabs.move_tab(1, 0);
-        assert_eq!(tabs.active_index(), 0);
-        assert_eq!(tabs.tabs()[0].editor.document().display_name(), "b.md");
-        assert_eq!(tabs.tabs()[1].editor.document().display_name(), "a.md");
-    }
-
-    #[test]
-    fn rename_updates_the_matching_tab() {
-        let mut tabs = TabSet::new(true, false, true);
-        tabs.open(document("/tmp/a.md"), None);
-        assert!(tabs.rename_path(std::path::Path::new("/tmp/a.md"), std::path::Path::new("/tmp/b.md")));
-        assert_eq!(
-            tabs.active().editor.document().path(),
-            Some(std::path::Path::new("/tmp/b.md"))
-        );
-        assert_eq!(tabs.find_path(std::path::Path::new("/tmp/a.md")), None);
-    }
-
-    #[test]
-    fn missing_files_are_marked_in_the_label() {
-        let mut tabs = TabSet::new(true, false, true);
-        tabs.open(document("/tmp/missing.md"), None);
-        tabs.active_mut().missing = true;
-        assert!(tabs.infos()[0].label.contains("missing.md"));
-        assert!(tabs.infos()[0].missing);
-    }
-
-    #[test]
-    fn closing_the_last_tab_keeps_one_empty_tab() {
-        let mut tabs = TabSet::new(true, false, true);
-        tabs.close(0);
-        assert_eq!(tabs.len(), 1);
-        assert!(tabs.active().editor.document().path().is_none());
-    }
-}
+#[path = "tabs_tests.rs"]
+mod tests;

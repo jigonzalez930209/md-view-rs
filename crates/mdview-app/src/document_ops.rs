@@ -56,8 +56,19 @@ impl MdViewApp {
         if let Some(path) = path {
             let text = path.to_string_lossy().into_owned();
             self.prefs.update(|prefs| prefs.session.remember_recent(&text));
-            if let Some(offset) = self.prefs.get().session.tab_scroll.get(&text).copied() {
+            let session = self.prefs.get().session.clone();
+            if let Some(offset) = session.tab_scroll.get(&text).copied() {
                 self.tabs.set_scroll_offset(index, offset);
+            }
+            if let Some(offset) = session.tab_view_scroll.get(&text).copied()
+                && let Some(tab) = self.tabs.tab_mut(index)
+            {
+                tab.restore_view_scroll(offset);
+            }
+            if let Some(mode) = session.tab_modes.get(&text).map(String::as_str)
+                && let Some(tab) = self.tabs.tab_mut(index)
+            {
+                tab.set_mode(crate::tabs::ViewMode::from_setting(mode));
             }
         }
         self.sync_session();
@@ -232,6 +243,28 @@ impl MdViewApp {
                     .map(|path| (path.to_string_lossy().into_owned(), tab.editor.scroll_offset()))
             })
             .collect::<std::collections::BTreeMap<_, _>>();
+        let tab_view_scroll = self
+            .tabs
+            .tabs()
+            .iter()
+            .filter_map(|tab| {
+                tab.editor
+                    .document()
+                    .path()
+                    .map(|path| (path.to_string_lossy().into_owned(), tab.view_scroll()))
+            })
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let tab_modes = self
+            .tabs
+            .tabs()
+            .iter()
+            .filter_map(|tab| {
+                tab.editor
+                    .document()
+                    .path()
+                    .map(|path| (path.to_string_lossy().into_owned(), tab.mode.as_setting().to_owned()))
+            })
+            .collect::<std::collections::BTreeMap<_, _>>();
         let sidebar_open = self.sidebar.open;
         let sidebar_width = self.sidebar.width;
         let show_hidden = self.sidebar.show_hidden;
@@ -241,6 +274,8 @@ impl MdViewApp {
             prefs.session.active_file = active_file;
             prefs.session.workspace = workspace;
             prefs.session.tab_scroll = tab_scroll;
+            prefs.session.tab_view_scroll = tab_view_scroll;
+            prefs.session.tab_modes = tab_modes;
             prefs.session.sidebar_open = sidebar_open;
             prefs.session.sidebar_width = sidebar_width;
             prefs.session.show_hidden = show_hidden;

@@ -2,7 +2,7 @@
 
 A native Markdown, text, and code editor for Windows, macOS, and Linux, built with Rust and egui.
 
-The project is at the `0.3.0` workspace milestone: a native shell with document tabs, a lazy folder tree, debounced filesystem watching, session restore, conflict handling, a virtualized code editor, syntax highlighting, regex find/replace, encoding detection, mixed-EOL preservation, background large-file loading, atomic saves, and English/Spanish UI. The Markdown view and rich rendering arrive in later milestones described in [ROADMAP.md](ROADMAP.md).
+The project is at the `0.4.0` workspace milestone: a native shell with document tabs, a lazy folder tree, debounced filesystem watching, session restore, conflict handling, a virtualized code editor, syntax highlighting, regex find/replace, encoding detection, mixed-EOL preservation, background large-file loading, atomic saves, and English/Spanish UI. Markdown files open in a token-styled reading view with GFM tables, tasks, footnotes, alerts, safe HTML, internal links, source mapping, and Edit/Reading modes. Rich media, split synchronization, themes, and packaging arrive in later milestones described in [ROADMAP.md](ROADMAP.md).
 
 ## Build
 
@@ -27,6 +27,7 @@ Read [AGENT.md](AGENT.md) before changing code. It defines the English-only repo
 - Milestone H1: native shell, settings, i18n, light/dark tokens, atomic saves, native dialogs, close prompt, CLI, single-instance path forwarding.
 - Milestone H2: Rope-based virtualized editor, syntax highlighting, line numbers, auto-indent/pairs, bracket matching, regex find/replace, go-to-line, encoding detection, EOL handling, soft wrap, and large-file mode.
 - Milestone H3: document tabs, lazy workspace tree, `.gitignore` filtering, reactive watcher with polling fallback, clean-file reload, dirty-file conflict diff, missing-file state, sidebar file operations, multi-path opening, and session/recent persistence.
+- Milestone H4: spanned CommonMark/GFM parser, reading view, safe HTML, heading anchors, internal and external links, footnotes, code highlighting, per-tab Edit/Reading modes, source map, and per-mode session scroll.
 - Hosted CI/CD is intentionally deferred until `1.0.0`, after the local feature set is operational. Verify changes locally with the commands below.
 
 ```sh

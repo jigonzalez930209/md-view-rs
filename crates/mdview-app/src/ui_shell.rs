@@ -190,6 +190,8 @@ impl eframe::App for MdViewApp {
                     recent_workspaces: &self.prefs.get().session.recent_workspaces,
                     tab_index: self.tabs.active_index(),
                     tab_count: self.tabs.len(),
+                    mode: self.tabs.active().mode,
+                    is_markdown: self.tabs.active().is_markdown(),
                 },
             );
         });
@@ -211,17 +213,32 @@ impl eframe::App for MdViewApp {
         });
 
         let mut open_requested = false;
+        let mut preview_output = None;
         egui::CentralPanel::default().show(ui, |ui| {
             self.show_conflict(ui);
             let document = self.tabs.editor().document();
             if document.path().is_none() && document.is_empty() {
                 open_requested = mdview_ui::show_welcome(ui, &self.translations, self.lang);
             } else {
-                self.tabs.editor_mut().show(ui);
+                match self.tabs.active().mode {
+                    mdview_ui::ViewMode::Edit => {
+                        self.tabs.editor_mut().show(ui);
+                    }
+                    mdview_ui::ViewMode::View | mdview_ui::ViewMode::Split => {
+                        let theme = mdview_theme::Theme::for_mode(self.theme);
+                        let light = self.theme == mdview_theme::ThemeMode::Light;
+                        let tab = self.tabs.active_mut();
+                        tab.ensure_preview();
+                        preview_output = Some(tab.preview.show(ui, &tab.preview_source, &theme, light));
+                    }
+                }
             }
         });
         if open_requested {
             self.ask_open();
+        }
+        if let Some(output) = preview_output {
+            self.handle_preview_output(output, ui.ctx());
         }
 
         if self.about_open {

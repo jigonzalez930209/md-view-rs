@@ -1,0 +1,137 @@
+//! Tab presentation and session tests.
+
+use std::path::PathBuf;
+
+use egui_kittest::Harness;
+use mdview_i18n::Translations;
+use mdview_model::{Document, Encoding, Eol};
+
+use super::*;
+
+fn document(path: &str) -> Document {
+    Document::from_loaded(
+        PathBuf::from(path),
+        "hello\n".to_owned(),
+        Eol::Lf,
+        Encoding::Utf8,
+        false,
+    )
+}
+
+#[test]
+fn tab_bar_snapshot() {
+    let translations = Translations::new();
+    let lang = translations.lang(mdview_i18n::LanguagePreference::English);
+    let infos = vec![
+        TabInfo {
+            label: "notes.md".to_owned(),
+            dirty: false,
+            conflict: false,
+            missing: false,
+        },
+        TabInfo {
+            label: "main.rs •".to_owned(),
+            dirty: true,
+            conflict: false,
+            missing: false,
+        },
+        TabInfo {
+            label: "deleted.md!".to_owned(),
+            dirty: false,
+            conflict: false,
+            missing: true,
+        },
+    ];
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(620.0, 44.0))
+        .build_ui(move |ui| {
+            show_tab_bar(ui, &infos, 1, &translations, lang);
+        });
+    harness.run();
+    harness.snapshot("tab-bar");
+}
+
+#[test]
+fn opening_the_same_path_reuses_the_tab() {
+    let mut tabs = TabSet::new(true, false, true);
+    let first = tabs.open(document("/tmp/a.md"), None);
+    tabs.new_untitled();
+    let again = tabs.open(document("/tmp/a.md"), None);
+    assert_eq!(first, again);
+    assert_eq!(tabs.len(), 2);
+    assert_eq!(tabs.active_index(), first);
+}
+
+#[test]
+fn opening_a_document_replaces_a_pristine_untitled_tab() {
+    let mut tabs = TabSet::new(true, false, true);
+    tabs.open(document("/tmp/a.md"), None);
+    assert_eq!(tabs.len(), 1);
+    assert_eq!(
+        tabs.active().editor.document().path(),
+        Some(std::path::Path::new("/tmp/a.md"))
+    );
+}
+
+#[test]
+fn moving_tabs_reorders_and_tracks_the_active_tab() {
+    let mut tabs = TabSet::new(true, false, true);
+    tabs.open(document("/tmp/a.md"), None);
+    tabs.open(document("/tmp/b.md"), None);
+    tabs.move_tab(1, 0);
+    assert_eq!(tabs.active_index(), 0);
+    assert_eq!(tabs.tabs()[0].editor.document().display_name(), "b.md");
+    assert_eq!(tabs.tabs()[1].editor.document().display_name(), "a.md");
+}
+
+#[test]
+fn rename_updates_the_matching_tab() {
+    let mut tabs = TabSet::new(true, false, true);
+    tabs.open(document("/tmp/a.md"), None);
+    assert!(tabs.rename_path(std::path::Path::new("/tmp/a.md"), std::path::Path::new("/tmp/b.md")));
+    assert_eq!(
+        tabs.active().editor.document().path(),
+        Some(std::path::Path::new("/tmp/b.md"))
+    );
+    assert_eq!(tabs.find_path(std::path::Path::new("/tmp/a.md")), None);
+}
+
+#[test]
+fn missing_files_are_marked_in_the_label() {
+    let mut tabs = TabSet::new(true, false, true);
+    tabs.open(document("/tmp/missing.md"), None);
+    tabs.active_mut().missing = true;
+    assert!(tabs.infos()[0].label.contains("missing.md"));
+    assert!(tabs.infos()[0].missing);
+}
+
+#[test]
+fn closing_the_last_tab_keeps_one_empty_tab() {
+    let mut tabs = TabSet::new(true, false, true);
+    tabs.close(0);
+    assert_eq!(tabs.len(), 1);
+    assert!(tabs.active().editor.document().path().is_none());
+}
+
+#[test]
+fn markdown_tabs_open_in_reading_view_and_code_tabs_in_edit_mode() {
+    let mut tabs = TabSet::new(true, false, true);
+    tabs.open(document("/tmp/notes.md"), None);
+    assert_eq!(tabs.active().mode, ViewMode::View);
+    assert!(tabs.active().is_markdown());
+    tabs.open(document("/tmp/main.rs"), None);
+    assert_eq!(tabs.active().mode, ViewMode::Edit);
+    assert!(!tabs.active().is_markdown());
+    tabs.set_mode(tabs.active_index(), ViewMode::View);
+    assert_eq!(tabs.active().mode, ViewMode::Edit);
+}
+
+#[test]
+fn preview_source_refreshes_with_the_document_revision() {
+    let mut tabs = TabSet::new(true, false, true);
+    tabs.open(document("/tmp/notes.md"), None);
+    let tab = tabs.active_mut();
+    assert_eq!(tab.ensure_preview(), "hello\n");
+    tab.editor.document_mut().replace_range(0, 0, "# ");
+    assert_eq!(tab.ensure_preview(), "# hello\n");
+}
