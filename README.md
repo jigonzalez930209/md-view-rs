@@ -2,7 +2,7 @@
 
 A native Markdown, text, and code editor for Windows, macOS, and Linux, built with Rust and egui.
 
-The project is at the `0.2.0` editor milestone: a native shell with a virtualized code editor, Rope buffer, syntax highlighting, line numbers, regex find/replace, go-to-line, encoding detection, soft wrap, large-file mode, atomic saves, and English/Spanish UI. The Markdown view, workspace tree, tabs, and rich rendering arrive in later milestones described in [ROADMAP.md](ROADMAP.md).
+The project is at the `0.2.0` editor milestone: a native shell with a virtualized code editor, Rope buffer, syntax highlighting, line numbers, regex find/replace, go-to-line, encoding detection, mixed-EOL preservation, soft wrap, background large-file loading, atomic saves, and English/Spanish UI. The Markdown view, workspace tree, tabs, and rich rendering arrive in later milestones described in [ROADMAP.md](ROADMAP.md).
 
 ## Build
 

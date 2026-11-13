@@ -11,7 +11,7 @@ mod render;
 
 use std::time::Instant;
 
-use mdview_model::{Document, Encoding, Eol};
+use mdview_model::{Document, Encoding, Eol, Indentation};
 use mdview_syntax::Highlighter;
 
 pub use find::{FindState, SearchOptions};
@@ -38,6 +38,8 @@ pub struct EditorStatus {
     pub wrap: bool,
     /// Whether line numbers are enabled.
     pub line_numbers: bool,
+    /// Detected indentation convention.
+    pub indentation: Indentation,
 }
 
 /// The code editor widget and its document.
@@ -53,6 +55,7 @@ pub struct Editor {
     pub(crate) highlight_cache: mdview_syntax::HighlightCache,
     pub(crate) highlight_revision: Option<u64>,
     pub(crate) language: String,
+    pub(crate) indentation: Indentation,
     pub(crate) display_widths: Vec<usize>,
     pub(crate) layout_revision: Option<u64>,
     pub(crate) bracket_match: Option<(usize, usize)>,
@@ -63,12 +66,15 @@ pub struct Editor {
     pub(crate) scroll_to_cursor: bool,
     pub(crate) cursor_blink_start: Instant,
     pub(crate) last_click: Option<(Instant, egui::Pos2, u8)>,
+    pub(crate) accessibility_revision: Option<u64>,
+    pub(crate) announced_selection: Option<(usize, usize)>,
 }
 
 impl Editor {
     /// Build an editor around a document.
     pub fn new(document: Document) -> Self {
         let large_mode = document.len_bytes() > 10 * 1024 * 1024 || document.line_count() > 200_000;
+        let indentation = document.detect_indentation();
         let mut editor = Self {
             document,
             cursor: 0,
@@ -81,6 +87,7 @@ impl Editor {
             highlight_cache: mdview_syntax::HighlightCache::default(),
             highlight_revision: None,
             language: "Plain Text".to_owned(),
+            indentation,
             display_widths: Vec::new(),
             layout_revision: None,
             bracket_match: None,
@@ -91,6 +98,8 @@ impl Editor {
             scroll_to_cursor: false,
             cursor_blink_start: Instant::now(),
             last_click: None,
+            accessibility_revision: None,
+            announced_selection: None,
         };
         editor.ensure_layout();
         editor.ensure_language();
@@ -115,6 +124,7 @@ impl Editor {
         self.cursor = 0;
         self.anchor = 0;
         self.large_mode = self.document.len_bytes() > 10 * 1024 * 1024 || self.document.line_count() > 200_000;
+        self.indentation = self.document.detect_indentation();
         if self.large_mode {
             self.wrap = false;
         }
@@ -185,6 +195,7 @@ impl Editor {
             large_mode: self.large_mode,
             wrap: self.wrap,
             line_numbers: self.line_numbers,
+            indentation: self.indentation,
         }
     }
 
@@ -359,7 +370,7 @@ pub(crate) fn display_col(text: &str, char_col: usize) -> usize {
 mod tests {
     use std::path::PathBuf;
 
-    use mdview_model::{Document, Encoding, Eol};
+    use mdview_model::{Document, Encoding, Eol, Indentation};
 
     use super::{Editor, display_col};
 
@@ -371,6 +382,26 @@ mod tests {
             Encoding::Utf8,
             false,
         ))
+    }
+
+    #[test]
+    fn ime_commit_inserts_multibyte_text() {
+        let mut editor = editor("");
+        editor.apply_ime_commit("こんにちは");
+        assert_eq!(editor.document().snapshot(), "こんにちは");
+        assert_eq!(editor.document().line_col(editor.cursor).1, 5);
+    }
+
+    #[test]
+    fn detects_indentation_in_the_editor() {
+        let editor = editor("  one\n  two\n");
+        assert_eq!(
+            editor.indentation,
+            Indentation {
+                use_tabs: false,
+                width: 2
+            }
+        );
     }
 
     #[test]

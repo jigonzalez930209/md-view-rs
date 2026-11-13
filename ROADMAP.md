@@ -25,7 +25,7 @@
 |---|---|---|
 | H0 | NOT STARTED as a separate spike phase | The H1 shell uses conventional egui widgets. The H0 risk gates remain for the editor, Mermaid, LaTeX, and animated SVG milestones. |
 | H1 | IN PROGRESS | The workspace, shell, settings, i18n, base themes, atomic save, CLI, and single-instance path forwarding are implemented and tested on Linux. Native dialog interaction and macOS/Windows manual verification are pending. |
-| H2 | IN PROGRESS | Rope editor, virtualization, syntax highlighting, find/replace, go-to-line, encoding/EOL, wrap, and large-file mode are implemented and tested on Linux. IME, screen-reader, visual snapshots, and macOS/Windows manual checks remain. |
+| H2 | IN PROGRESS | Rope editor, virtualization, syntax highlighting, tab/space detection, find/replace, go-to-line, encoding/EOL, mixed-EOL preservation, wrap, background large-file loading, and progress/cancellation are implemented and tested on Linux. Visual snapshots, screen-reader-level verification, and macOS/Windows manual checks remain. |
 | H3–H11 | NOT STARTED | — |
 
 ---
@@ -1013,17 +1013,19 @@ The critical path is `H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8
 | Syntax highlighting and lazy line cache | DONE | `mdview-syntax` language tests; visible-range cache |
 | Language detection for the curated set | DONE | 31 extensions/filenames tested |
 | Auto-indent, bracket/quote pairing, bracket matching | DONE | bracket/unit tests; manual auto-pair smoke |
+| Tab/space indentation detection | DONE | model/editor indentation tests; editor uses detected unit |
 | Find/replace regex, next/previous, replace all | DONE | `mdview-editor` find tests |
 | Go-to-line | DONE | `mdview-editor` goto test |
 | Encoding detection and reopen | DONE | file-ops tests for UTF-8/UTF-16/Windows-1252; menu command |
 | BOM and LF/CRLF/CR preservation | DONE | file-ops round-trip tests |
-| Mixed EOL detection | DONE | model test; saves as LF with a warning |
+| Mixed EOL preservation | DONE | per-line endings round-trip test; editing keeps the detected style |
 | Soft wrap | DONE (unit layout; visual check pending) | wrap layout path and scale test |
-| Large-file mode and 100 MB cap | DONE | 10k-line scale test; 100 MB limit test |
+| Large-file mode and 100 MB cap | DONE | 10k-line scale test; 10.5 MB / 220k-line UI smoke; 100 MB limit test |
+| Background large-file loading | DONE | worker/progress/cancel tests; loading dialog request-repaint path |
+| IME commit path | DONE (manual IME pending) | multibyte commit unit test |
 | Clipboard operations | IN PROGRESS | copy/cut/paste event path; manual matrix pending |
-| IME | IN PROGRESS | commit path implemented; manual IME test pending |
-| Accessibility | IN PROGRESS | keyboard/focus/role/hint; screen-reader test pending |
-| Visual snapshots | PENDING | snapshot harness not yet implemented |
+| Accessibility | IN PROGRESS | keyboard/focus; AccessKit role, value (bounded), selection announcements; manual screen-reader test pending |
+| Visual snapshots | PENDING | snapshot harness not yet implemented; soft-wrap visual check pending |
 | macOS/Windows manual verification | PENDING | local Linux verification only |
 
 **Verifiable acceptance criteria**

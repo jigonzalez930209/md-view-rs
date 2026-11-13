@@ -195,7 +195,27 @@ impl Editor {
                 }
 
                 let content_rect = painted.rect;
-                painted.widget_info(|| egui::WidgetInfo::text_edit(ui.is_enabled(), "", "", "Code editor"));
+                let revision = self.document.revision();
+                if self.accessibility_revision != Some(revision) {
+                    let text = if self.document.len_chars() <= 100_000 {
+                        self.document.snapshot()
+                    } else {
+                        String::new()
+                    };
+                    painted.widget_info(|| egui::WidgetInfo::text_edit(ui.is_enabled(), "", &text, "Code editor"));
+                    self.accessibility_revision = Some(revision);
+                }
+                let selection = self.selection();
+                if self.announced_selection != Some(selection) {
+                    self.announced_selection = Some(selection);
+                    painted.output_event(egui::output::OutputEvent::TextSelectionChanged(
+                        egui::WidgetInfo::text_selection_changed(
+                            ui.is_enabled(),
+                            egui::text::CharIndex(selection.0)..egui::text::CharIndex(selection.1),
+                            "",
+                        ),
+                    ));
+                }
                 response = Some(painted);
                 geometry = Some(Geometry {
                     content_rect,

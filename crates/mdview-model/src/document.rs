@@ -41,7 +41,28 @@ impl Eol {
         text.replace("\r\n", "\n").replace('\r', "\n")
     }
 
-    /// Apply this style to LF-normalized text. Mixed is saved as LF.
+    /// Detect every line ending in source text.
+    pub fn detect_endings(text: &str) -> Vec<Self> {
+        let mut endings = Vec::new();
+        let mut chars = text.chars().peekable();
+        while let Some(character) = chars.next() {
+            match character {
+                '\r' => {
+                    if chars.peek() == Some(&'\n') {
+                        chars.next();
+                        endings.push(Self::Crlf);
+                    } else {
+                        endings.push(Self::Cr);
+                    }
+                }
+                '\n' => endings.push(Self::Lf),
+                _ => {}
+            }
+        }
+        endings
+    }
+
+    /// Apply this style to LF-normalized text. Mixed is saved as LF when no per-line data exists.
     pub fn apply(self, text: &str) -> String {
         match self {
             Self::Crlf => text.replace('\n', "\r\n"),
@@ -68,6 +89,7 @@ pub struct Document {
     path: Option<PathBuf>,
     dirty: bool,
     eol: Eol,
+    mixed_endings: Vec<Eol>,
     encoding: Encoding,
     bom: bool,
     revision: u64,
@@ -88,6 +110,7 @@ impl Document {
             path: None,
             dirty: false,
             eol: Eol::Lf,
+            mixed_endings: Vec::new(),
             encoding: Encoding::Utf8,
             bom: false,
             revision: 0,
@@ -99,11 +122,24 @@ impl Document {
     ///
     /// `text` must be normalized to LF; `file_ops` owns that conversion.
     pub fn from_loaded(path: PathBuf, text: String, eol: Eol, encoding: Encoding, bom: bool) -> Self {
+        Self::from_loaded_with_endings(path, text, eol, encoding, bom, Vec::new())
+    }
+
+    /// Build a document with per-line endings for a mixed-line-ending file.
+    pub fn from_loaded_with_endings(
+        path: PathBuf,
+        text: String,
+        eol: Eol,
+        encoding: Encoding,
+        bom: bool,
+        endings: Vec<Eol>,
+    ) -> Self {
         Self {
             rope: Rope::from_str(&text),
             path: Some(path),
             dirty: false,
             eol,
+            mixed_endings: if eol == Eol::Mixed { endings } else { Vec::new() },
             encoding,
             bom,
             revision: 0,
@@ -159,8 +195,16 @@ impl Document {
     /// Change the saved line-ending style.
     pub fn set_eol(&mut self, eol: Eol) {
         self.eol = eol;
+        if eol != Eol::Mixed {
+            self.mixed_endings.clear();
+        }
         self.dirty = true;
         self.revision = self.revision.wrapping_add(1);
+    }
+
+    /// Per-line endings for a mixed file.
+    pub fn mixed_endings(&self) -> &[Eol] {
+        &self.mixed_endings
     }
 
     /// The detected encoding.
@@ -371,6 +415,7 @@ impl Document {
     pub fn replace_content(&mut self, text: String, eol: Eol, encoding: Encoding, bom: bool) {
         self.rope = Rope::from_str(&text);
         self.eol = eol;
+        self.mixed_endings.clear();
         self.encoding = encoding;
         self.bom = bom;
         self.dirty = false;

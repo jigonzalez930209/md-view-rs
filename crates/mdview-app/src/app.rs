@@ -10,12 +10,12 @@ use craft_settings::{Location, SaveStatus, SettingsStore};
 use eframe::egui;
 use mdview_editor::Editor;
 use mdview_i18n::{LanguagePreference, Translations};
-use mdview_model::{Document, Encoding, Eol};
+use mdview_model::{Document, Encoding};
 use mdview_theme::ThemeMode;
 use mdview_ui::{CloseChoice, Command};
 
 use crate::cli::CliAction;
-use crate::file_ops::{self, FileError};
+use crate::file_ops;
 use crate::settings::Prefs;
 use crate::single_instance::Primary;
 
@@ -30,12 +30,12 @@ enum DialogThen {
 
 /// The MD View application.
 pub struct MdViewApp {
-    prefs: SettingsStore<Prefs>,
+    pub(crate) prefs: SettingsStore<Prefs>,
     translations: Translations,
     lang: craft_i18n::Lang,
-    theme: ThemeMode,
+    pub(crate) theme: ThemeMode,
     language: LanguagePreference,
-    editor: Editor,
+    pub(crate) editor: Editor,
     dialogs: Dialogs<DialogThen>,
     about_open: bool,
     close_prompt_open: bool,
@@ -43,6 +43,7 @@ pub struct MdViewApp {
     startup_error: Option<String>,
     window_title: String,
     primary: Option<Primary>,
+    pub(crate) pending_load: Option<crate::load_job::LoadJob>,
 }
 
 impl MdViewApp {
@@ -91,6 +92,7 @@ impl MdViewApp {
             startup_error: None,
             window_title: String::new(),
             primary,
+            pending_load: None,
         };
 
         mdview_theme::apply(&cc.egui_ctx, theme);
@@ -109,11 +111,11 @@ impl MdViewApp {
         app
     }
 
-    fn t(&self, source: &str) -> String {
+    pub(crate) fn t(&self, source: &str) -> String {
         self.translations.t(self.lang, source)
     }
 
-    fn show_error(&mut self, description: impl Into<String>) {
+    pub(crate) fn show_error(&mut self, description: impl Into<String>) {
         self.dialogs.ask_message(
             Message {
                 level: MessageLevel::Error,
@@ -123,28 +125,6 @@ impl MdViewApp {
             },
             DialogThen::Ignored,
         );
-    }
-
-    fn show_info(&mut self, description: impl Into<String>) {
-        self.dialogs.ask_message(
-            Message {
-                level: MessageLevel::Info,
-                title: self.t("Information").to_owned(),
-                description: description.into(),
-                buttons: MessageButtons::Ok,
-            },
-            DialogThen::Ignored,
-        );
-    }
-
-    fn load_document(&mut self, path: &Path) -> Result<(), FileError> {
-        let document = file_ops::load(path)?;
-        self.editor.replace_document(document);
-        self.editor.set_light(self.theme == ThemeMode::Light);
-        if !self.editor.status().large_mode {
-            self.editor.set_wrap(self.prefs.get().editor.wrap);
-        }
-        Ok(())
     }
 
     fn open_from_dialog(&mut self, path: &Path, ctx: &egui::Context) {
@@ -199,14 +179,8 @@ impl MdViewApp {
     fn save_to(&mut self, path: &Path, close_after: bool, ctx: Option<&egui::Context>) {
         match file_ops::save(self.editor.document(), path) {
             Ok(()) => {
-                let mixed = self.editor.document().eol() == Eol::Mixed;
                 self.editor.document_mut().set_path(path.to_path_buf());
-                if mixed {
-                    self.editor.document_mut().mark_saved_with_eol(Eol::Lf);
-                    self.show_info(self.t("Mixed line endings were saved as LF."));
-                } else {
-                    self.editor.document_mut().mark_saved();
-                }
+                self.editor.document_mut().mark_saved();
                 if let Some(ctx) = ctx {
                     self.update_title(ctx);
                 }
@@ -346,7 +320,7 @@ impl MdViewApp {
         }
     }
 
-    fn update_title(&mut self, ctx: &egui::Context) {
+    pub(crate) fn update_title(&mut self, ctx: &egui::Context) {
         let marker = if self.editor.document().is_dirty() { " •" } else { "" };
         let title = format!("MD View — {}{marker}", self.editor.document().display_name());
         if title != self.window_title {
@@ -384,6 +358,7 @@ impl MdViewApp {
 
 impl eframe::App for MdViewApp {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.poll_load(ctx);
         let forwarded = self.primary.as_ref().map(Primary::take_paths).unwrap_or_default();
         for path in forwarded {
             if path.as_os_str().is_empty() {
@@ -465,6 +440,13 @@ impl eframe::App for MdViewApp {
         }
         if self.close_prompt_open {
             self.show_close_prompt(ui.ctx());
+        }
+        if let Some(job) = &self.pending_load {
+            ui.ctx().request_repaint_after(std::time::Duration::from_millis(50));
+            let cancel = mdview_ui::show_loading(ui.ctx(), &self.translations, self.lang, job.path(), job.progress());
+            if cancel && let Some(job) = self.pending_load.take() {
+                job.cancel();
+            }
         }
 
         self.dialogs.show_pending(Some(&*frame));

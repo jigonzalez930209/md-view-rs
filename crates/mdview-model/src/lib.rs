@@ -6,10 +6,12 @@
 
 mod document;
 mod encoding;
+mod indentation;
 mod undo;
 
 pub use document::{Document, Eol};
 pub use encoding::Encoding;
+pub use indentation::Indentation;
 pub use undo::{EditKind, UndoStack};
 
 #[cfg(test)]

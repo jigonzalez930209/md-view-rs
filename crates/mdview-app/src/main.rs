@@ -3,6 +3,8 @@
 mod app;
 mod cli;
 mod file_ops;
+mod load_flow;
+mod load_job;
 mod settings;
 mod single_instance;
 

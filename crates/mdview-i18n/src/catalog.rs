@@ -38,6 +38,7 @@ pub(crate) const SPANISH: &str = concat!(
     "\tCancel\tCancelar\n",
     "\tError\tError\n",
     "\tInformation\tInformación\n",
+    "\tOpening file…\tAbriendo archivo…\n",
     "\tCould not open file.\tNo se pudo abrir el archivo.\n",
     "\tCould not save file.\tNo se pudo guardar el archivo.\n",
     "\tSave or discard your changes first.\tGuarda o descarta los cambios primero.\n",

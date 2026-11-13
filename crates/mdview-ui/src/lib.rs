@@ -5,12 +5,14 @@
 
 mod about;
 mod close_prompt;
+mod loading;
 mod menu;
 mod status;
 mod welcome;
 
 pub use about::show_about;
 pub use close_prompt::{CloseChoice, show_close_prompt};
+pub use loading::show_loading;
 pub use menu::{MenuState, show_menu};
 pub use status::show_status;
 pub use welcome::show_welcome;

@@ -67,7 +67,7 @@ impl Editor {
             match event {
                 Event::Text(text) => self.insert_text(&text),
                 Event::Paste(text) => self.insert_text(&text),
-                Event::Ime(egui::ImeEvent::Commit(text)) => self.insert_text(&text),
+                Event::Ime(egui::ImeEvent::Commit(text)) => self.apply_ime_commit(&text),
                 Event::Copy => self.copy_selection(ui),
                 Event::Cut => {
                     self.copy_selection(ui);
@@ -229,6 +229,10 @@ impl Editor {
         Some(format!("{character}{closing}"))
     }
 
+    pub(crate) fn apply_ime_commit(&mut self, text: &str) {
+        self.insert_text(text);
+    }
+
     fn replace_selection(&mut self, text: &str) {
         let (start, end) = self.selection();
         if start != end {
@@ -309,7 +313,8 @@ impl Editor {
             if dedent {
                 return;
             }
-            self.replace_selection("    ");
+            let unit = self.indentation.unit();
+            self.replace_selection(&unit);
             return;
         }
         let start_line = self.document.line_col(start).0;
@@ -318,12 +323,20 @@ impl Editor {
             let line_start = self.document.line_start_char(line);
             if dedent {
                 let text = self.document.line(line);
-                let removed = text.chars().take(4).take_while(|character| *character == ' ').count();
+                let removed = if self.indentation.use_tabs {
+                    text.chars().take(1).take_while(|character| *character == '\t').count()
+                } else {
+                    text.chars()
+                        .take(self.indentation.width)
+                        .take_while(|character| *character == ' ')
+                        .count()
+                };
                 if removed > 0 {
                     self.document.delete_range(line_start, line_start + removed);
                 }
             } else {
-                self.document.insert_text(line_start, "    ");
+                let unit = self.indentation.unit();
+                self.document.insert_text(line_start, &unit);
             }
         }
         self.anchor = self.document.line_start_char(start_line);

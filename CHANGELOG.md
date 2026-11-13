@@ -22,5 +22,8 @@
 - Added auto-indent, bracket and quote pairing, bracket matching, Tab/Shift+Tab indentation, and soft wrap.
 - Added regex find/replace, match highlighting, next/previous navigation, replace-all, and go-to-line.
 - Added encoding detection for UTF-8/UTF-16/Windows-1252/ISO-8859-1/Shift_JIS, reopen-with-encoding, BOM preservation, and LF/CRLF/CR/mixed EOL reporting.
-- Added a 10 MB/200k-line large-file mode, a 100 MB hard limit, and lazy syntax highlighting.
-- Added cursor line/column, selection count, language, encoding, EOL, wrap, and large-file status.
+- Added tab/space indentation detection and editor use of the detected indent unit.
+- Added a 10 MB/200k-line large-file mode, a 100 MB hard limit, background loading with progress and cancellation, and lazy syntax highlighting.
+- Preserved per-line mixed line endings on save.
+- Added an IME commit smoke test and AccessKit role/value/selection announcements.
+- Added cursor line/column, selection count, indentation, language, encoding, EOL, wrap, and large-file status.

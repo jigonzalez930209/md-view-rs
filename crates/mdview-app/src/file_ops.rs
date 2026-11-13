@@ -1,8 +1,9 @@
 //! File loading, encoding detection, and atomic saving.
 
 use std::fs;
-use std::io;
+use std::io::{self, Read};
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use chardetng::{EncodingDetector, Iso2022JpDetection, Utf8Detection};
 use encoding_rs::{UTF_16BE, UTF_16LE};
@@ -27,15 +28,51 @@ pub enum FileError {
     /// The selected encoding cannot represent the text.
     #[error("the text cannot be represented in {0}")]
     Encoding(&'static str),
+    /// The background load was cancelled.
+    #[error("the load was cancelled")]
+    Cancelled,
 }
 
 /// Load a text document and detect its encoding and line endings.
 pub fn load(path: &Path) -> Result<Document, FileError> {
-    let bytes = read_limited(path)?;
+    decode_bytes(read_limited(path)?, path, None)
+}
+
+/// Load a file in chunks, reporting progress and checking a cancellation flag.
+pub fn load_with_progress(
+    path: &Path,
+    cancel: &AtomicBool,
+    mut progress: impl FnMut(u64, u64),
+) -> Result<Document, FileError> {
+    let total = fs::metadata(path)?.len();
+    if total > MAX_FILE_BYTES {
+        return Err(FileError::TooLarge);
+    }
+    let mut file = fs::File::open(path)?;
+    let mut bytes = Vec::with_capacity(usize::try_from(total).unwrap_or(0));
+    let mut buffer = [0u8; 1024 * 1024];
+    loop {
+        if cancel.load(Ordering::Relaxed) {
+            return Err(FileError::Cancelled);
+        }
+        let read = file.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        bytes.extend_from_slice(&buffer[..read]);
+        progress(bytes.len() as u64, total);
+    }
+    if cancel.load(Ordering::Relaxed) {
+        return Err(FileError::Cancelled);
+    }
+    decode_bytes(bytes, path, None)
+}
+
+fn decode_bytes(bytes: Vec<u8>, path: &Path, forced: Option<Encoding>) -> Result<Document, FileError> {
     if bytes.contains(&0) && !has_utf16_bom(&bytes) {
         return Err(FileError::Binary);
     }
-    decode(bytes, path, None)
+    decode(bytes, path, forced)
 }
 
 /// Reload a file using a user-selected encoding.
@@ -66,13 +103,15 @@ fn decode(bytes: Vec<u8>, path: &Path, forced: Option<Encoding>) -> Result<Docum
     };
 
     let eol = Eol::detect(&text);
+    let endings = Eol::detect_endings(&text);
     let normalized = eol.normalize(&text);
-    Ok(Document::from_loaded(
+    Ok(Document::from_loaded_with_endings(
         path.to_path_buf(),
         normalized,
         eol,
         encoding,
         bom,
+        endings,
     ))
 }
 
@@ -132,10 +171,35 @@ fn bom_len(encoding: Encoding) -> usize {
 
 /// Save a document atomically, preserving its encoding, BOM, and line endings.
 pub fn save(document: &Document, path: &Path) -> Result<(), FileError> {
-    let text = document.eol().apply(&document.snapshot());
+    let text = if document.eol() == Eol::Mixed && !document.mixed_endings().is_empty() {
+        apply_mixed_endings(&document.snapshot(), document.mixed_endings())
+    } else {
+        document.eol().apply(&document.snapshot())
+    };
     let bytes = encode(&text, document.encoding(), document.has_bom())?;
     craft_atomic::atomic_write(path, &bytes)?;
     Ok(())
+}
+
+fn apply_mixed_endings(text: &str, endings: &[Eol]) -> String {
+    let parts: Vec<&str> = text.split('\n').collect();
+    let mut out = String::with_capacity(text.len() + parts.len());
+    for (index, part) in parts.iter().enumerate() {
+        out.push_str(part);
+        if index + 1 < parts.len() {
+            let ending = endings
+                .get(index)
+                .or_else(|| endings.last())
+                .copied()
+                .unwrap_or(Eol::Lf);
+            match ending {
+                Eol::Crlf => out.push_str("\r\n"),
+                Eol::Cr => out.push('\r'),
+                Eol::Lf | Eol::Mixed => out.push('\n'),
+            }
+        }
+    }
+    out
 }
 
 fn encode(text: &str, encoding: Encoding, bom: bool) -> Result<Vec<u8>, FileError> {
@@ -237,6 +301,37 @@ mod tests {
         let file = fs::File::create(&huge).expect("create huge");
         file.set_len(MAX_FILE_BYTES + 1).expect("set huge length");
         assert!(matches!(load(&huge), Err(FileError::TooLarge)));
+    }
+
+    #[test]
+    fn round_trips_mixed_line_endings() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("mixed.md");
+        let original = b"one\r\ntwo\nthree\rfour";
+        fs::write(&path, original).expect("write fixture");
+        let document = load(&path).expect("load");
+        assert_eq!(document.eol(), Eol::Mixed);
+        save(&document, &path).expect("save");
+        assert_eq!(fs::read(&path).expect("read"), original);
+    }
+
+    #[test]
+    fn background_load_reports_progress_and_cancels() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("large.txt");
+        fs::write(&path, "a".repeat(2 * 1024 * 1024)).expect("write fixture");
+
+        let cancel = std::sync::atomic::AtomicBool::new(false);
+        let mut progress_calls = 0;
+        let document = load_with_progress(&path, &cancel, |_, _| progress_calls += 1).expect("load");
+        assert_eq!(document.snapshot().len(), 2 * 1024 * 1024);
+        assert!(progress_calls >= 2);
+
+        cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        assert!(matches!(
+            load_with_progress(&path, &cancel, |_, _| {}),
+            Err(FileError::Cancelled)
+        ));
     }
 
     #[test]

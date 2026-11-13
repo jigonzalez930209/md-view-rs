@@ -43,6 +43,8 @@ pub fn show_status(
             ui.separator();
             ui.label(RichText::new(status.eol.label()).small());
             ui.separator();
+            ui.label(RichText::new(status.indentation.label()).small());
+            ui.separator();
             ui.label(RichText::new(&status.language).small());
             if status.large_mode {
                 ui.separator();
