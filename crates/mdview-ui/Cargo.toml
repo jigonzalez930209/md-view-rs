@@ -1,0 +1,17 @@
+[package]
+name = "mdview-ui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+craft-i18n.workspace = true
+egui.workspace = true
+mdview-i18n.workspace = true
+mdview-model.workspace = true
+mdview-theme.workspace = true
+
+[lints]
+workspace = true

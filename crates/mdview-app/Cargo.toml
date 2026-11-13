@@ -1,0 +1,38 @@
+[package]
+name = "mdview-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "mdview"
+path = "src/main.rs"
+
+[dependencies]
+craft-atomic.workspace = true
+craft-dialogs.workspace = true
+craft-i18n.workspace = true
+craft-keymap.workspace = true
+craft-quit.workspace = true
+craft-settings.workspace = true
+eframe.workspace = true
+egui.workspace = true
+env_logger.workspace = true
+interprocess = "2.4"
+log.workspace = true
+mdview-editor.workspace = true
+mdview-i18n.workspace = true
+mdview-model.workspace = true
+mdview-theme.workspace = true
+mdview-ui.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+toml = "0.8"
+
+[lints]
+workspace = true

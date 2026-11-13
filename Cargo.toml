@@ -1,0 +1,69 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "xtask"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jigonzalez930209/md-view-rs"
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+unimplemented = "deny"
+todo = "deny"
+unreachable = "deny"
+
+[workspace.dependencies]
+mdview-model = { path = "crates/mdview-model" }
+mdview-markdown = { path = "crates/mdview-markdown" }
+mdview-syntax = { path = "crates/mdview-syntax" }
+mdview-workspace = { path = "crates/mdview-workspace" }
+mdview-media = { path = "crates/mdview-media" }
+mdview-theme = { path = "crates/mdview-theme" }
+mdview-editor = { path = "crates/mdview-editor" }
+mdview-render = { path = "crates/mdview-render" }
+mdview-ui = { path = "crates/mdview-ui" }
+mdview-i18n = { path = "crates/mdview-i18n" }
+mdview-app = { path = "crates/mdview-app" }
+
+craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5", default-features = false }
+craft-settings = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5" }
+craft-atomic = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5" }
+craft-dialogs = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5" }
+craft-quit = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5", features = ["egui"] }
+craft-i18n = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5" }
+craft-keymap = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5", features = ["egui"] }
+
+egui = "=0.37"
+eframe = { version = "0.37", default-features = false, features = ["glow", "x11", "wayland", "default_fonts"] }
+env_logger = "0.11"
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+
+# craft-ui uses the suite's egui fork, which adds IME context and global style
+# APIs. Keep the whole egui stack on the same fork revision.
+[patch.crates-io]
+ecolor = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+emath = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+epaint = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+epaint_default_fonts = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui-winit = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui_glow = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+eframe = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+winit = { git = "https://github.com/storytold/winit.git", rev = "a517b3846ee8457d84ee4975110bfda6797c44dc" }
+
+[profile.dist]
+inherits = "release"
+lto = "thin"
+strip = "symbols"
+codegen-units = 1
