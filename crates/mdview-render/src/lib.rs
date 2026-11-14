@@ -174,6 +174,7 @@ pub struct Preview {
     heights: std::collections::HashMap<usize, f32>,
     layout_width: f32,
     painted_blocks: usize,
+    last_frame_time: std::time::Duration,
 }
 
 impl Default for Preview {
@@ -193,6 +194,7 @@ impl Default for Preview {
             heights: std::collections::HashMap::new(),
             layout_width: 0.0,
             painted_blocks: 0,
+            last_frame_time: std::time::Duration::ZERO,
         }
     }
 }
@@ -259,6 +261,11 @@ impl Preview {
         self.painted_blocks
     }
 
+    /// CPU time spent parsing, laying out, and painting the last frame.
+    pub fn last_frame_time(&self) -> std::time::Duration {
+        self.last_frame_time
+    }
+
     /// The anchor at the current scroll offset.
     pub fn anchor(&self) -> Option<PreviewAnchor> {
         PreviewAnchor::from_offset(&self.source_map, self.scroll)
@@ -288,7 +295,10 @@ impl Preview {
 
     /// Paint the preview and report link and copy interactions.
     pub fn show(&mut self, ui: &mut Ui, source: &str, theme: &Theme, light: bool) -> PreviewOutput {
-        self.show_internal(ui, source, theme, light, None)
+        let started = std::time::Instant::now();
+        let output = self.show_internal(ui, source, theme, light, None);
+        self.last_frame_time = started.elapsed();
+        output
     }
 
     /// Paint the preview and resolve media through the application provider.
@@ -301,8 +311,11 @@ impl Preview {
         base: Option<PathBuf>,
         provider: &mut dyn MediaProvider,
     ) -> PreviewOutput {
+        let started = std::time::Instant::now();
         let mut media = MediaContext { base, provider };
-        self.show_internal(ui, source, theme, light, Some(&mut media))
+        let output = self.show_internal(ui, source, theme, light, Some(&mut media));
+        self.last_frame_time = started.elapsed();
+        output
     }
 
     fn show_internal(

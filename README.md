@@ -2,7 +2,7 @@
 
 A native Markdown, text, and code editor for Windows, macOS, and Linux, built with Rust and egui.
 
-The project is at the `0.10.0` workspace milestone: a native shell with document tabs, a lazy folder tree, debounced filesystem watching, session restore, conflict handling, a virtualized code editor, syntax highlighting, regex find/replace, encoding detection, mixed-EOL preservation, background large-file loading, atomic saves, and English/Spanish UI. Markdown files open in a token-styled reading view with GFM tables, tasks, footnotes, alerts, safe HTML, internal links, source mapping, and Edit/Reading modes. Split view keeps the editor and preview synchronized with block anchors. The reading view embeds local and cached remote images, static and animated SVG, LaTeX math, and native Mermaid diagrams, with a zoomable lightbox. The shell uses a compact icon header and a VS Code Material Icon Theme workspace tree. The Markdown preview is block-virtualized for large documents. Nine themes, settings, command palette, text scaling, and accessibility polish are in place. Local packaging produces AppImage, deb, RPM, portable tarballs, icons, SBOM, checksums, and an update manifest; signed Windows/macOS artifacts and hosted distribution remain release-operator steps described in [docs/release.md](docs/release.md).
+The project is at the `0.10.1` workspace milestone: a native shell with document tabs, a lazy folder tree, debounced filesystem watching, session restore, conflict handling, a virtualized code editor, syntax highlighting, regex find/replace, encoding detection, mixed-EOL preservation, background large-file loading, atomic saves, and English/Spanish UI. Markdown files open in a token-styled reading view with GFM tables, tasks, footnotes, alerts, safe HTML, internal links, source mapping, and Edit/Reading modes. Split view keeps the editor and preview synchronized with block anchors. The reading view embeds local and cached remote images, static and animated SVG, LaTeX math, and native Mermaid diagrams, with a zoomable lightbox. The shell uses a compact icon header and a VS Code Material Icon Theme workspace tree. The Markdown preview is block-virtualized for large documents. Nine themes, settings, command palette, text scaling, and accessibility polish are in place. Local packaging produces AppImage, deb, RPM, portable tarballs, icons, SBOM, checksums, and an update manifest; signed Windows/macOS artifacts and hosted distribution remain release-operator steps described in [docs/release.md](docs/release.md).
 
 ## Build
 
@@ -33,7 +33,7 @@ Read [AGENT.md](AGENT.md) before changing code. It defines the English-only repo
 - Milestone H7: bounded SVG animation, play/pause, reduced motion, fuzz/hostile corpus tests, 50 MB scale coverage, and large-file preview refusal.
 - Milestone H8: nine themes, contrast gates, settings, command palette, quick open, text scaling, pseudo-locale, and centered reading layout.
 - Milestone H9: local AppImage/deb/RPM/tarball pipeline, icons, associations, SBOM, checksums, update manifest/check/download, and platform packaging sources.
-- Post-0.9 workspace refresh: icon-first header, Material Icon Theme file tree, virtualized preview, and high-frequency scroll hardening.
+- Post-0.9 workspace refresh: icon-first header, Material Icon Theme file tree, virtualized preview, high-frequency scroll hardening, and a 120 Hz frame-budget gate.
 - Hosted CI/CD is intentionally deferred until `1.0.0`, after the local feature set is operational. Verify changes locally with the commands below.
 
 ```sh
@@ -50,6 +50,7 @@ Packaging and update commands:
 cargo xtask icons
 cargo xtask package
 cargo xtask release-check
+cargo xtask perf
 ```
 
 The local pipeline writes AppImage, deb, RPM, portable tarball, icons, `SHA256SUMS`, an SBOM, and

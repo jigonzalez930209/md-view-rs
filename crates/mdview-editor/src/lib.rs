@@ -79,6 +79,8 @@ pub struct Editor {
     pub(crate) user_scrolled: bool,
     pub(crate) programmatic_scroll: bool,
     pub(crate) viewport_rect: egui::Rect,
+    pub(crate) last_frame_time: std::time::Duration,
+    pub(crate) highlight_enabled: bool,
 }
 
 impl Editor {
@@ -120,7 +122,10 @@ impl Editor {
             user_scrolled: false,
             programmatic_scroll: false,
             viewport_rect: egui::Rect::NOTHING,
+            last_frame_time: std::time::Duration::ZERO,
+            highlight_enabled: true,
         };
+        editor.highlight_enabled = editor.highlight_budget_allows();
         editor.ensure_layout();
         editor.ensure_language();
         editor
@@ -167,6 +172,7 @@ impl Editor {
         self.bracket_match = None;
         self.bracket_cursor = None;
         self.bracket_revision = None;
+        self.highlight_enabled = self.highlight_budget_allows();
         self.ensure_layout();
         self.ensure_language();
     }
@@ -217,6 +223,7 @@ impl Editor {
     /// Force large-file mode. The application uses the on-disk size before loading.
     pub fn set_large_mode(&mut self, large: bool) {
         self.large_mode = large;
+        self.highlight_enabled = !large && self.highlight_budget_allows();
         if large {
             self.wrap = false;
             self.highlight_cache.reset();
@@ -357,12 +364,19 @@ impl Editor {
         None
     }
 
+    fn highlight_budget_allows(&self) -> bool {
+        self.document.line_count() <= 2_000 && self.document.len_bytes() <= 1024 * 1024
+    }
+
     pub(crate) fn ensure_language(&mut self) {
         let prefix = self.document.slice(0, self.document.len_chars().min(4096));
         self.language = self.highlighter.language_name(self.document.path(), &prefix);
     }
 
     pub(crate) fn ensure_highlight_range(&mut self, start: usize, end: usize) {
+        if !self.highlight_enabled {
+            return;
+        }
         let revision = self.document.revision();
         if self.highlight_revision != Some(revision) {
             let cursor_line = self.document.line_col(self.anchor.min(self.cursor)).0;
@@ -411,65 +425,7 @@ pub(crate) fn display_col(text: &str, char_col: usize) -> usize {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use mdview_model::{Document, Encoding, Eol, Indentation};
-
-    use super::{Editor, display_col};
-
-    fn editor(text: &str) -> Editor {
-        Editor::new(Document::from_loaded(
-            PathBuf::from("fixture.txt"),
-            text.to_owned(),
-            Eol::Lf,
-            Encoding::Utf8,
-            false,
-        ))
-    }
-
-    #[test]
-    fn ime_commit_inserts_multibyte_text() {
-        let mut editor = editor("");
-        editor.apply_ime_commit("こんにちは");
-        assert_eq!(editor.document().snapshot(), "こんにちは");
-        assert_eq!(editor.document().line_col(editor.cursor).1, 5);
-    }
-
-    #[test]
-    fn detects_indentation_in_the_editor() {
-        let editor = editor("  one\n  two\n");
-        assert_eq!(
-            editor.indentation,
-            Indentation {
-                use_tabs: false,
-                width: 2
-            }
-        );
-    }
-
-    #[test]
-    fn display_columns_expand_tabs() {
-        assert_eq!(display_col("\tab", 1), 4);
-        assert_eq!(display_col("\tab", 2), 5);
-        assert_eq!(display_col("abc", 2), 2);
-    }
-
-    #[test]
-    fn matching_brackets_are_found_in_both_directions() {
-        let mut editor = editor("fn main() { let x = [1, 2]; }\n");
-        let open = editor.document().snapshot().find('(').unwrap_or(0);
-        editor.cursor = open;
-        editor.ensure_brackets();
-        let (start, end) = editor.bracket_match.expect("matching pair");
-        assert_eq!(start, open);
-        assert_eq!(editor.document().slice(start, end + 1), "()");
-
-        editor.cursor = end;
-        editor.ensure_brackets();
-        assert_eq!(editor.bracket_match, Some((start, end)));
-    }
-}
+mod editor_tests;
 
 #[cfg(test)]
 mod scale_tests {

@@ -1,4 +1,4 @@
-# Distribution, associations, and updates (`0.10.0`)
+# Distribution, associations, and updates (`0.10.1`)
 
 ## Local packaging pipeline
 
@@ -28,12 +28,12 @@ placeholder until the release host exists.
 ### Linux install
 
 ```sh
-sudo dpkg -i dist/mdview_0.10.0_amd64.deb
+sudo dpkg -i dist/mdview_0.10.1_amd64.deb
 # or
-sudo rpm -i dist/mdview-0.10.0-1.x86_64.rpm
+sudo rpm -i dist/mdview-0.10.1-1.x86_64.rpm
 # or
-chmod +x dist/MD-View-0.10.0-x86_64.AppImage
-./dist/MD-View-0.10.0-x86_64.AppImage
+chmod +x dist/MD-View-0.10.1-x86_64.AppImage
+./dist/MD-View-0.10.1-x86_64.AppImage
 ```
 
 The packages install:

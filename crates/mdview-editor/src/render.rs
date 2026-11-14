@@ -8,9 +8,11 @@ use crate::{Editor, display_col, display_width};
 impl Editor {
     /// Show the editor, handle input, and draw the go-to dialog.
     pub fn show(&mut self, ui: &mut Ui) -> Response {
+        let started = std::time::Instant::now();
         let (response, geometry) = self.paint(ui);
         self.handle_input(ui, &response, &geometry);
         self.show_goto(ui.ctx());
+        self.last_frame_time = started.elapsed();
         response
     }
 
@@ -86,7 +88,16 @@ impl Editor {
             }
 
             let end_line = self.row_to_line(end_row.saturating_sub(1), columns).0;
+            let highlight_start = std::time::Instant::now();
             self.ensure_highlight_range(line, end_line);
+            if highlight_start.elapsed().as_millis() > 10 {
+                eprintln!(
+                    "editor profile: highlight {:?} lines {}..{}",
+                    highlight_start.elapsed(),
+                    line,
+                    end_line
+                );
+            }
 
             let (cursor_line, cursor_column) = self.document.line_col(self.cursor);
             let (selection_start, selection_end) = self.selection();

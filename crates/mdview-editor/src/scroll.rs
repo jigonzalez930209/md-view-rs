@@ -48,6 +48,11 @@ impl Editor {
         self.viewport_rect
     }
 
+    /// CPU time spent painting and handling input in the last frame.
+    pub fn last_frame_time(&self) -> std::time::Duration {
+        self.last_frame_time
+    }
+
     /// The row index of a zero-based logical line in the current wrap layout.
     pub fn line_to_row(&self, line: usize) -> usize {
         let line = line.min(self.document.line_count().saturating_sub(1));

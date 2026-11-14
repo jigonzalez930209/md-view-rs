@@ -329,7 +329,15 @@ impl Highlighter {
         let first_uncached = (0..=start)
             .rev()
             .find(|line| cache.states.get(*line).is_some_and(Option::is_some))
-            .map_or(0, |line| line + 1);
+            .map_or(start, |line| line + 1);
+        // Jumping far from the cached viewport must not re-highlight every line in between.
+        // Start from the visible line with a fresh parser state; colours are approximate for
+        // that frame but scrolling stays inside the frame budget.
+        let first_uncached = if start.saturating_sub(first_uncached) > 128 {
+            start
+        } else {
+            first_uncached.min(start)
+        };
         let mut highlighter = if first_uncached == 0 {
             HighlightLines::new(syntax, theme)
         } else if let Some(Some((highlight_state, parse_state))) = cache.states.get(first_uncached - 1).cloned() {

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.1 — 120 Hz frame budget and large-file scrolling
+
+- Added CPU frame-time instrumentation to the editor, preview, and full application, with a rolling 120-frame p50/p95/max/over-budget log.
+- Added `cargo xtask perf` and a release 120 Hz benchmark with a strict 8.33 ms combined p95 gate.
+- Disabled expensive editor syntax highlighting above 2,000 lines or 1 MB; the visible preview still highlights code fences.
+- Fixed the source-map gap fallback that made preview scrolling jump to the end of large documents.
+- Documented the measurement method and results in `docs/performance.md`.
+
+
 ## 0.10.0 — Minimalist workspace and virtualized preview
 
 - Replaced the text menu bar with a compact icon header: direct sidebar, open-folder, save, Edit/Reading/Split, search, command-palette, and settings actions plus a single hamburger menu.

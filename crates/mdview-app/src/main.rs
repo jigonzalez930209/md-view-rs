@@ -11,6 +11,7 @@ mod lightbox;
 mod links;
 mod load_job;
 mod media_runtime;
+mod perf;
 mod reading;
 mod settings;
 mod sidebar;

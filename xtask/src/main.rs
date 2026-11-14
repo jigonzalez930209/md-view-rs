@@ -3,6 +3,7 @@
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::process::ExitCode;
 
 mod icons;
@@ -40,6 +41,28 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Some("perf") => {
+            let status = Command::new("cargo")
+                .args([
+                    "test",
+                    "-p",
+                    "mdview-render",
+                    "--release",
+                    "--test",
+                    "frame_budget",
+                    "--",
+                    "--nocapture",
+                ])
+                .status();
+            match status {
+                Ok(status) if status.success() => ExitCode::SUCCESS,
+                Ok(_) => ExitCode::FAILURE,
+                Err(error) => {
+                    eprintln!("perf: {error}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
         Some("icons") => match icons::generate() {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) => {
@@ -53,6 +76,7 @@ fn main() -> ExitCode {
             println!("Commands:");
             println!("  check-file-length  Fail when a hand-written Rust file exceeds 500 lines");
             println!("  icons              Generate PNG, ICO, and ICNS assets from assets/icon.svg");
+            println!("  perf               Run the release 120 Hz editor/preview frame-budget test");
             println!("  sbom               Write a CycloneDX SBOM to dist/sbom.cdx.json");
             println!("  package            Build release artifacts, checksums, SBOM, and update manifest");
             println!("  release-check      Verify artifacts, checksums, and release inputs");

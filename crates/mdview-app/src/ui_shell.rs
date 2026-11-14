@@ -127,6 +127,7 @@ impl MdViewApp {
 
 impl eframe::App for MdViewApp {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.frame_started = Instant::now();
         self.poll_load(ctx);
         self.poll_workspace(ctx);
         if self.follow_system {
@@ -400,6 +401,7 @@ impl eframe::App for MdViewApp {
         self.show_diff(ui.ctx());
 
         self.dialogs.show_pending(Some(&*frame));
+        self.perf.record(self.frame_started.elapsed());
     }
 
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
