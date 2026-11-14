@@ -4,6 +4,7 @@
 //! only the visible rows and handles keyboard, mouse, and IME input. The Markdown preview and the
 //! application shell consume read-only status from this crate.
 
+mod controls;
 mod find;
 mod goto;
 mod input;

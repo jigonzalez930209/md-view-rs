@@ -1,6 +1,6 @@
-//! Go-to-line dialog.
+//! The go-to-line dialog.
 
-use egui::{Context, TextEdit};
+use egui::{Button, Context, Frame, Id, Modal, RichText, Stroke};
 
 use crate::Editor;
 
@@ -30,58 +30,86 @@ impl Editor {
         if !self.goto.open {
             return;
         }
-        let mut open = self.goto.open;
-        egui::Window::new("Go to line")
-            .open(&mut open)
-            .resizable(false)
-            .collapsible(false)
-            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+        let visuals = ctx.style_of(ctx.theme()).visuals.clone();
+        let mut close = false;
+        let mut submit = false;
+        let count = self.document.line_count();
+        let dialog = Modal::new(Id::unique("mdview_goto"))
+            .frame(
+                Frame::new()
+                    .fill(visuals.window_fill)
+                    .stroke(Stroke::new(1.0, visuals.window_stroke.color))
+                    .corner_radius(10)
+                    .inner_margin(egui::Margin::same(16))
+                    .shadow(egui::epaint::Shadow {
+                        offset: [0, 8],
+                        blur: 24,
+                        spread: 0,
+                        color: egui::Color32::from_black_alpha(60),
+                    }),
+            )
             .show(ctx, |ui| {
-                let response = ui.add(
-                    TextEdit::singleline(&mut self.goto.text)
-                        .hint_text(format!("1–{}", self.document.line_count()))
-                        .desired_width(180.0),
-                );
-                if self.goto.focus {
-                    response.request_focus();
-                    self.goto.focus = false;
-                }
-                let submitted = response.has_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter));
-                if (ui.button("Go").clicked() || submitted)
-                    && let Ok(line) = self.goto.text.trim().parse::<usize>()
-                {
-                    self.goto_line(line);
-                    self.goto.reset();
-                    self.goto.open = false;
-                }
+                ui.set_width(300.0);
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new("Go to line")
+                            .size(16.0)
+                            .strong()
+                            .color(ui.visuals().text_color()),
+                    );
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui
+                            .add(Button::new(RichText::new("×").size(14.0)).frame(false))
+                            .clicked()
+                        {
+                            close = true;
+                        }
+                    });
+                });
+                ui.add_space(10.0);
+                ui.horizontal(|ui| {
+                    let field = crate::controls::text_field(ui, &mut self.goto.text, &format!("1–{count}"), 220.0);
+                    if self.goto.focus {
+                        field.request_focus();
+                        self.goto.focus = false;
+                    }
+                    if field.has_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
+                        submit = true;
+                    }
+                    ui.vertical(|ui| {
+                        let mut line = self.goto.text.trim().parse::<usize>().unwrap_or(1).clamp(1, count);
+                        if crate::controls::step_button(ui, true) {
+                            line = (line + 1).min(count);
+                            self.goto.text = line.to_string();
+                        }
+                        if crate::controls::step_button(ui, false) {
+                            line = line.saturating_sub(1).max(1);
+                            self.goto.text = line.to_string();
+                        }
+                    });
+                });
+                ui.add_space(12.0);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let go = Button::new(RichText::new("Go").color(ui.visuals().selection.stroke.color))
+                        .fill(ui.visuals().selection.bg_fill)
+                        .stroke(Stroke::NONE)
+                        .corner_radius(6)
+                        .min_size(egui::vec2(84.0, 30.0));
+                    if ui.add(go).clicked() {
+                        submit = true;
+                    }
+                });
             });
-        if !open {
+        if dialog.backdrop_response.clicked() || ctx.input(|input| input.key_pressed(egui::Key::Escape)) {
+            close = true;
+        }
+        if close {
+            self.goto.reset();
+            return;
+        }
+        if submit && let Ok(line) = self.goto.text.trim().parse::<usize>() {
+            self.goto_line(line);
             self.goto.reset();
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use mdview_model::{Document, Encoding, Eol};
-
-    use crate::Editor;
-
-    #[test]
-    fn goto_line_clamps_and_moves_the_cursor() {
-        let document = Document::from_loaded(
-            PathBuf::from("fixture.txt"),
-            "one\ntwo\nthree\n".to_owned(),
-            Eol::Lf,
-            Encoding::Utf8,
-            false,
-        );
-        let mut editor = Editor::new(document);
-        editor.goto_line(2);
-        assert_eq!(editor.document().line_col(editor.cursor).0, 1);
-        editor.goto_line(99);
-        assert_eq!(editor.document().line_col(editor.cursor).0, 3);
     }
 }

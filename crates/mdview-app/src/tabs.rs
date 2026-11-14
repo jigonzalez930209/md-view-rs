@@ -8,7 +8,6 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::SystemTime;
 
-use eframe::egui;
 use mdview_editor::Editor;
 use mdview_markdown::is_markdown_path;
 use mdview_model::Document;
@@ -132,6 +131,8 @@ impl DocumentTab {
 pub struct TabInfo {
     /// Visible label.
     pub label: String,
+    /// Material icon identifier for the document.
+    pub icon: String,
     /// Whether the document has unsaved changes.
     pub dirty: bool,
     /// Whether the file changed on disk while dirty.
@@ -141,7 +142,7 @@ pub struct TabInfo {
 }
 
 /// What the user did in the tab bar.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TabAction {
     /// Select a tab.
     Select(usize),
@@ -149,6 +150,8 @@ pub enum TabAction {
     Close(usize),
     /// Add an untitled tab.
     New,
+    /// Run a workbench command from the tab bar.
+    Command(mdview_ui::Command),
 }
 
 /// The set of open documents.
@@ -318,11 +321,17 @@ impl TabSet {
     }
 
     /// Summaries for the tab bar.
-    pub fn infos(&self) -> Vec<TabInfo> {
+    pub fn infos(&self, icons: &mut mdview_ui::MaterialIcons, light: bool) -> Vec<TabInfo> {
         self.tabs
             .iter()
             .map(|tab| TabInfo {
                 label: tab.label(),
+                icon: tab
+                    .editor
+                    .document()
+                    .path()
+                    .map(|path| icons.file_icon(path, light))
+                    .unwrap_or_else(|| "file".to_owned()),
                 dirty: tab.editor.document().is_dirty(),
                 conflict: tab.conflict,
                 missing: tab.missing,
@@ -377,53 +386,6 @@ fn set_editor_view(editor: &mut Editor, wrap: bool, line_numbers: bool) {
 }
 
 /// Draw the tab bar and report the user's action.
-pub fn show_tab_bar(
-    ui: &mut egui::Ui,
-    tabs: &[TabInfo],
-    active: usize,
-    translations: &mdview_i18n::Translations,
-    lang: craft_i18n::Lang,
-) -> Option<TabAction> {
-    let mut action = None;
-    ui.horizontal(|ui| {
-        for (index, tab) in tabs.iter().enumerate() {
-            let selected = index == active;
-            let color = if tab.conflict || tab.missing {
-                ui.visuals().warn_fg_color
-            } else if tab.dirty {
-                ui.visuals().strong_text_color()
-            } else {
-                ui.visuals().text_color()
-            };
-            let response = ui.selectable_label(selected, egui::RichText::new(&tab.label).color(color));
-            if response.clicked() {
-                action = Some(TabAction::Select(index));
-            }
-            if response.middle_clicked() {
-                action = Some(TabAction::Close(index));
-            }
-            ui.scope(|ui| {
-                ui.spacing_mut().item_spacing.x = 0.0;
-                if ui
-                    .small_button("×")
-                    .on_hover_text(translations.t(lang, "Close tab"))
-                    .clicked()
-                {
-                    action = Some(TabAction::Close(index));
-                }
-            });
-        }
-        if ui
-            .small_button("+")
-            .on_hover_text(translations.t(lang, "New tab"))
-            .clicked()
-        {
-            action = Some(TabAction::New);
-        }
-    });
-    action
-}
-
 #[cfg(test)]
 #[path = "tabs_tests.rs"]
 mod tests;

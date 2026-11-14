@@ -130,7 +130,11 @@ impl MdViewApp {
                     manifest_url,
                     downloading,
                 } => {
-                    ui.label(egui::RichText::new(format!("MD View {}", manifest.version)).strong());
+                    ui.label(
+                        egui::RichText::new(format!("MD View {}", manifest.version))
+                            .strong()
+                            .color(ui.visuals().text_color()),
+                    );
                     if !manifest.notes.is_empty() {
                         ui.label(&manifest.notes);
                     }

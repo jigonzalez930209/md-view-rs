@@ -5,24 +5,28 @@
 
 mod about;
 mod close_prompt;
+mod controls;
 mod header;
 mod loading;
 mod material_icons;
 mod menu;
 mod mode;
 mod palette;
+mod prompt;
 mod settings;
 mod status;
 mod welcome;
 
 pub use about::show_about;
 pub use close_prompt::{CloseChoice, show_close_prompt};
-pub use header::{HeaderState, show_header};
+pub use controls::{CONTROL_HEIGHT, compact_menu, numeric_stepper, primary_button, secondary_button, text_field};
+pub use header::{ActivityState, TitleBarState, show_activity_bar, show_title_bar};
 pub use loading::show_loading;
 pub use material_icons::MaterialIcons;
 pub use menu::{MenuState, show_menu};
 pub use mode::ViewMode;
 pub use palette::{PaletteItem, show_palette};
+pub use prompt::{ConfirmPrompt, NamePrompt, PromptAction, show_confirm_prompt, show_name_prompt};
 pub use settings::{SettingsView, show_settings};
 pub use status::show_status;
 pub use welcome::show_welcome;
@@ -32,7 +36,7 @@ use mdview_model::Encoding;
 use mdview_theme::ThemeId;
 
 /// A command requested by the shell.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Command {
     /// Create an empty document.
     New,
@@ -46,6 +50,8 @@ pub enum Command {
     NewFile,
     /// Open a recent file by index.
     OpenRecent(usize),
+    /// Open a path directly.
+    OpenPath(std::path::PathBuf),
     /// Open a recent workspace by index.
     OpenRecentWorkspace(usize),
     /// Clear the recent-file list.
@@ -70,6 +76,10 @@ pub enum Command {
     Save,
     /// Show the native Save As dialog.
     SaveAs,
+    /// Rename the active file.
+    RenameFile,
+    /// Delete the active file.
+    DeleteFile,
     /// Request application exit.
     Quit,
     /// Open the About window.
@@ -88,6 +98,10 @@ pub enum Command {
     SetMode(ViewMode),
     /// Toggle split scroll synchronization.
     ToggleSyncScroll,
+    /// Show or hide dotfiles in the explorer.
+    ToggleShowHidden,
+    /// Respect .gitignore while listing the workspace.
+    ToggleRespectGitignore,
     /// Toggle remote image loading.
     ToggleRemoteMedia,
     /// Toggle private-network image loading.
@@ -116,4 +130,25 @@ pub enum Command {
     QuickOpen,
     /// Check the configured update manifest.
     CheckUpdates,
+    /// Open the diagnostics log folder.
+    OpenLogs,
+    /// Minimize the window.
+    MinimizeWindow,
+    /// Toggle the maximized state.
+    ToggleMaximizeWindow,
+    /// Request application exit through the normal close path.
+    CloseWindow,
+}
+
+/// Which workbench panel the activity rail selected.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Activity {
+    /// The workspace explorer.
+    Explorer,
+    /// The editor find bar.
+    Search,
+    /// The command palette.
+    Palette,
+    /// The settings dialog.
+    Settings,
 }

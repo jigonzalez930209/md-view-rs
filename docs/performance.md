@@ -70,3 +70,21 @@ under the 8.33 ms budget.
 - 1,000 simulated scroll-source decisions in `split.rs` assert no oscillation.
 - Bidirectional E2E screenshots are kept outside the repository during manual verification; the
   committed snapshots remain the reproducible references.
+
+## Release E2E interaction run (0.11.0)
+
+`MDVIEW_E2E_PROFILE=release cargo xtask e2e` exercises menus, settings, prompts, file
+operations, tabs, editing, find/goto, split scrolling, local/remote media, LaTeX, tables,
+and Mermaid in one run (7,920 frames). Steady-state windows after the render pass:
+
+```text
+frames=7440 p50=0.232ms p95=0.369ms max=0.441ms over_8.33ms=0
+frames=7560 p50=0.317ms p95=0.419ms max=0.564ms over_8.33ms=0
+frames=7680 p50=0.278ms p95=0.398ms max=0.683ms over_8.33ms=0
+frames=7800 p50=0.239ms p95=0.361ms max=0.448ms over_8.33ms=0
+frames=7920 p50=0.451ms p95=0.691ms max=0.949ms over_8.33ms=0
+```
+
+Three transition windows contain one over-budget frame each out of 7,920: cold start
+(50 ms), the first large media upload (103 ms), and the first split-mode layout after switching
+(9.6 ms). There are no over-budget frames in steady-state scrolling, editing, or rendering.

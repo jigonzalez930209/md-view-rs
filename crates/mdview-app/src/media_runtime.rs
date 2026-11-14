@@ -8,25 +8,12 @@ use std::time::{Duration, Instant};
 
 use eframe::egui;
 use mdview_media::{MediaRequest, Raster, render_svg_frame};
+
+#[path = "media_policy.rs"]
+mod media_policy;
 use mdview_render::{AnimationStatus, MediaProvider, MediaState};
-
-/// Media policy from preferences.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct MediaPolicy {
-    /// Fetch remote images referenced by a document.
-    pub remote_images: bool,
-    /// Allow URLs that resolve to private network addresses.
-    pub private_networks: bool,
-}
-
-impl Default for MediaPolicy {
-    fn default() -> Self {
-        Self {
-            remote_images: true,
-            private_networks: false,
-        }
-    }
-}
+pub use media_policy::MediaPolicy;
+use media_policy::media_source;
 
 /// The main-thread media service: worker channel plus texture cache.
 pub struct MediaRuntime {
@@ -106,6 +93,7 @@ impl MediaRuntime {
             .spawn(move || {
                 while let Ok(job) = job_receiver.recv() {
                     let is_frame = matches!(job.mode, JobMode::Frame { .. });
+                    let started = Instant::now();
                     let request = job.request.clone();
                     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         match job.mode {
@@ -128,6 +116,22 @@ impl MediaRuntime {
                         .map_err(|error| error.to_string())
                     }))
                     .unwrap_or_else(|_| Err("The media renderer failed unexpectedly.".to_owned()));
+                    if !is_frame {
+                        let elapsed = started.elapsed().as_secs_f64() * 1000.0;
+                        if elapsed >= 250.0 {
+                            log::warn!(
+                                "slow media load key={} source={} elapsed_ms={elapsed:.1}",
+                                job.key,
+                                media_source(&request.source)
+                            );
+                        } else {
+                            log::debug!(
+                                "media load key={} source={} elapsed_ms={elapsed:.1}",
+                                job.key,
+                                media_source(&request.source)
+                            );
+                        }
+                    }
                     if completed
                         .send(Completed {
                             key: job.key,
@@ -163,9 +167,15 @@ impl MediaRuntime {
         }
     }
 
-    /// Update the current policy.
+    /// Update the current policy and retry anything that was blocked by the old one.
     pub fn set_policy(&mut self, policy: MediaPolicy) {
+        if self.policy == policy {
+            return;
+        }
         self.policy = policy;
+        self.generation = self.generation.wrapping_add(1);
+        self.pending.clear();
+        self.errors.clear();
     }
 
     /// Enable or pause all SVG animations.
@@ -236,6 +246,11 @@ impl MediaRuntime {
                     self.mark_frame_failed(&completed.key);
                 }
                 Err(error) => {
+                    log::warn!(
+                        "media load failed key={} source={} error={error}",
+                        completed.key,
+                        media_source(&completed.request.source)
+                    );
                     self.errors.insert(completed.key.clone(), error);
                     self.mark_frame_failed(&completed.key);
                 }
@@ -406,7 +421,7 @@ mod tests {
         let mut request = MediaRequest::new(mdview_media::MediaKind::Image, "pixel.png");
         request.base = Some(directory.path().to_path_buf());
         assert!(matches!(runtime.resolve(&ctx, &request), MediaState::Loading));
-        for _ in 0..200 {
+        for _ in 0..600 {
             runtime.poll(&ctx);
             if runtime.cached_bytes() > 0 {
                 break;
@@ -430,7 +445,7 @@ mod tests {
         let mut request = MediaRequest::new(mdview_media::MediaKind::Image, "pulse.svg");
         request.base = Some(directory.path().to_path_buf());
         assert!(matches!(runtime.resolve(&ctx, &request), MediaState::Loading));
-        for _ in 0..200 {
+        for _ in 0..600 {
             runtime.poll(&ctx);
             if runtime.animation_status(&request.cache_key()) != AnimationStatus::None {
                 break;

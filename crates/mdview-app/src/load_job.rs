@@ -40,9 +40,24 @@ impl LoadJob {
         let (sender, receiver) = mpsc::channel();
         let thread_path = path.clone();
         let thread = thread::spawn(move || {
+            let started = std::time::Instant::now();
             let result = file_ops::load_with_progress(&thread_path, &thread_cancel, |read, _| {
                 let _ = sender.send(LoadEvent::Progress(read));
             });
+            match &result {
+                Ok(document) => log::info!(
+                    "large file loaded path={} bytes={} lines={} elapsed_ms={:.3}",
+                    thread_path.display(),
+                    document.len_bytes(),
+                    document.line_count(),
+                    started.elapsed().as_secs_f64() * 1000.0
+                ),
+                Err(error) => log::error!(
+                    "large file failed path={} elapsed_ms={:.3} error={error}",
+                    thread_path.display(),
+                    started.elapsed().as_secs_f64() * 1000.0
+                ),
+            }
             let _ = sender.send(LoadEvent::Done(result));
         });
         Ok(Self {

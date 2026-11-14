@@ -1,17 +1,20 @@
-//! The workspace sidebar.
+//! The workspace explorer.
 //!
-//! The sidebar renders the lazy tree owned by `mdview-workspace` and collects user actions into
-//! events for the application. File operations run here because they are scoped to the tree; the
-//! application only needs to know about renames and deletes that affect open tabs.
+//! The panel mirrors the VS Code explorer: a section header with compact file actions, a lazy tree
+//! with Material file and folder icons, and modal create/rename/delete flows. The application only
+//! shows this panel when a folder is loaded.
 
 use std::path::PathBuf;
 
 use eframe::egui;
 use mdview_i18n::Translations;
-use mdview_ui::MaterialIcons;
+use mdview_ui::{ConfirmPrompt, MaterialIcons, NamePrompt, PromptAction, compact_menu};
 use mdview_workspace::{Entry, Workspace};
 
 use crate::workspace_ops;
+
+#[path = "sidebar_dialogs.rs"]
+mod sidebar_dialogs;
 
 /// Something the application must react to.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -35,7 +38,7 @@ struct CreateDialog {
     name: String,
 }
 
-/// Persistent sidebar state.
+/// Persistent explorer state.
 pub struct Sidebar {
     /// Whether the panel is visible.
     pub open: bool,
@@ -50,7 +53,7 @@ pub struct Sidebar {
 }
 
 impl Sidebar {
-    /// Build the sidebar with persisted display options.
+    /// Build the explorer with persisted display options.
     pub fn new(width: f32, show_hidden: bool, respect_gitignore: bool) -> Self {
         Self {
             open: true,
@@ -65,7 +68,31 @@ impl Sidebar {
         }
     }
 
-    /// Draw the sidebar and return the application-level events.
+    /// Whether the explorer should occupy screen space.
+    pub fn should_show(&self, workspace_open: bool) -> bool {
+        workspace_open && self.open
+    }
+
+    /// Force the explorer visible after a folder opens.
+    pub fn reveal(&mut self) {
+        self.open = true;
+    }
+
+    /// Start renaming a path from a command or shortcut.
+    pub fn begin_rename(&mut self, path: PathBuf) {
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        self.renaming = Some((path, name));
+    }
+
+    /// Start deleting a path from a command or shortcut.
+    pub fn begin_delete(&mut self, path: PathBuf) {
+        self.deleting = Some(path);
+    }
+
+    /// Draw the explorer and return the application-level events.
     pub fn show(
         &mut self,
         ui: &mut egui::Ui,
@@ -79,67 +106,86 @@ impl Sidebar {
         let mut events = Vec::new();
         let mut actions = Vec::new();
 
+        let root_name = workspace.root_entry().name.to_uppercase();
+        ui.add_space(3.0);
         ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 2.0;
-            if icon_button(ui, icons, "file-plus", &t("New file")) {
-                self.creating = Some(CreateDialog {
-                    kind: CreateKind::File,
-                    parent: workspace.root().to_path_buf(),
-                    name: "untitled.md".to_owned(),
-                });
-            }
-            if icon_button(ui, icons, "folder-plus", &t("New folder")) {
-                self.creating = Some(CreateDialog {
-                    kind: CreateKind::Folder,
-                    parent: workspace.root().to_path_buf(),
-                    name: "folder".to_owned(),
-                });
-            }
-            if icon_button(ui, icons, "refresh", &t("Refresh")) {
-                actions.push(Action::RefreshRoot);
-            }
-            ui.menu_button("...", |ui| {
-                let mut hidden = self.show_hidden;
-                if ui.checkbox(&mut hidden, t("Show hidden files")).changed() {
-                    self.show_hidden = hidden;
-                    actions.push(Action::SetHidden(hidden));
+            ui.add_space(6.0);
+            ui.label(
+                egui::RichText::new(&root_name)
+                    .size(11.0)
+                    .strong()
+                    .color(ui.visuals().weak_text_color()),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.add_space(4.0);
+                if icon_button(ui, icons, "collapse", &t("Collapse folders")) {
+                    actions.push(Action::CollapseAll);
                 }
-                let mut gitignore = self.respect_gitignore;
-                if ui.checkbox(&mut gitignore, t("Respect .gitignore")).changed() {
-                    self.respect_gitignore = gitignore;
-                    actions.push(Action::SetGitignore(gitignore));
+                if icon_button(ui, icons, "refresh", &t("Refresh")) {
+                    actions.push(Action::RefreshRoot);
+                }
+                if icon_button(ui, icons, "folder-plus", &t("New folder")) {
+                    self.creating = Some(CreateDialog {
+                        kind: CreateKind::Folder,
+                        parent: workspace.root().to_path_buf(),
+                        name: "folder".to_owned(),
+                    });
+                }
+                if icon_button(ui, icons, "file-plus", &t("New file")) {
+                    self.creating = Some(CreateDialog {
+                        kind: CreateKind::File,
+                        parent: workspace.root().to_path_buf(),
+                        name: "untitled.md".to_owned(),
+                    });
                 }
             });
         });
-
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 5.0;
-            let icon = icons.folder_icon(&workspace.root_entry().name, false, true, light);
-            icons.draw(ui, &icon, light, 16.0);
-            ui.label(egui::RichText::new(&workspace.root_entry().name).strong());
-        });
+        ui.add_space(4.0);
 
         if let Some(error) = &self.error {
-            ui.colored_label(ui.visuals().error_fg_color, error);
+            ui.horizontal_wrapped(|ui| {
+                ui.add_space(6.0);
+                ui.colored_label(ui.visuals().error_fg_color, error);
+            });
+            ui.add_space(2.0);
         }
 
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            ui.add_space(2.0);
             let root = workspace.root_entry().clone();
             if let Some(children) = &root.children {
+                let mut ctx = TreeCtx {
+                    actions: &mut actions,
+                    icons,
+                    light,
+                };
                 for child in children {
-                    self.entry(ui, child, &mut actions, icons, &t, light);
+                    self.entry(ui, child, 0, &mut ctx, &t);
                 }
             }
+            ui.add_space(12.0);
         });
 
+        if !actions.is_empty() {
+            ui.ctx().request_repaint();
+        }
         for action in actions {
             match action {
                 Action::Toggle(path) => {
-                    log::info!("sidebar toggle: {}", path.display());
+                    let before = workspace
+                        .root_entry()
+                        .find(&path)
+                        .map(|entry| entry.expanded)
+                        .unwrap_or(false);
                     workspace.toggle(&path);
+                    let after = workspace
+                        .root_entry()
+                        .find(&path)
+                        .map(|entry| entry.expanded)
+                        .unwrap_or(false);
+                    log::debug!("explorer toggle path={} before={before} after={after}", path.display());
                 }
                 Action::Open(path) => {
-                    log::info!("sidebar open: {}", path.display());
                     self.selected = Some(path.clone());
                     events.push(SidebarEvent::Open(path));
                 }
@@ -174,8 +220,13 @@ impl Sidebar {
                     let root = workspace.root().to_path_buf();
                     workspace.refresh_dir(&root);
                 }
-                Action::SetHidden(show) => workspace.set_show_hidden(show),
-                Action::SetGitignore(respect) => workspace.set_respect_gitignore(respect),
+                Action::CollapseAll => {
+                    log::debug!("explorer collapse all");
+                    let children = workspace.root_entry().children.clone().unwrap_or_default();
+                    for child in children.iter().filter(|entry| entry.is_dir) {
+                        workspace.collapse(&child.path);
+                    }
+                }
             }
         }
 
@@ -187,231 +238,139 @@ impl Sidebar {
         &mut self,
         ui: &mut egui::Ui,
         entry: &Entry,
-        actions: &mut Vec<Action>,
-        icons: &mut MaterialIcons,
+        depth: usize,
+        ctx: &mut TreeCtx<'_>,
         t: &dyn Fn(&str) -> String,
-        light: bool,
     ) {
         let selected = self.selected.as_deref() == Some(entry.path.as_path());
-        if entry.is_dir {
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 3.0;
-                let arrow = if entry.expanded {
-                    "chevron-down"
+        let width = ui.available_width();
+        let (rect, _) = ui.allocate_exact_size(egui::vec2(width, 23.0), egui::Sense::hover());
+        let hovered = ui.rect_contains_pointer(rect);
+        let fill = if selected {
+            ui.visuals().selection.bg_fill
+        } else if hovered {
+            ui.visuals().widgets.hovered.weak_bg_fill
+        } else {
+            egui::Color32::TRANSPARENT
+        };
+        ui.painter().rect_filled(rect, egui::CornerRadius::same(4), fill);
+
+        let inner = rect.shrink2(egui::vec2(5.0, 0.0));
+        ui.scope_builder(
+            egui::UiBuilder::new()
+                .max_rect(inner)
+                .layout(egui::Layout::left_to_right(egui::Align::Center)),
+            |ui| {
+                ui.spacing_mut().item_spacing.x = 4.0;
+                ui.add_space((depth as f32) * 12.0 + 2.0);
+                if entry.is_dir {
+                    let arrow = if entry.expanded {
+                        "chevron-down"
+                    } else {
+                        "chevron-right"
+                    };
+                    draw_glyph(ui, ctx.icons, arrow, 12.0);
                 } else {
-                    "chevron-right"
+                    ui.add_space(12.0);
+                }
+                let icon = if entry.is_dir {
+                    ctx.icons.folder_icon(&entry.name, entry.expanded, false, ctx.light)
+                } else {
+                    ctx.icons.file_icon(&entry.path, ctx.light)
                 };
-                if icon_button(ui, icons, arrow, "") {
-                    actions.push(Action::Toggle(entry.path.clone()));
+                ctx.icons.draw(ui, &icon, ctx.light, 16.0);
+                ui.add(
+                    egui::Label::new(
+                        egui::RichText::new(&entry.name)
+                            .size(12.0)
+                            .color(ui.visuals().text_color()),
+                    )
+                    .truncate(),
+                );
+            },
+        );
+
+        let response = ui.interact(
+            rect,
+            ui.scope_id().with(("tree_row", entry.path.as_os_str())),
+            egui::Sense::click(),
+        );
+        if entry.is_dir {
+            if response.clicked() {
+                self.selected = Some(entry.path.clone());
+                ctx.actions.push(Action::Toggle(entry.path.clone()));
+            }
+            response.context_menu(|ui| {
+                compact_menu(ui);
+                if ui.button(t("New file")).clicked() {
+                    ctx.actions.push(Action::NewFile(entry.path.clone()));
+                    ui.close();
                 }
-                let icon = icons.folder_icon(&entry.name, entry.expanded, false, light);
-                icons.draw(ui, &icon, light, 16.0);
-                let response = ui.selectable_label(selected, &entry.name);
-                if response.clicked() {
-                    self.selected = Some(entry.path.clone());
-                    actions.push(Action::Toggle(entry.path.clone()));
+                if ui.button(t("New folder")).clicked() {
+                    ctx.actions.push(Action::NewFolder(entry.path.clone()));
+                    ui.close();
                 }
-                response.context_menu(|ui| {
-                    if ui.button(t("New file")).clicked() {
-                        actions.push(Action::NewFile(entry.path.clone()));
-                        ui.close();
-                    }
-                    if ui.button(t("New folder")).clicked() {
-                        actions.push(Action::NewFolder(entry.path.clone()));
-                        ui.close();
-                    }
-                    if ui.button(t("Reveal")).clicked() {
-                        actions.push(Action::Reveal(entry.path.clone()));
-                        ui.close();
-                    }
-                    if ui.button(t("Rename…")).clicked() {
-                        actions.push(Action::Rename(entry.path.clone()));
-                        ui.close();
-                    }
-                    if ui.button(t("Delete…")).clicked() {
-                        actions.push(Action::Delete(entry.path.clone()));
-                        ui.close();
-                    }
-                });
+                if ui.button(t("Reveal")).clicked() {
+                    ctx.actions.push(Action::Reveal(entry.path.clone()));
+                    ui.close();
+                }
+                if ui.button(t("Rename…")).clicked() {
+                    ctx.actions.push(Action::Rename(entry.path.clone()));
+                    ui.close();
+                }
+                if ui.button(t("Delete…")).clicked() {
+                    ctx.actions.push(Action::Delete(entry.path.clone()));
+                    ui.close();
+                }
             });
             if entry.expanded
                 && let Some(children) = &entry.children
             {
-                ui.indent(&entry.path, |ui| {
-                    for child in children {
-                        self.entry(ui, child, actions, icons, t, light);
-                    }
-                });
+                for child in children {
+                    self.entry(ui, child, depth + 1, ctx, t);
+                }
             }
         } else {
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 5.0;
-                let icon = icons.file_icon(&entry.path, light);
-                icons.draw(ui, &icon, light, 16.0);
-                let response = ui.selectable_label(selected, &entry.name);
-                if response.clicked() {
-                    actions.push(Action::Open(entry.path.clone()));
+            if response.clicked() {
+                ctx.actions.push(Action::Open(entry.path.clone()));
+            }
+            response.context_menu(|ui| {
+                compact_menu(ui);
+                if ui.button(t("Open")).clicked() {
+                    ctx.actions.push(Action::Open(entry.path.clone()));
+                    ui.close();
                 }
-                response.context_menu(|ui| {
-                    if ui.button(t("Open")).clicked() {
-                        actions.push(Action::Open(entry.path.clone()));
-                        ui.close();
-                    }
-                    if ui.button(t("Reveal")).clicked() {
-                        actions.push(Action::Reveal(entry.path.clone()));
-                        ui.close();
-                    }
-                    if ui.button(t("Rename…")).clicked() {
-                        actions.push(Action::Rename(entry.path.clone()));
-                        ui.close();
-                    }
-                    if ui.button(t("Delete…")).clicked() {
-                        actions.push(Action::Delete(entry.path.clone()));
-                        ui.close();
-                    }
-                });
+                if ui.button(t("Reveal")).clicked() {
+                    ctx.actions.push(Action::Reveal(entry.path.clone()));
+                    ui.close();
+                }
+                if ui.button(t("Rename…")).clicked() {
+                    ctx.actions.push(Action::Rename(entry.path.clone()));
+                    ui.close();
+                }
+                if ui.button(t("Delete…")).clicked() {
+                    ctx.actions.push(Action::Delete(entry.path.clone()));
+                    ui.close();
+                }
             });
-        }
-    }
-
-    fn dialogs(
-        &mut self,
-        ctx: &egui::Context,
-        workspace: &mut Workspace,
-        events: &mut Vec<SidebarEvent>,
-        t: &dyn Fn(&str) -> String,
-    ) {
-        if let Some(mut dialog) = self.creating.take() {
-            let title = match dialog.kind {
-                CreateKind::File => t("New file"),
-                CreateKind::Folder => t("New folder"),
-            };
-            let mut open = true;
-            let mut submit = false;
-            let mut cancel = false;
-            egui::Window::new(title)
-                .open(&mut open)
-                .resizable(false)
-                .collapsible(false)
-                .show(ctx, |ui| {
-                    let response = ui.add(egui::TextEdit::singleline(&mut dialog.name).desired_width(220.0));
-                    if response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
-                        submit = true;
-                    }
-                    ui.horizontal(|ui| {
-                        if ui.button(t("Create")).clicked() {
-                            submit = true;
-                        }
-                        if ui.button(t("Cancel")).clicked() {
-                            cancel = true;
-                        }
-                    });
-                });
-            if open && submit {
-                let result = match dialog.kind {
-                    CreateKind::File => workspace_ops::create_file(&dialog.parent, &dialog.name),
-                    CreateKind::Folder => workspace_ops::create_folder(&dialog.parent, &dialog.name),
-                };
-                match result {
-                    Ok(path) => {
-                        workspace.refresh_dir(&dialog.parent);
-                        workspace.expand(&dialog.parent);
-                        if path.is_file() {
-                            events.push(SidebarEvent::Open(path));
-                        }
-                    }
-                    Err(error) => {
-                        self.error = Some(error.to_string());
-                        self.creating = Some(dialog);
-                    }
-                }
-            } else if open && !cancel {
-                self.creating = Some(dialog);
-            }
-        }
-
-        if let Some((path, mut name)) = self.renaming.take() {
-            let mut open = true;
-            let mut submit = false;
-            let mut cancel = false;
-            egui::Window::new(t("Rename"))
-                .open(&mut open)
-                .resizable(false)
-                .collapsible(false)
-                .show(ctx, |ui| {
-                    let response = ui.add(egui::TextEdit::singleline(&mut name).desired_width(220.0));
-                    if response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
-                        submit = true;
-                    }
-                    ui.horizontal(|ui| {
-                        if ui.button(t("Rename")).clicked() {
-                            submit = true;
-                        }
-                        if ui.button(t("Cancel")).clicked() {
-                            cancel = true;
-                        }
-                    });
-                });
-            if open && submit {
-                let from = path.clone();
-                match workspace_ops::rename(&from, &name) {
-                    Ok(to) => {
-                        if let Some(parent) = from.parent() {
-                            workspace.refresh_dir(parent);
-                        }
-                        if let Some(parent) = to.parent() {
-                            workspace.refresh_dir(parent);
-                        }
-                        events.push(SidebarEvent::Renamed { from, to });
-                    }
-                    Err(error) => {
-                        self.error = Some(error.to_string());
-                        self.renaming = Some((path, name));
-                    }
-                }
-            } else if open && !cancel {
-                self.renaming = Some((path, name));
-            }
-        }
-
-        if let Some(path) = self.deleting.clone() {
-            let mut open = true;
-            let mut submit = false;
-            egui::Window::new(t("Delete"))
-                .open(&mut open)
-                .resizable(false)
-                .collapsible(false)
-                .show(ctx, |ui| {
-                    ui.label(format!("{} {}", t("Delete this entry permanently?"), path.display()));
-                    ui.horizontal(|ui| {
-                        if ui.button(t("Delete")).clicked() {
-                            submit = true;
-                        }
-                        if ui.button(t("Cancel")).clicked() {
-                            self.deleting = None;
-                        }
-                    });
-                });
-            if open && submit {
-                match workspace_ops::delete(&path) {
-                    Ok(()) => {
-                        if let Some(parent) = path.parent() {
-                            workspace.refresh_dir(parent);
-                        }
-                        events.push(SidebarEvent::Deleted(path));
-                        self.deleting = None;
-                    }
-                    Err(error) => self.error = Some(error.to_string()),
-                }
-            } else if !open {
-                self.deleting = None;
-            }
         }
     }
 }
 
+fn draw_glyph(ui: &mut egui::Ui, icons: &mut MaterialIcons, icon: &str, size: f32) {
+    if let Some(texture) = icons.ui_texture(ui.ctx(), icon) {
+        ui.add(
+            egui::Image::new(&texture)
+                .fit_to_exact_size(egui::vec2(size, size))
+                .tint(ui.visuals().weak_text_color()),
+        );
+    } else {
+        ui.add_space(size);
+    }
+}
+
 fn icon_button(ui: &mut egui::Ui, icons: &mut MaterialIcons, icon: &str, tooltip: &str) -> bool {
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::click());
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(21.0, 21.0), egui::Sense::click());
     if response.hovered() {
         ui.painter().rect_filled(
             rect,
@@ -420,19 +379,20 @@ fn icon_button(ui: &mut egui::Ui, icons: &mut MaterialIcons, icon: &str, tooltip
         );
     }
     if let Some(texture) = icons.ui_texture(ui.ctx(), icon) {
-        ui.put(
+        ui.painter().image(
+            texture.id(),
             rect.shrink(3.0),
-            egui::Image::new(&texture)
-                .fit_to_exact_size(egui::vec2(16.0, 16.0))
-                .tint(ui.visuals().text_color()),
+            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+            ui.visuals().text_color(),
         );
     }
-    let response = if tooltip.is_empty() {
-        response
-    } else {
-        response.on_hover_text(tooltip)
-    };
-    response.clicked()
+    response.on_hover_text(tooltip).clicked()
+}
+
+struct TreeCtx<'a> {
+    actions: &'a mut Vec<Action>,
+    icons: &'a mut MaterialIcons,
+    light: bool,
 }
 
 enum Action {
@@ -444,8 +404,7 @@ enum Action {
     Delete(PathBuf),
     Reveal(PathBuf),
     RefreshRoot,
-    SetHidden(bool),
-    SetGitignore(bool),
+    CollapseAll,
 }
 
 #[cfg(test)]
@@ -456,14 +415,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn explorer_is_visible_only_with_a_folder() {
+        let mut sidebar = Sidebar::new(260.0, false, true);
+        assert!(sidebar.should_show(true));
+        assert!(!sidebar.should_show(false));
+        sidebar.open = false;
+        assert!(!sidebar.should_show(true));
+        sidebar.reveal();
+        assert!(sidebar.should_show(true));
+    }
+
+    #[test]
     fn sidebar_snapshot() {
         let temp = tempfile::tempdir().expect("temp dir");
         let dir = temp.path().join("project");
         std::fs::create_dir(&dir).expect("project");
         std::fs::create_dir(dir.join("src")).expect("src");
+        std::fs::create_dir(dir.join("docs")).expect("docs");
         std::fs::write(dir.join("README.md"), "# Read me\n").expect("readme");
         std::fs::write(dir.join("main.rs"), "fn main() {}\n").expect("main");
         std::fs::write(dir.join("src/lib.rs"), "").expect("lib");
+        std::fs::write(dir.join("docs/guide.md"), "# Guide\n").expect("guide");
         let mut workspace = Workspace::open(&dir).expect("workspace");
         workspace.expand(&dir.join("src"));
         let mut sidebar = Sidebar::new(260.0, false, true);
@@ -472,7 +444,7 @@ mod tests {
         let translations = Translations::new();
         let lang = translations.lang(LanguagePreference::English);
         let mut harness = Harness::builder()
-            .with_size(egui::vec2(260.0, 360.0))
+            .with_size(egui::vec2(260.0, 380.0))
             .build_ui(move |ui| {
                 sidebar.show(ui, &mut workspace, &translations, lang, &mut icons, true);
             });

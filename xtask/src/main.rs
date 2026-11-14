@@ -41,6 +41,17 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Some("e2e") => {
+            let status = Command::new("bash").arg("scripts/e2e/run.sh").status();
+            match status {
+                Ok(status) if status.success() => ExitCode::SUCCESS,
+                Ok(_) => ExitCode::FAILURE,
+                Err(error) => {
+                    eprintln!("e2e: {error}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
         Some("perf") => {
             let status = Command::new("cargo")
                 .args([
@@ -76,6 +87,7 @@ fn main() -> ExitCode {
             println!("Commands:");
             println!("  check-file-length  Fail when a hand-written Rust file exceeds 500 lines");
             println!("  icons              Generate PNG, ICO, and ICNS assets from assets/icon.svg");
+            println!("  e2e                Run the full Xvfb UI, rendering, and logging test");
             println!("  perf               Run the release 120 Hz editor/preview frame-budget test");
             println!("  sbom               Write a CycloneDX SBOM to dist/sbom.cdx.json");
             println!("  package            Build release artifacts, checksums, SBOM, and update manifest");

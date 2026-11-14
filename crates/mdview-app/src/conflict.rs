@@ -126,9 +126,9 @@ pub fn show_diff_window(ctx: &egui::Context, document_name: &str, mine: &str, di
         .resizable(true)
         .show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Mine").strong());
+                ui.label(egui::RichText::new("Mine").strong().color(ui.visuals().text_color()));
                 ui.separator();
-                ui.label(egui::RichText::new("Disk").strong());
+                ui.label(egui::RichText::new("Disk").strong().color(ui.visuals().text_color()));
             });
             ui.separator();
             egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {

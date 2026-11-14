@@ -34,6 +34,7 @@
 | H8 | DONE (Linux; screen-reader/platform checks deferred) | Nine theme variants, contrast tests, settings, command palette, quick open, scaling, pseudo-locale, centered reading layout, and UI snapshots. |
 | H9 | DONE (Linux local artifacts; Windows/macOS signing deferred) | AppImage, deb, RPM, tarball, icons, associations, SBOM, SHA-256SUMS, update manifest/check/download, WiX/macOS/Flatpak sources, and `release-check`. |
 | Post-0.9 UI | DONE (Linux) | Icon header, Material Icon Theme tree, block-virtualized preview, header/sidebar/virtualization snapshots, 120-event scroll stress, and 120 Hz frame-budget gate. |
+| 0.11 workbench | DONE (Linux) | VS Code-like title/menu/tab/activity layout, settings modal tabs, compact context menus, centered fields, numeric steppers, workspace Quick Open, 1 MiB rotating logs, and `cargo xtask e2e`. |
 | H10–H11 | NOT STARTED | — |
 
 ---

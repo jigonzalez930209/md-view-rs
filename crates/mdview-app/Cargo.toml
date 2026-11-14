@@ -26,6 +26,7 @@ encoding_rs = "0.8"
 env_logger.workspace = true
 interprocess = "2.4"
 log.workspace = true
+time.workspace = true
 mdview-editor.workspace = true
 mdview-i18n.workspace = true
 mdview-markdown.workspace = true

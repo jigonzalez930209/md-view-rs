@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*", "xtask"]
 
 [workspace.package]
-version = "0.10.1"
+version = "0.11.0"
 edition = "2024"
 rust-version = "1.95"
 license = "MIT OR Apache-2.0"
@@ -73,6 +73,7 @@ similar = "2"
 serde = { version = "1", features = ["derive"] }
 syntect = { version = "5.3", default-features = false, features = ["default-fancy", "parsing", "dump-load", "plist-load", "yaml-load", "regex-fancy"] }
 thiserror = "2"
+time = { version = "0.3", features = ["formatting"] }
 
 # craft-ui uses the suite's egui fork, which adds IME context and global style
 # APIs. Keep the whole egui stack on the same fork revision.

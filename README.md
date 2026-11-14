@@ -2,7 +2,7 @@
 
 A native Markdown, text, and code editor for Windows, macOS, and Linux, built with Rust and egui.
 
-The project is at the `0.10.1` workspace milestone: a native shell with document tabs, a lazy folder tree, debounced filesystem watching, session restore, conflict handling, a virtualized code editor, syntax highlighting, regex find/replace, encoding detection, mixed-EOL preservation, background large-file loading, atomic saves, and English/Spanish UI. Markdown files open in a token-styled reading view with GFM tables, tasks, footnotes, alerts, safe HTML, internal links, source mapping, and Edit/Reading modes. Split view keeps the editor and preview synchronized with block anchors. The reading view embeds local and cached remote images, static and animated SVG, LaTeX math, and native Mermaid diagrams, with a zoomable lightbox. The shell uses a compact icon header and a VS Code Material Icon Theme workspace tree. The Markdown preview is block-virtualized for large documents. Nine themes, settings, command palette, text scaling, and accessibility polish are in place. Local packaging produces AppImage, deb, RPM, portable tarballs, icons, SBOM, checksums, and an update manifest; signed Windows/macOS artifacts and hosted distribution remain release-operator steps described in [docs/release.md](docs/release.md).
+The project is at the `0.11.0` workbench milestone: a native shell with document tabs, a lazy folder tree, debounced filesystem watching, session restore, conflict handling, a virtualized code editor, syntax highlighting, regex find/replace, encoding detection, mixed-EOL preservation, background large-file loading, atomic saves, and English/Spanish UI. Markdown files open in a token-styled reading view with GFM tables, tasks, footnotes, alerts, safe HTML, internal links, source mapping, and Edit/Reading modes. Split view keeps the editor and preview synchronized with block anchors. The reading view embeds local and cached remote images, static and animated SVG, LaTeX math, and native Mermaid diagrams, with a zoomable lightbox. The shell uses a desktop title bar with File/Edit/View/Go/Help menus, an activity rail, animated document tabs, and a VS Code Material Icon Theme workspace tree; settings and prompts are modal dialogs. The Markdown preview is block-virtualized for large documents. Nine themes, settings tabs, command palette, workspace Quick Open, text scaling, rotating diagnostics capped at 1 MiB, and accessibility polish are in place. Local packaging produces AppImage, deb, RPM, portable tarballs, icons, SBOM, checksums, and an update manifest; signed Windows/macOS artifacts and hosted distribution remain release-operator steps described in [docs/release.md](docs/release.md).
 
 ## Build
 
@@ -51,11 +51,14 @@ cargo xtask icons
 cargo xtask package
 cargo xtask release-check
 cargo xtask perf
+cargo xtask e2e
 ```
 
-The local pipeline writes AppImage, deb, RPM, portable tarball, icons, `SHA256SUMS`, an SBOM, and
+The local pipelinee writes AppImage, deb, RPM, portable tarball, icons, `SHA256SUMS`, an SBOM, and
 an update manifest to `dist/`. Platform signing and install checks are documented in
 [`docs/release.md`](docs/release.md).
 
-The roadmap is the source of truth for scope. The deferred 1.0 platform checks are in
+Testing and diagnostics are documented in [`docs/testing.md`](docs/testing.md) and
+[`docs/logging.md`](docs/logging.md). The roadmap is the source of truth for scope. The deferred
+1.0 platform checks are in
 [`docs/release-checks.md`](docs/release-checks.md).

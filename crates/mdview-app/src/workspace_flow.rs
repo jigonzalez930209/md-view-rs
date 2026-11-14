@@ -11,7 +11,9 @@ use crate::workspace_ops;
 impl MdViewApp {
     /// Open a workspace folder and remember it.
     pub(crate) fn open_workspace(&mut self, path: &Path, ctx: &egui::Context) {
+        let started = std::time::Instant::now();
         let path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        log::info!("workspace open path={}", path.display());
         match mdview_workspace::Workspace::open(&path) {
             Ok(mut workspace) => {
                 self.sidebar.show_hidden = self.prefs.get().session.show_hidden;
@@ -21,12 +23,29 @@ impl MdViewApp {
                 let text = path.to_string_lossy().into_owned();
                 self.prefs
                     .update(|prefs| prefs.session.remember_recent_workspace(&text));
+                let index_started = std::time::Instant::now();
+                self.quick_open_paths = workspace.file_index(5000);
+                log::info!(
+                    "workspace index files={} elapsed_ms={:.3}",
+                    self.quick_open_paths.len(),
+                    index_started.elapsed().as_secs_f64() * 1000.0
+                );
                 self.workspace = Some(workspace);
-                self.sidebar.open = true;
+                self.sidebar.reveal();
                 self.sync_session();
+                log::info!(
+                    "workspace ready path={} elapsed_ms={:.3}",
+                    path.display(),
+                    started.elapsed().as_secs_f64() * 1000.0
+                );
                 ctx.request_repaint();
             }
             Err(error) => {
+                log::error!(
+                    "workspace failed path={} elapsed_ms={:.3} error={error}",
+                    path.display(),
+                    started.elapsed().as_secs_f64() * 1000.0
+                );
                 self.show_error(format!("{} {error}", self.t("Could not open folder.")));
             }
         }
@@ -35,6 +54,7 @@ impl MdViewApp {
     /// Close the workspace folder.
     pub(crate) fn close_workspace(&mut self, ctx: &egui::Context) {
         self.workspace = None;
+        self.quick_open_paths.clear();
         self.sync_session();
         ctx.request_repaint();
     }
@@ -85,7 +105,12 @@ impl MdViewApp {
         {
             self.tabs.set_active(index);
         }
-        self.sidebar.open = session.sidebar_open;
+        // A restored folder keeps its explorer unless the user explicitly closed it.
+        if self.workspace.is_some() {
+            self.sidebar.reveal();
+        } else {
+            self.sidebar.open = session.sidebar_open;
+        }
         self.sidebar.width = session.sidebar_width;
         self.sync_session();
     }

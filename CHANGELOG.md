@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.11.0 — Workbench parity, diagnostics, and full E2E
+
+- Matched the reference workbench layout: title bar menus, activity rail, document tabs,
+  explorer only when a folder is loaded, and a settings modal with Appearance, Editor,
+  Explorer, Media, and About tabs.
+- Added compact, homogeneous context menus with 12 px labels and tight spacing; animated
+  document tabs and settings tabs with hover and selection transitions.
+- Introduced shared controls: vertically centered text fields, consistent 30 px primary and
+  secondary buttons, and numeric fields with up/down arrows.
+- Fixed the explorer: rows are clickable, opening a folder reveals the panel and keeps it open,
+  root refreshes preserve expansion, collapse-all works, and changes request a repaint.
+- Quick Open now searches the workspace file index, not only open and recent files.
+- Rendered GFM task lists with drawn checkboxes, improved table column spacing, and kept
+  LaTeX, Mermaid, local/remote PNG and SVG, and HTTP media covered by the E2E.
+- Added `cargo xtask e2e`: an Xvfb-driven button-by-button test for menus, settings, prompts,
+  explorer operations, tabs, find/replace/goto, split scrolling, all renderers, and shutdown.
+- Added rotating diagnostics: UTC log lines for every command, file open/save timings, workspace
+  indexing, media loads, errors, and 120 Hz frame metrics, capped at 1 MiB total.
+- About now reports diagnostic log usage and opens the log folder.
+
+
 ## 0.10.1 — 120 Hz frame budget and large-file scrolling
 
 - Added CPU frame-time instrumentation to the editor, preview, and full application, with a rolling 120-frame p50/p95/max/over-budget log.

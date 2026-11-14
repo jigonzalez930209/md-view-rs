@@ -5,8 +5,10 @@ use std::path::PathBuf;
 use egui_kittest::Harness;
 use mdview_i18n::Translations;
 use mdview_model::{Document, Encoding, Eol};
+use mdview_theme::{ThemeId, apply_id};
 
 use super::*;
+use crate::tab_bar::{TabBarView, show_tab_bar};
 
 fn document(path: &str) -> Document {
     Document::from_loaded(
@@ -24,28 +26,46 @@ fn tab_bar_snapshot() {
     let lang = translations.lang(mdview_i18n::LanguagePreference::English);
     let infos = vec![
         TabInfo {
-            label: "notes.md".to_owned(),
+            label: "README.md".to_owned(),
+            icon: "markdown".to_owned(),
             dirty: false,
             conflict: false,
             missing: false,
         },
         TabInfo {
-            label: "main.rs •".to_owned(),
+            label: "main.rs".to_owned(),
+            icon: "rust".to_owned(),
             dirty: true,
             conflict: false,
             missing: false,
         },
         TabInfo {
-            label: "deleted.md!".to_owned(),
+            label: "deleted.md".to_owned(),
+            icon: "markdown".to_owned(),
             dirty: false,
             conflict: false,
             missing: true,
         },
     ];
+    let mut icons = mdview_ui::MaterialIcons::new();
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(620.0, 44.0))
+        .with_size(egui::vec2(900.0, 34.0))
+        .with_context_setup(|ctx| apply_id(ctx, ThemeId::GithubDark))
         .build_ui(move |ui| {
-            show_tab_bar(ui, &infos, 1, &translations, lang);
+            show_tab_bar(
+                ui,
+                &infos,
+                1,
+                TabBarView {
+                    translations: &translations,
+                    lang,
+                    icons: &mut icons,
+                    light: false,
+                    sidebar_open: true,
+                    workspace_open: true,
+                    split_active: true,
+                },
+            );
         });
     harness.run();
     harness.snapshot("tab-bar");
@@ -101,8 +121,10 @@ fn missing_files_are_marked_in_the_label() {
     let mut tabs = TabSet::new(true, false, true);
     tabs.open(document("/tmp/missing.md"), None);
     tabs.active_mut().missing = true;
-    assert!(tabs.infos()[0].label.contains("missing.md"));
-    assert!(tabs.infos()[0].missing);
+    let mut icons = mdview_ui::MaterialIcons::new();
+    let infos = tabs.infos(&mut icons, true);
+    assert!(infos[0].label.contains("missing.md"));
+    assert!(infos[0].missing);
 }
 
 #[test]

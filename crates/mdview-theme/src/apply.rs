@@ -55,7 +55,7 @@ pub fn apply_id(ctx: &egui::Context, id: ThemeId) {
     visuals.widgets.inactive.weak_bg_fill = theme.surface;
     visuals.widgets.inactive.bg_stroke = theme.border_stroke();
     visuals.widgets.hovered.bg_stroke = Stroke::new(1.0, theme.focus);
-    visuals.widgets.active.fg_stroke = Stroke::new(1.0, theme.accent_text);
+    visuals.widgets.active.fg_stroke = Stroke::new(1.0, theme.text);
     visuals.widgets.active.bg_stroke = Stroke::new(2.0, theme.focus);
     visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0, theme.border);
     visuals.override_text_color = Some(theme.text);
@@ -63,16 +63,17 @@ pub fn apply_id(ctx: &egui::Context, id: ThemeId) {
 
     ctx.all_styles_mut(|style| {
         style.visuals = visuals.clone();
-        style.spacing.item_spacing = egui::vec2(8.0, 6.0);
-        style.spacing.button_padding = egui::vec2(10.0, 4.0);
-        style.spacing.interact_size = egui::vec2(28.0, 28.0);
+        style.spacing.item_spacing = egui::vec2(8.0, 4.0);
+        style.spacing.button_padding = egui::vec2(8.0, 3.0);
+        style.spacing.interact_size = egui::vec2(26.0, 24.0);
+        style.spacing.menu_margin = egui::Margin::same(4);
         style.animation_time = 0.10;
         style
             .text_styles
             .insert(TextStyle::Body, egui::FontId::proportional(14.0));
         style
             .text_styles
-            .insert(TextStyle::Button, egui::FontId::proportional(14.0));
+            .insert(TextStyle::Button, egui::FontId::proportional(12.5));
         style
             .text_styles
             .insert(TextStyle::Small, egui::FontId::proportional(11.0));

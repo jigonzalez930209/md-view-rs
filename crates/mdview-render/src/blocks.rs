@@ -132,6 +132,43 @@ pub(crate) fn show_block(
     }
 }
 
+fn task_checkbox(ui: &mut Ui, checked: bool, theme: &mdview_theme::Theme) {
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
+    let box_rect = rect.shrink(2.0).translate(egui::vec2(0.0, 1.0));
+    ui.painter().rect_filled(
+        box_rect,
+        egui::CornerRadius::same(3),
+        if checked {
+            theme.accent
+        } else {
+            egui::Color32::TRANSPARENT
+        },
+    );
+    ui.painter().rect_stroke(
+        box_rect,
+        egui::CornerRadius::same(3),
+        egui::Stroke::new(1.2, if checked { theme.accent } else { theme.text_muted }),
+        egui::StrokeKind::Inside,
+    );
+    if checked {
+        let check = egui::Stroke::new(1.6, theme.accent_text);
+        ui.painter().line_segment(
+            [
+                egui::pos2(box_rect.left() + 2.6, box_rect.center().y),
+                egui::pos2(box_rect.left() + 5.6, box_rect.bottom() - 2.8),
+            ],
+            check,
+        );
+        ui.painter().line_segment(
+            [
+                egui::pos2(box_rect.left() + 5.6, box_rect.bottom() - 2.8),
+                egui::pos2(box_rect.right() - 2.2, box_rect.top() + 3.0),
+            ],
+            check,
+        );
+    }
+}
+
 fn show_list(
     ui: &mut Ui,
     ordered: bool,
@@ -142,14 +179,18 @@ fn show_list(
 ) {
     for (index, item) in items.iter().enumerate() {
         ui.horizontal_top(|ui| {
-            let marker = match item.task {
-                Some(true) => "[x]".to_owned(),
-                Some(false) => "[ ]".to_owned(),
-                None if ordered => format!("{}.", start + index as u64),
-                None => "-".to_owned(),
-            };
             ui.add_space(4.0);
-            ui.label(RichText::new(marker).color(ctx.theme.text_muted).strong());
+            match item.task {
+                Some(checked) => task_checkbox(ui, checked, ctx.theme),
+                None => {
+                    let marker = if ordered {
+                        format!("{}.", start + index as u64)
+                    } else {
+                        "-".to_owned()
+                    };
+                    ui.label(RichText::new(marker).color(ctx.theme.text_muted).strong());
+                }
+            }
             ui.add_space(4.0);
             ui.vertical(|ui| {
                 show_blocks(ui, &item.blocks, ctx, media);
@@ -168,11 +209,12 @@ fn show_table(
 ) {
     egui::Frame::new()
         .stroke(egui::Stroke::new(1.0, ctx.theme.border))
-        .inner_margin(4.0)
+        .inner_margin(6.0)
         .show(ui, |ui| {
+            ui.spacing_mut().item_spacing.x = 14.0;
             egui::Grid::new(ui.next_auto_id())
                 .striped(true)
-                .min_col_width(72.0)
+                .min_col_width(76.0)
                 .show(ui, |ui| {
                     for (index, cell) in head.iter().enumerate() {
                         let align = alignments.get(index).copied().unwrap_or_default();

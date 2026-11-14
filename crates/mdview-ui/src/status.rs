@@ -14,7 +14,7 @@ pub fn show_status(
     status: &EditorStatus,
 ) {
     let t = |source: &str| translations.t(lang, source);
-    ui.horizontal(|ui| {
+    ui.horizontal_centered(|ui| {
         let path = document
             .path()
             .map(|p| p.display().to_string())

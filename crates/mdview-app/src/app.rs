@@ -62,6 +62,7 @@ pub struct MdViewApp {
     pub(crate) last_window_poll: Instant,
     pub(crate) media: MediaRuntime,
     pub(crate) icons: mdview_ui::MaterialIcons,
+    pub(crate) quick_open_paths: Vec<std::path::PathBuf>,
     pub(crate) perf: crate::perf::FrameMetrics,
     pub(crate) frame_started: Instant,
     pub(crate) lightbox: Option<crate::lightbox::LightboxState>,
@@ -148,6 +149,7 @@ impl MdViewApp {
             last_window_poll: Instant::now(),
             media: MediaRuntime::new(&cc.egui_ctx),
             icons: mdview_ui::MaterialIcons::new(),
+            quick_open_paths: Vec::new(),
             perf: crate::perf::FrameMetrics::default(),
             frame_started: Instant::now(),
             lightbox: None,
@@ -183,11 +185,13 @@ impl MdViewApp {
     }
 
     pub(crate) fn show_error(&mut self, description: impl Into<String>) {
+        let description = description.into();
+        log::error!("user-facing error: {description}");
         self.dialogs.ask_message(
             Message {
                 level: MessageLevel::Error,
                 title: self.t("Error").to_owned(),
-                description: description.into(),
+                description,
                 buttons: MessageButtons::Ok,
             },
             DialogThen::Ignored,
@@ -251,6 +255,7 @@ impl MdViewApp {
 
     pub(crate) fn handle_close_request(&mut self, ctx: &egui::Context) {
         if ctx.input(|input| input.viewport().close_requested()) && !self.allow_close {
+            log::info!("close requested dirty={}", self.tabs.any_dirty());
             if self.tabs.any_dirty() {
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
                 self.close_prompt_open = true;

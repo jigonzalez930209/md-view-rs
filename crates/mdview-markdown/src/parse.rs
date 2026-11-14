@@ -474,9 +474,9 @@ impl<'a> EventParser<'a> {
                         kind,
                     });
                 }
-                Event::TaskListMarker(checked) => {
+                Event::TaskListMarker(_checked) => {
+                    // The list renderer draws the checkbox from `ListItem::task`.
                     self.cursor += 1;
-                    inlines.push(Inline::Text(if checked { "☑ " } else { "☐ " }.to_owned()));
                 }
                 Event::Start(Tag::Paragraph) => {
                     // A paragraph nested inside an inline container is malformed; flatten it.

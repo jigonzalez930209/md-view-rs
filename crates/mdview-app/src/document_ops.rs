@@ -13,6 +13,9 @@ use mdview_model::{Document, Encoding};
 use crate::app::MdViewApp;
 use crate::conflict::{ConflictAction, DiskState, classify_disk};
 use crate::file_ops::{self, FileError};
+
+#[path = "document_session.rs"]
+mod document_session;
 use crate::load_job::{LoadEvent, LoadJob};
 
 /// The comparison window state.
@@ -30,9 +33,11 @@ pub struct DiffState {
 impl MdViewApp {
     /// Open a file path in a tab, reusing an existing tab when it is already open.
     pub(crate) fn open_path(&mut self, path: &Path) -> Result<(), FileError> {
+        let started = std::time::Instant::now();
         let path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
         if let Some(index) = self.tabs.find_path(&path) {
             self.tabs.set_active(index);
+            log::info!("file focus existing path={}", path.display());
             return Ok(());
         }
         let length = std::fs::metadata(&path)?.len();
@@ -40,10 +45,18 @@ impl MdViewApp {
             if let Some(job) = self.pending_load.take() {
                 job.cancel();
             }
+            log::info!("file load queued path={} bytes={length}", path.display());
             self.pending_load = Some(LoadJob::spawn(path)?);
             return Ok(());
         }
         let document = file_ops::load(&path)?;
+        log::info!(
+            "file open path={} bytes={} lines={} elapsed_ms={:.3}",
+            path.display(),
+            document.len_bytes(),
+            document.line_count(),
+            started.elapsed().as_secs_f64() * 1000.0
+        );
         self.open_document(document, file_ops::modified(&path));
         Ok(())
     }
@@ -112,8 +125,15 @@ impl MdViewApp {
 
     /// Save the active tab to a concrete path.
     pub(crate) fn save_to(&mut self, path: &Path, close_after: bool, ctx: Option<&egui::Context>) {
+        let started = std::time::Instant::now();
+        let bytes = self.tabs.editor().document().len_bytes();
         match file_ops::save(self.tabs.editor().document(), path) {
             Ok(()) => {
+                log::info!(
+                    "file save path={} bytes={bytes} elapsed_ms={:.3}",
+                    path.display(),
+                    started.elapsed().as_secs_f64() * 1000.0
+                );
                 let mtime = file_ops::modified(path);
                 let tab = self.tabs.active_mut();
                 tab.editor.document_mut().set_path(path.to_path_buf());
@@ -135,6 +155,7 @@ impl MdViewApp {
                 }
             }
             Err(error) => {
+                log::error!("file save failed path={} error={error}", path.display());
                 self.show_error(format!("{} {error}", self.t("Could not save file.")));
             }
         }
@@ -219,117 +240,6 @@ impl MdViewApp {
     }
 
     /// Persist the open files, active path, workspace, and sidebar state.
-    pub(crate) fn sync_session(&mut self) {
-        let open_files = self
-            .tabs
-            .tabs()
-            .iter()
-            .filter_map(|tab| tab.editor.document().path())
-            .map(|path| path.to_string_lossy().into_owned())
-            .collect::<Vec<_>>();
-        let active_file = self
-            .tabs
-            .active()
-            .editor
-            .document()
-            .path()
-            .map(|path| path.to_string_lossy().into_owned());
-        let workspace = self
-            .workspace
-            .as_ref()
-            .map(|workspace| workspace.root().to_string_lossy().into_owned());
-        let tab_scroll = self
-            .tabs
-            .tabs()
-            .iter()
-            .filter_map(|tab| {
-                tab.editor
-                    .document()
-                    .path()
-                    .map(|path| (path.to_string_lossy().into_owned(), tab.editor.scroll_offset()))
-            })
-            .collect::<std::collections::BTreeMap<_, _>>();
-        let tab_view_scroll = self
-            .tabs
-            .tabs()
-            .iter()
-            .filter_map(|tab| {
-                tab.editor
-                    .document()
-                    .path()
-                    .map(|path| (path.to_string_lossy().into_owned(), tab.view_scroll()))
-            })
-            .collect::<std::collections::BTreeMap<_, _>>();
-        let tab_modes = self
-            .tabs
-            .tabs()
-            .iter()
-            .filter_map(|tab| {
-                tab.editor
-                    .document()
-                    .path()
-                    .map(|path| (path.to_string_lossy().into_owned(), tab.mode.as_setting().to_owned()))
-            })
-            .collect::<std::collections::BTreeMap<_, _>>();
-        let tab_split_ratio = self
-            .tabs
-            .tabs()
-            .iter()
-            .filter_map(|tab| {
-                tab.editor
-                    .document()
-                    .path()
-                    .map(|path| (path.to_string_lossy().into_owned(), tab.split_ratio))
-            })
-            .collect::<std::collections::BTreeMap<_, _>>();
-        let sidebar_open = self.sidebar.open;
-        let sidebar_width = self.sidebar.width;
-        let show_hidden = self.sidebar.show_hidden;
-        let respect_gitignore = self.sidebar.respect_gitignore;
-        self.prefs.update(|prefs| {
-            prefs.session.open_files = open_files;
-            prefs.session.active_file = active_file;
-            prefs.session.workspace = workspace;
-            prefs.session.tab_scroll = tab_scroll;
-            prefs.session.tab_view_scroll = tab_view_scroll;
-            prefs.session.tab_modes = tab_modes;
-            prefs.session.tab_split_ratio = tab_split_ratio;
-            prefs.session.sidebar_open = sidebar_open;
-            prefs.session.sidebar_width = sidebar_width;
-            prefs.session.show_hidden = show_hidden;
-            prefs.session.respect_gitignore = respect_gitignore;
-        });
-    }
-
-    /// Poll the background loader and open its document when it finishes.
-    pub(crate) fn poll_load(&mut self, ctx: &egui::Context) {
-        let mut finished = None;
-        if let Some(job) = self.pending_load.as_mut() {
-            while let Some(event) = job.poll() {
-                if let LoadEvent::Done(result) = event {
-                    finished = Some(result);
-                    break;
-                }
-            }
-        }
-        let Some(result) = finished else {
-            return;
-        };
-        self.pending_load = None;
-        match result {
-            Ok(document) => {
-                let mtime = document
-                    .path()
-                    .and_then(|path| std::fs::metadata(path).ok())
-                    .and_then(|metadata| metadata.modified().ok());
-                self.open_document(document, mtime);
-                self.update_title(ctx);
-            }
-            Err(FileError::Cancelled) => {}
-            Err(error) => self.show_error(format!("{} {error}", self.t("Could not open file."))),
-        }
-    }
-
     /// Reconcile tabs with paths reported by the workspace watcher.
     pub(crate) fn reconcile_paths(&mut self, paths: &[PathBuf], ctx: &egui::Context) {
         if paths.is_empty() {

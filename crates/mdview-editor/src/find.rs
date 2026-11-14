@@ -1,6 +1,6 @@
 //! Find and replace.
 
-use egui::{Key, TextEdit, Ui};
+use egui::{Key, Ui};
 use regex::RegexBuilder;
 
 use crate::Editor;
@@ -56,13 +56,13 @@ impl Editor {
         if !self.find.open {
             return;
         }
+        if ui.input(|input| input.key_pressed(Key::Escape)) {
+            self.find.open = false;
+            return;
+        }
         let mut changed = false;
         ui.horizontal(|ui| {
-            let query = ui.add(
-                TextEdit::singleline(&mut self.find.query)
-                    .hint_text("Find")
-                    .desired_width(220.0),
-            );
+            let query = crate::controls::text_field(ui, &mut self.find.query, "Find", 220.0);
             if self.find.focus_query {
                 query.request_focus();
                 self.find.focus_query = false;
@@ -112,11 +112,7 @@ impl Editor {
 
         if self.find.replace {
             ui.horizontal(|ui| {
-                let replacement = ui.add(
-                    TextEdit::singleline(&mut self.find.replacement)
-                        .hint_text("Replace with")
-                        .desired_width(260.0),
-                );
+                let replacement = crate::controls::text_field(ui, &mut self.find.replacement, "Replace with", 260.0);
                 if self.find.focus_replace {
                     replacement.request_focus();
                     self.find.focus_replace = false;

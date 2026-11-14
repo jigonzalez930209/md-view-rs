@@ -11,14 +11,23 @@ use crate::tabs::TabAction;
 
 impl MdViewApp {
     fn show_tabs(&mut self, ui: &mut egui::Ui) {
+        let light = self.theme == mdview_theme::ThemeMode::Light;
+        let infos = self.tabs.infos(&mut self.icons, light);
         let mut action = None;
-        egui::Panel::top("tab_bar").show(ui, |ui| {
-            action = crate::tabs::show_tab_bar(
+        egui::Panel::top("tab_bar").exact_size(32.0).show(ui, |ui| {
+            action = crate::tab_bar::show_tab_bar(
                 ui,
-                &self.tabs.infos(),
+                &infos,
                 self.tabs.active_index(),
-                &self.translations,
-                self.lang,
+                crate::tab_bar::TabBarView {
+                    translations: &self.translations,
+                    lang: self.lang,
+                    icons: &mut self.icons,
+                    light,
+                    sidebar_open: self.sidebar.should_show(self.workspace.is_some()),
+                    workspace_open: self.workspace.is_some(),
+                    split_active: self.tabs.active().mode == mdview_ui::ViewMode::Split,
+                },
             );
         });
         match action {
@@ -28,12 +37,13 @@ impl MdViewApp {
             }
             Some(TabAction::Close(index)) => self.close_tab(index, ui.ctx()),
             Some(TabAction::New) => self.new_document(ui.ctx()),
+            Some(TabAction::Command(command)) => self.handle_command(ui.ctx(), command),
             None => {}
         }
     }
 
     fn show_sidebar(&mut self, ui: &mut egui::Ui) {
-        if !self.sidebar.open {
+        if !self.sidebar.should_show(self.workspace.is_some()) {
             return;
         }
         let mut events = Vec::new();
@@ -50,12 +60,6 @@ impl MdViewApp {
                         &mut self.icons,
                         self.theme == mdview_theme::ThemeMode::Light,
                     );
-                } else {
-                    ui.add_space(8.0);
-                    ui.label(egui::RichText::new(self.t("No folder open")).weak());
-                    if ui.button(self.t("Open folder…")).clicked() {
-                        self.ask_open_folder();
-                    }
                 }
             });
         self.sidebar.width = panel.response.rect.width();
@@ -107,6 +111,31 @@ impl MdViewApp {
         crate::conflict::show_diff_window(ctx, &name, &diff.mine, &diff.disk, &mut diff.open);
         if !diff.open {
             self.diff = None;
+        }
+    }
+
+    fn handle_window_edges(&self, ctx: &egui::Context) {
+        if !ctx.input(|input| input.pointer.primary_pressed()) {
+            return;
+        }
+        let Some(position) = ctx.pointer_latest_pos() else {
+            return;
+        };
+        let rect = ctx.content_rect();
+        let edge = 4.0;
+        let west = position.x <= rect.left() + edge;
+        let east = position.x >= rect.right() - edge;
+        let south = position.y >= rect.bottom() - edge;
+        let direction = match (west, east, south) {
+            (true, _, true) => Some(egui::ResizeDirection::SouthWest),
+            (_, true, true) => Some(egui::ResizeDirection::SouthEast),
+            (true, _, _) => Some(egui::ResizeDirection::West),
+            (_, true, _) => Some(egui::ResizeDirection::East),
+            (_, _, true) => Some(egui::ResizeDirection::South),
+            _ => None,
+        };
+        if let Some(direction) = direction {
+            ctx.send_viewport_cmd(egui::ViewportCommand::BeginResize(direction));
         }
     }
 
@@ -195,13 +224,19 @@ impl eframe::App for MdViewApp {
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         self.update_title(ui.ctx());
+        self.handle_window_edges(ui.ctx());
 
         let mut command = None;
-        egui::Panel::top("app_header").exact_size(40.0).show(ui, |ui| {
+        let maximized = ui.ctx().input(|input| input.viewport().maximized.unwrap_or(false));
+        egui::Panel::top("app_header").exact_size(34.0).show(ui, |ui| {
             let document_name = self.tabs.editor().document().display_name();
-            command = mdview_ui::show_header(
+            let workspace_name = self
+                .workspace
+                .as_ref()
+                .map(|workspace| workspace.root_entry().name.clone());
+            command = mdview_ui::show_title_bar(
                 ui,
-                mdview_ui::HeaderState {
+                mdview_ui::TitleBarState {
                     translations: &self.translations,
                     lang: self.lang,
                     document_name: &document_name,
@@ -210,7 +245,11 @@ impl eframe::App for MdViewApp {
                     is_markdown: self.tabs.active().is_markdown(),
                     sidebar_open: self.sidebar.open,
                     workspace_open: self.workspace.is_some(),
+                    workspace_name: workspace_name.as_deref(),
                     sync_scroll: self.prefs.get().editor.sync_scroll,
+                    wrap: self.tabs.editor().status().wrap,
+                    line_numbers: self.tabs.editor().status().line_numbers,
+                    maximized,
                 },
                 &mut self.icons,
             );
@@ -219,10 +258,32 @@ impl eframe::App for MdViewApp {
             self.handle_command(ui.ctx(), command);
         }
 
+        let mut activity = None;
+        egui::Panel::left("activity_rail").exact_size(48.0).show(ui, |ui| {
+            activity = mdview_ui::show_activity_bar(
+                ui,
+                mdview_ui::ActivityState {
+                    translations: &self.translations,
+                    lang: self.lang,
+                    explorer_open: self.sidebar.open && self.workspace.is_some(),
+                    workspace_open: self.workspace.is_some(),
+                    active: self
+                        .sidebar
+                        .open
+                        .then_some(mdview_ui::Activity::Explorer)
+                        .filter(|_| self.workspace.is_some()),
+                },
+                &mut self.icons,
+            );
+        });
+        if let Some(command) = activity {
+            self.handle_command(ui.ctx(), command);
+        }
+
         self.show_tabs(ui);
         self.show_sidebar(ui);
 
-        egui::Panel::bottom("status_bar").show(ui, |ui| {
+        egui::Panel::bottom("status_bar").exact_size(24.0).show(ui, |ui| {
             mdview_ui::show_status(
                 ui,
                 &self.translations,
@@ -308,81 +369,22 @@ impl eframe::App for MdViewApp {
                 private_networks: self.prefs.get().media.private_networks,
                 animate_svg: self.prefs.get().media.animate_svg,
                 reduce_motion: self.prefs.get().media.reduce_motion,
+                show_hidden: self.sidebar.show_hidden,
+                respect_gitignore: self.sidebar.respect_gitignore,
+                log_bytes: crate::logging::log_bytes(),
             };
-            if let Some(command) =
-                mdview_ui::show_settings(ctx, &self.translations, self.lang, &mut self.settings_open, view)
-            {
+            if let Some(command) = mdview_ui::show_settings(
+                ctx,
+                &self.translations,
+                self.lang,
+                &mut self.settings_open,
+                view,
+                &mut self.icons,
+            ) {
                 self.handle_command(ctx, command);
             }
         }
-        if self.palette_open {
-            let items = if self.palette_files {
-                let mut items = self
-                    .tabs
-                    .tabs()
-                    .iter()
-                    .enumerate()
-                    .map(|(index, tab)| mdview_ui::PaletteItem {
-                        label: tab.label(),
-                        detail: tab
-                            .editor
-                            .document()
-                            .path()
-                            .map(|path| path.to_string_lossy().into_owned())
-                            .unwrap_or_else(|| self.t("Untitled").to_owned()),
-                        command: mdview_ui::Command::ActivateTab(index),
-                    })
-                    .collect::<Vec<_>>();
-                for (index, path) in self.prefs.get().session.recent_files.iter().enumerate() {
-                    items.push(mdview_ui::PaletteItem {
-                        label: std::path::Path::new(path)
-                            .file_name()
-                            .map(|name| name.to_string_lossy().into_owned())
-                            .unwrap_or_else(|| path.clone()),
-                        detail: path.clone(),
-                        command: mdview_ui::Command::OpenRecent(index),
-                    });
-                }
-                items
-            } else {
-                let entries: [(&str, mdview_ui::Command); 16] = [
-                    ("New", mdview_ui::Command::New),
-                    ("Open…", mdview_ui::Command::Open),
-                    ("Open Folder…", mdview_ui::Command::OpenFolder),
-                    ("Save", mdview_ui::Command::Save),
-                    ("Save As…", mdview_ui::Command::SaveAs),
-                    ("Settings…", mdview_ui::Command::Settings),
-                    ("Find", mdview_ui::Command::Find),
-                    ("Replace", mdview_ui::Command::Replace),
-                    ("Go to Line", mdview_ui::Command::GotoLine),
-                    ("Edit mode", mdview_ui::Command::SetMode(mdview_ui::ViewMode::Edit)),
-                    ("Reading view", mdview_ui::Command::SetMode(mdview_ui::ViewMode::View)),
-                    ("Split view", mdview_ui::Command::SetMode(mdview_ui::ViewMode::Split)),
-                    ("Word wrap", mdview_ui::Command::ToggleWrap),
-                    ("Workspace sidebar", mdview_ui::Command::ToggleSidebar),
-                    ("About MD View", mdview_ui::Command::About),
-                    ("Quit", mdview_ui::Command::Quit),
-                ];
-                entries
-                    .into_iter()
-                    .map(|(label, command)| mdview_ui::PaletteItem {
-                        label: self.t(label),
-                        detail: String::new(),
-                        command,
-                    })
-                    .collect()
-            };
-            let title = if self.palette_files {
-                self.t("Quick Open")
-            } else {
-                self.t("Command Palette")
-            };
-            if let Some(command) =
-                mdview_ui::show_palette(ctx, &mut self.palette_open, &mut self.palette_query, &title, &items)
-            {
-                self.handle_command(ctx, command);
-            }
-        }
+        self.show_palette_flow(ui.ctx());
         if self.about_open {
             mdview_ui::show_about(ui.ctx(), &self.translations, self.lang, &mut self.about_open);
         }

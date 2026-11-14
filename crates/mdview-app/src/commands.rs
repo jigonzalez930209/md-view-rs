@@ -11,11 +11,44 @@ use crate::app::{DialogThen, MdViewApp};
 
 impl MdViewApp {
     pub(crate) fn handle_command(&mut self, ctx: &egui::Context, command: Command) {
+        log::info!("command {command:?}");
         match command {
             Command::New => self.new_document(ctx),
             Command::Open => self.ask_open(),
             Command::OpenFolder => self.ask_open_folder(),
             Command::CloseFolder => self.close_workspace(ctx),
+            Command::RenameFile => {
+                if let Some(path) = self
+                    .tabs
+                    .active()
+                    .editor
+                    .document()
+                    .path()
+                    .map(std::path::Path::to_path_buf)
+                {
+                    self.sidebar.begin_rename(path);
+                    self.sidebar.reveal();
+                    ctx.request_repaint();
+                } else {
+                    self.show_error(self.t("This document has no file to rename."));
+                }
+            }
+            Command::DeleteFile => {
+                if let Some(path) = self
+                    .tabs
+                    .active()
+                    .editor
+                    .document()
+                    .path()
+                    .map(std::path::Path::to_path_buf)
+                {
+                    self.sidebar.begin_delete(path);
+                    self.sidebar.reveal();
+                    ctx.request_repaint();
+                } else {
+                    self.show_error(self.t("This document has no file to delete."));
+                }
+            }
             Command::NewFile => {
                 if let Some(workspace) = &self.workspace {
                     let parent = workspace.root().to_path_buf();
@@ -31,6 +64,13 @@ impl MdViewApp {
                     } else {
                         self.show_error(self.t("The recent workspace no longer exists."));
                     }
+                }
+            }
+            Command::OpenPath(path) => {
+                if let Err(error) = self.open_path(&path) {
+                    self.show_error(format!("{} {error}", self.t("Could not open file.")));
+                } else {
+                    self.update_title(ctx);
                 }
             }
             Command::OpenRecent(index) => {
@@ -119,11 +159,30 @@ impl MdViewApp {
                 self.sidebar.open = !self.sidebar.open;
                 self.sync_session();
             }
-            Command::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+            Command::Quit | Command::CloseWindow => {
+                log::info!("window close requested");
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+            Command::MinimizeWindow => {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
+            }
+            Command::ToggleMaximizeWindow => {
+                let maximized = ctx.input(|input| input.viewport().maximized.unwrap_or(false));
+                ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(!maximized));
+            }
             Command::About => self.about_open = true,
-            Command::Find => self.tabs.editor_mut().open_find(false),
-            Command::Replace => self.tabs.editor_mut().open_find(true),
-            Command::GotoLine => self.tabs.editor_mut().open_goto(),
+            Command::Find => {
+                self.ensure_edit_mode(ctx);
+                self.tabs.editor_mut().open_find(false);
+            }
+            Command::Replace => {
+                self.ensure_edit_mode(ctx);
+                self.tabs.editor_mut().open_find(true);
+            }
+            Command::GotoLine => {
+                self.ensure_edit_mode(ctx);
+                self.tabs.editor_mut().open_goto();
+            }
             Command::ToggleWrap => {
                 let wrap = !self.tabs.editor().status().wrap;
                 let line_numbers = self.tabs.editor().status().line_numbers;
@@ -153,14 +212,28 @@ impl MdViewApp {
                 self.tabs.set_active(index);
                 self.update_title(ctx);
             }
-            Command::Settings => self.settings_open = true,
+            Command::Settings => {
+                self.palette_open = false;
+                self.settings_open = true;
+            }
             Command::CommandPalette => {
+                self.settings_open = false;
                 self.palette_open = true;
                 self.palette_files = false;
                 self.palette_query.clear();
             }
             Command::CheckUpdates => self.check_for_updates(),
+            Command::OpenLogs => {
+                let directory = crate::logging::log_directory();
+                if let Err(error) = open::that(&directory) {
+                    self.show_error(format!("Could not open the log folder: {error}"));
+                }
+            }
             Command::QuickOpen => {
+                if let Some(workspace) = &self.workspace {
+                    self.quick_open_paths = workspace.file_index(5000);
+                }
+                self.settings_open = false;
                 self.palette_open = true;
                 self.palette_files = true;
                 self.palette_query.clear();
@@ -197,6 +270,24 @@ impl MdViewApp {
                 let reduce = !self.prefs.get().media.reduce_motion;
                 self.prefs.update(|prefs| prefs.media.reduce_motion = reduce);
                 self.media.set_reduced_motion(reduce);
+            }
+            Command::ToggleShowHidden => {
+                let show = !self.sidebar.show_hidden;
+                self.sidebar.show_hidden = show;
+                if let Some(workspace) = &mut self.workspace {
+                    workspace.set_show_hidden(show);
+                }
+                self.prefs.update(|prefs| prefs.session.show_hidden = show);
+                self.sync_session();
+            }
+            Command::ToggleRespectGitignore => {
+                let respect = !self.sidebar.respect_gitignore;
+                self.sidebar.respect_gitignore = respect;
+                if let Some(workspace) = &mut self.workspace {
+                    workspace.set_respect_gitignore(respect);
+                }
+                self.prefs.update(|prefs| prefs.session.respect_gitignore = respect);
+                self.sync_session();
             }
             Command::ToggleSyncScroll => {
                 let sync = !self.prefs.get().editor.sync_scroll;
@@ -268,6 +359,12 @@ impl MdViewApp {
         ctx.input_mut(|input| input.consume_shortcut(&chord.to_egui_shortcut()))
     }
 
+    fn ensure_edit_mode(&mut self, ctx: &egui::Context) {
+        if self.tabs.active().mode == mdview_ui::ViewMode::View {
+            self.handle_command(ctx, Command::SetMode(mdview_ui::ViewMode::Edit));
+        }
+    }
+
     pub(crate) fn handle_shortcuts(&mut self, ctx: &egui::Context) {
         if self.dialogs.is_open() || self.close_prompt_open {
             return;
@@ -284,6 +381,12 @@ impl MdViewApp {
             self.request_save(false);
         } else if self.consume_shortcut(ctx, "Cmd+W") {
             self.close_tab(self.tabs.active_index(), ctx);
+        } else if self.consume_shortcut(ctx, "Cmd+F") {
+            self.handle_command(ctx, Command::Find);
+        } else if self.consume_shortcut(ctx, "Cmd+H") {
+            self.handle_command(ctx, Command::Replace);
+        } else if self.consume_shortcut(ctx, "Cmd+G") {
+            self.handle_command(ctx, Command::GotoLine);
         } else if self.consume_shortcut(ctx, "Cmd+Shift+E") {
             self.handle_command(ctx, Command::SetMode(mdview_ui::ViewMode::Split));
         } else if self.consume_shortcut(ctx, "Cmd+E") {

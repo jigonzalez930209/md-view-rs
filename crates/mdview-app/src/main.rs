@@ -10,13 +10,16 @@ mod install;
 mod lightbox;
 mod links;
 mod load_job;
+mod logging;
 mod media_runtime;
+mod palette_flow;
 mod perf;
 mod reading;
 mod settings;
 mod sidebar;
 mod single_instance;
 mod split;
+mod tab_bar;
 mod tabs;
 mod ui_shell;
 mod update_ui;
@@ -31,7 +34,13 @@ use eframe::egui;
 use single_instance::Acquired;
 
 fn main() -> eframe::Result {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
+    logging::init();
+    log::info!(
+        "startup version={} args={:?} log={:?}",
+        env!("CARGO_PKG_VERSION"),
+        std::env::args().skip(1).collect::<Vec<_>>(),
+        logging::active_log_path()
+    );
 
     let action = match cli::parse(std::env::args().skip(1)) {
         Ok(action) => action,
@@ -79,6 +88,7 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([980.0, 720.0])
             .with_min_inner_size([640.0, 420.0])
+            .with_decorations(false)
             .with_title("MD View"),
         renderer: eframe::Renderer::Glow,
         ..Default::default()
