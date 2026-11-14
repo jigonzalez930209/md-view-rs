@@ -119,11 +119,21 @@ impl MdViewApp {
         match choose_source(editor_scrolled, preview_scrolled, hovered) {
             Some(Pane::Editor) => {
                 let line = tab.editor.first_visible_line();
+                log::debug!(
+                    "split sync editor->preview line={line} editor_y={:.1} preview_y={:.1}",
+                    tab.editor.scroll_offset(),
+                    tab.preview.scroll_offset()
+                );
                 tab.preview.scroll_to_line(line, 0.0);
                 ctx.request_repaint();
             }
             Some(Pane::Preview) => {
                 if let Some((line, fraction)) = tab.preview.source_map().line_at_offset(tab.preview.scroll_offset()) {
+                    log::debug!(
+                        "split sync preview->editor line={line} fraction={fraction:.3} editor_y={:.1} preview_y={:.1}",
+                        tab.editor.scroll_offset(),
+                        tab.preview.scroll_offset()
+                    );
                     tab.editor.scroll_to_line(line, fraction);
                     ctx.request_repaint();
                 }
@@ -148,8 +158,10 @@ impl MdViewApp {
             .map(std::path::Path::to_path_buf);
         let tab = self.tabs.tab_mut(index)?;
         tab.ensure_preview();
-        tab.preview
-            .set_compact_margins(self.prefs.get().appearance.compact_margins);
+        tab.preview.set_reading_style(
+            self.prefs.get().reading.margins(),
+            self.prefs.get().reading.typography(),
+        );
         Some(
             tab.preview
                 .show_with_media(ui, &tab.preview_source, theme, light, base, &mut self.media),

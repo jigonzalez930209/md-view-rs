@@ -6,7 +6,6 @@ mod commands;
 mod conflict;
 mod document_ops;
 mod file_ops;
-mod image_view;
 mod install;
 mod lightbox;
 mod links;
@@ -25,6 +24,7 @@ mod tabs;
 mod ui_shell;
 mod update_ui;
 mod updater;
+mod viewers;
 mod workspace_flow;
 mod workspace_ops;
 

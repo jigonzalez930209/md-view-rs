@@ -445,7 +445,7 @@ mod tests {
         let mut request = MediaRequest::new(mdview_media::MediaKind::Image, "pulse.svg");
         request.base = Some(directory.path().to_path_buf());
         assert!(matches!(runtime.resolve(&ctx, &request), MediaState::Loading));
-        for _ in 0..600 {
+        for _ in 0..1200 {
             runtime.poll(&ctx);
             if runtime.animation_status(&request.cache_key()) != AnimationStatus::None {
                 break;

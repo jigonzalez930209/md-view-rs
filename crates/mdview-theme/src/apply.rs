@@ -67,6 +67,10 @@ pub fn apply_id(ctx: &egui::Context, id: ThemeId) {
         style.spacing.button_padding = egui::vec2(8.0, 3.0);
         style.spacing.interact_size = egui::vec2(26.0, 24.0);
         style.spacing.menu_margin = egui::Margin::same(4);
+        style.spacing.scroll.bar_width = 6.0;
+        style.spacing.scroll.floating_width = 3.0;
+        style.spacing.scroll.floating_allocated_width = 4.0;
+        style.spacing.scroll.bar_inner_margin = 2.0;
         style.animation_time = 0.10;
         style
             .text_styles

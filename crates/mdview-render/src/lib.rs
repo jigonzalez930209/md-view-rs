@@ -168,7 +168,8 @@ pub struct Preview {
     source_map: SourceMap,
     anchors: BTreeMap<String, f32>,
     width: f32,
-    compact_margins: bool,
+    margins: mdview_theme::ReadingMargins,
+    typography: mdview_theme::ReadingTypography,
     user_scrolled: bool,
     viewport: egui::Rect,
     heights: std::collections::HashMap<usize, f32>,
@@ -189,7 +190,8 @@ impl Default for Preview {
             source_map: SourceMap::default(),
             anchors: BTreeMap::new(),
             width: 760.0,
-            compact_margins: false,
+            margins: mdview_theme::ReadingMargins::Comfortable,
+            typography: mdview_theme::ReadingTypography::default(),
             user_scrolled: false,
             viewport: egui::Rect::NOTHING,
             heights: std::collections::HashMap::new(),
@@ -350,9 +352,15 @@ impl Preview {
         let mut block_screens: Vec<BlockScreen> = Vec::new();
         let mut media = media;
         let mut heights = std::mem::take(&mut self.heights);
+        let (top_gap, bottom_gap, block_gap, cap) = match self.margins {
+            mdview_theme::ReadingMargins::Comfortable => (8.0, 12.0, 6.0, self.width),
+            mdview_theme::ReadingMargins::Compact => (4.0, 8.0, 4.0, self.width.max(920.0)),
+            mdview_theme::ReadingMargins::Full => (2.0, 4.0, 3.0, f32::INFINITY),
+        };
 
         let mut area = egui::ScrollArea::vertical()
             .id_salt("mdview-markdown-preview")
+            .animated(false)
             .auto_shrink([false, false]);
         let programmatic = self.pending_scroll.is_some();
         if let Some(offset) = self.pending_scroll.take() {
@@ -361,18 +369,18 @@ impl Preview {
 
         let area_output: ScrollAreaOutput<()> = area.show_viewport(ui, |ui, viewport| {
             ui.set_width(ui.available_width());
-            ui.add_space(if self.compact_margins { 2.0 } else { 8.0 });
+            ui.add_space(top_gap);
             let available = ui.available_width();
-            let width = if self.compact_margins {
-                if available > self.width {
-                    (available - 24.0).max(280.0)
-                } else {
-                    available
-                }
+            let width = if self.margins == mdview_theme::ReadingMargins::Full && available > 304.0 {
+                available - 24.0
             } else {
-                self.width.min(available)
+                cap.min(available)
             };
-            let margin = ((available - width) * 0.5).max(if self.compact_margins { 8.0 } else { 4.0 });
+            let margin = ((available - width) * 0.5).max(if self.margins == mdview_theme::ReadingMargins::Full {
+                12.0
+            } else {
+                4.0
+            });
             ui.horizontal_top(|ui| {
                 ui.add_space(margin);
                 ui.vertical(|ui| {
@@ -389,6 +397,7 @@ impl Preview {
                             light,
                             highlighter: &self.highlighter,
                             output: &mut output,
+                            typography: self.typography,
                         };
                         let overscan = 320.0;
                         let mut top = 0.0_f32;
@@ -410,11 +419,10 @@ impl Preview {
                                     top,
                                     height: measured,
                                 });
-                                ui.add_space(if self.compact_margins { 4.0 } else { 6.0 });
-                                top += measured + if self.compact_margins { 4.0 } else { 6.0 };
+                                ui.add_space(block_gap);
+                                top += measured + block_gap;
                             } else {
-                                let gap = if self.compact_margins { 4.0 } else { 6.0 };
-                                ui.add_space(height + gap);
+                                ui.add_space(height + block_gap);
                                 block_screens.push(BlockScreen {
                                     block_id: block.id,
                                     start_line: block.span.start_line,
@@ -422,7 +430,7 @@ impl Preview {
                                     top,
                                     height,
                                 });
-                                top += height + gap;
+                                top += height + block_gap;
                             }
                             match &block.kind {
                                 mdview_markdown::BlockKind::Heading { anchor, .. } => {
@@ -437,7 +445,7 @@ impl Preview {
                     }
                     output.anchors_screen.extend(anchor_points);
                     self.painted_blocks = painted;
-                    ui.add_space(if self.compact_margins { 4.0 } else { 12.0 });
+                    ui.add_space(bottom_gap);
                 });
             });
         });
@@ -456,8 +464,7 @@ impl Preview {
                 height: block.height.max(1.0),
             });
         }
-        self.source_map =
-            SourceMap::from_anchors(mapped, content_height + if self.compact_margins { 4.0 } else { 12.0 });
+        self.source_map = SourceMap::from_anchors(mapped, content_height + bottom_gap);
 
         let mut anchor_map = BTreeMap::new();
         for (anchor, y) in &output.anchors_screen {

@@ -45,10 +45,16 @@ pub(crate) fn hash(text: &str) -> u64 {
 }
 
 impl crate::Preview {
-    /// Reduce the empty margins around the reading view.
-    pub fn set_compact_margins(&mut self, compact: bool) {
-        if self.compact_margins != compact {
-            self.compact_margins = compact;
+    /// Set the reading width preset and per-area text sizes.
+    pub fn set_reading_style(
+        &mut self,
+        margins: mdview_theme::ReadingMargins,
+        typography: mdview_theme::ReadingTypography,
+    ) {
+        let typography = typography.sanitized();
+        if self.margins != margins || self.typography != typography {
+            self.margins = margins;
+            self.typography = typography;
             self.heights.clear();
             self.layout_width = 0.0;
         }

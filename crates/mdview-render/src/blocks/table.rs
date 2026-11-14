@@ -46,7 +46,7 @@ pub(super) fn show_table(
                 .enumerate()
                 .map(|(column, cell)| {
                     let width = widths.get(column).copied().unwrap_or(64.0) - 12.0;
-                    layout_table_cell(ui, cell, width.max(24.0), ctx.theme, row == 0)
+                    layout_table_cell(ui, cell, width.max(24.0), ctx.theme, row == 0, ctx.typography.tables)
                 })
                 .collect()
         })
@@ -140,7 +140,14 @@ struct LaidCell {
     links: Vec<CellLink>,
 }
 
-fn layout_table_cell(ui: &Ui, inlines: &[Inline], width: f32, theme: &mdview_theme::Theme, header: bool) -> LaidCell {
+fn layout_table_cell(
+    ui: &Ui,
+    inlines: &[Inline],
+    width: f32,
+    theme: &mdview_theme::Theme,
+    header: bool,
+    size: f32,
+) -> LaidCell {
     let mut job = egui::text::LayoutJob::default();
     job.wrap.max_width = width;
     let mut chars = 0usize;
@@ -149,11 +156,11 @@ fn layout_table_cell(ui: &Ui, inlines: &[Inline], width: f32, theme: &mdview_the
         let start = chars;
         chars += segment.text.chars().count();
         let font = if segment.monospace {
-            egui::FontId::monospace(12.0)
+            egui::FontId::monospace((size - 1.0).max(9.0))
         } else if header || segment.strong {
-            egui::FontId::proportional(13.5)
+            egui::FontId::proportional(size + 0.5)
         } else {
-            egui::FontId::proportional(13.0)
+            egui::FontId::proportional(size)
         };
         let color = if segment.link.is_some() { theme.link } else { theme.text };
         job.append(

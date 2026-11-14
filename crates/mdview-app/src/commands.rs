@@ -271,9 +271,18 @@ impl MdViewApp {
                 self.prefs.update(|prefs| prefs.media.reduce_motion = reduce);
                 self.media.set_reduced_motion(reduce);
             }
-            Command::ToggleCompactMargins => {
-                let compact = !self.prefs.get().appearance.compact_margins;
-                self.prefs.update(|prefs| prefs.appearance.compact_margins = compact);
+            Command::SetReadingMargins(margins) => {
+                self.prefs
+                    .update(|prefs| prefs.reading.margins = margins.as_setting().to_owned());
+            }
+            Command::SetReadingTypography(typography) => {
+                let typography = typography.sanitized();
+                self.prefs.update(|prefs| {
+                    prefs.reading.body_size = typography.body;
+                    prefs.reading.heading_size = typography.headings;
+                    prefs.reading.code_size = typography.code;
+                    prefs.reading.table_size = typography.tables;
+                });
             }
             Command::ToggleShowHidden => {
                 let show = !self.sidebar.show_hidden;

@@ -29,7 +29,8 @@
   checkboxes.
 - Standalone image documents: open `logo.svg` and `photo.png` from Quick Open and verify the
   image viewer and `image open` diagnostics.
-- Appearance: toggle compact reading margins on and off and verify persistence.
+- Reading: select all three margin presets, increment and decrement the body-size stepper,
+  and verify the persisted values.
 - Shutdown through the custom window close button.
 - Diagnostics: log file present, event coverage, remote media sources, no panics, no media
   failures, final 120 Hz windows with zero frames over 8.33 ms, and total log size ≤ 1 MiB.

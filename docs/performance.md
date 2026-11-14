@@ -16,9 +16,9 @@ Latest result on the Linux development machine:
 
 ```text
 120Hz frame budget (120 frames):
-editor  p50=0.231 ms p95=0.349 ms
-preview p50=1.333 ms p95=1.915 ms
-combined p50=1.569 ms p95=2.238 ms max=3.340 ms
+editor  p50=0.242 ms p95=0.363 ms
+preview p50=1.412 ms p95=1.895 ms
+combined p50=1.620 ms p95=2.238 ms max=3.037 ms
 ```
 
 The release test asserts `combined p95 <= 8.33 ms`. Debug builds use a relaxed assertion so the
@@ -71,20 +71,20 @@ under the 8.33 ms budget.
 - Bidirectional E2E screenshots are kept outside the repository during manual verification; the
   committed snapshots remain the reproducible references.
 
-## Release E2E interaction run (0.12.0)
+## Release E2E interaction run (0.13.0)
 
 `MDVIEW_E2E_PROFILE=release cargo xtask e2e` exercises menus, settings, prompts, five-level
 folder expansion through a watcher refresh, file operations, tabs, editing, find/goto, split
 scrolling, local/remote media, standalone image documents, LaTeX, code blocks, a clickable
-table link, tables, and Mermaid in one run (12,120 frames). Steady-state windows after the
-render pass:
+table link, tables, Mermaid, the Reading settings, and standalone viewer plugins in one run
+(9,360 frames). Steady-state windows after the render pass:
 
 ```text
-frames=11640 p50=0.278ms p95=0.470ms max=0.894ms over_8.33ms=0
-frames=11760 p50=0.322ms p95=0.463ms max=0.845ms over_8.33ms=0
-frames=11880 p50=0.318ms p95=0.494ms max=0.757ms over_8.33ms=0
-frames=12000 p50=0.327ms p95=0.434ms max=0.706ms over_8.33ms=0
-frames=12120 p50=0.309ms p95=0.388ms max=0.520ms over_8.33ms=0
+frames=8880 p50=0.332ms p95=0.536ms max=3.844ms over_8.33ms=0
+frames=9000 p50=0.336ms p95=0.554ms max=1.310ms over_8.33ms=0
+frames=9120 p50=0.348ms p95=0.720ms max=1.126ms over_8.33ms=0
+frames=9240 p50=0.310ms p95=0.461ms max=0.860ms over_8.33ms=0
+frames=9360 p50=0.397ms p95=0.746ms max=1.470ms over_8.33ms=0
 ```
 
 Transition frames can still exceed 8.33 ms during cold start, the first large media upload,

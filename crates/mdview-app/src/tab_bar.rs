@@ -264,9 +264,12 @@ fn tab_button(
         ui.scope_id().with(("tab_close", index)),
         egui::Sense::click(),
     );
+    // The close button is a separate widget. Using only the tab-body response made it fade out
+    // as soon as the pointer moved onto the button, even though the click still worked.
+    let tab_hovered = ui.rect_contains_pointer(rect);
     let close_t = ui.ctx().animate_bool_with_time(
         response.id.with("tab_close_visible"),
-        active || response.hovered(),
+        active || tab_hovered || close.hovered(),
         0.12,
     );
     if close_t > 0.05

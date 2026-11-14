@@ -12,7 +12,7 @@ pub fn show_status(
     lang: craft_i18n::Lang,
     document: &Document,
     status: &EditorStatus,
-    image: bool,
+    viewer: Option<&str>,
 ) {
     let t = |source: &str| translations.t(lang, source);
     ui.horizontal_centered(|ui| {
@@ -29,8 +29,8 @@ pub fn show_status(
         ui.label(RichText::new(path).small()).on_hover_text(full_path);
         ui.separator();
         ui.label(
-            RichText::new(if image {
-                "Image".to_owned()
+            RichText::new(if let Some(viewer) = viewer {
+                viewer.to_owned()
             } else if document.is_dirty() {
                 t("Modified")
             } else {
@@ -38,7 +38,7 @@ pub fn show_status(
             })
             .small(),
         );
-        if !image {
+        if viewer.is_none() {
             ui.separator();
             ui.label(
                 RichText::new(format!(
@@ -64,21 +64,21 @@ pub fn show_status(
                 .map(str::to_ascii_uppercase)
                 .unwrap_or_else(|| t("Image"));
             ui.label(
-                RichText::new(if image {
+                RichText::new(if viewer.is_some() {
                     extension
                 } else {
                     status.encoding.label().to_owned()
                 })
                 .small(),
             );
-            if !image {
+            if viewer.is_none() {
                 ui.separator();
                 ui.label(RichText::new(status.eol.label()).small());
                 ui.separator();
                 ui.label(RichText::new(status.indentation.label()).small());
                 ui.separator();
             }
-            if !image {
+            if viewer.is_none() {
                 ui.label(RichText::new(status.language.clone()).small());
             }
             if status.large_mode {

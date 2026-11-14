@@ -40,13 +40,13 @@ impl MdViewApp {
             log::info!("file focus existing path={}", path.display());
             return Ok(());
         }
-        if mdview_media::is_image_path(&path) {
+        if crate::viewers::supports(&path) {
             let mut document = Document::from_loaded(path.clone(), String::new(), Eol::Lf, Encoding::Utf8, false);
             document.mark_saved();
             log::info!(
-                "image open path={} kind={} elapsed_ms={:.3}",
+                "viewer open path={} plugin={} elapsed_ms={:.3}",
                 path.display(),
-                mdview_media::image_kind_for_path(&path).label(),
+                crate::viewers::name_for(&path).unwrap_or("viewer"),
                 started.elapsed().as_secs_f64() * 1000.0
             );
             self.open_document(document, file_ops::modified(&path));
@@ -128,7 +128,7 @@ impl MdViewApp {
 
     /// Ask for a path or save directly, then optionally close the window.
     pub(crate) fn request_save(&mut self, close_after: bool) {
-        if self.tabs.active().is_image() {
+        if self.tabs.active().is_viewer() {
             log::debug!("image document save ignored");
             return;
         }
@@ -141,7 +141,7 @@ impl MdViewApp {
 
     /// Save the active tab to a concrete path.
     pub(crate) fn save_to(&mut self, path: &Path, close_after: bool, ctx: Option<&egui::Context>) {
-        if self.tabs.active().is_image() {
+        if self.tabs.active().is_viewer() {
             log::debug!("image document save ignored");
             return;
         }
@@ -336,7 +336,7 @@ impl MdViewApp {
                 }
             }
         }
-        if self.tabs.tabs().get(index).is_some_and(|tab| tab.is_image()) {
+        if self.tabs.tabs().get(index).is_some_and(|tab| tab.is_viewer()) {
             if let Some(tab) = self.tabs.tab_mut(index) {
                 tab.disk_mtime = mtime;
             }

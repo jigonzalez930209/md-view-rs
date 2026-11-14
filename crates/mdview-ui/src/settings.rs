@@ -5,13 +5,16 @@
 
 use egui::{Button, Context, Frame, Id, Key, Modal, RichText, ScrollArea, Ui};
 use mdview_i18n::{LanguagePreference, Translations};
-use mdview_theme::ThemeId;
+use mdview_theme::{ReadingMargins, ReadingTypography, ThemeId};
 
 use crate::{Command, MaterialIcons, numeric_stepper, primary_button, secondary_button};
 
 #[path = "settings_about.rs"]
 mod settings_about;
+#[path = "settings_reading.rs"]
+mod settings_reading;
 use settings_about::about;
+use settings_reading::reading;
 
 /// Current values shown by the settings dialog.
 #[derive(Clone, Debug, PartialEq)]
@@ -24,8 +27,10 @@ pub struct SettingsView {
     pub language: LanguagePreference,
     /// Text scale.
     pub zoom: f32,
-    /// Reduce the empty margins around Markdown reading views.
-    pub compact_margins: bool,
+    /// Markdown reading width preset.
+    pub reading_margins: ReadingMargins,
+    /// Markdown per-area text sizes.
+    pub typography: ReadingTypography,
     /// Soft wrap.
     pub wrap: bool,
     /// Line numbers.
@@ -53,18 +58,27 @@ enum SettingsTab {
     #[default]
     Appearance,
     Editor,
+    Reading,
     Files,
     Media,
     About,
 }
 
 impl SettingsTab {
-    const ALL: [Self; 5] = [Self::Appearance, Self::Editor, Self::Files, Self::Media, Self::About];
+    const ALL: [Self; 6] = [
+        Self::Appearance,
+        Self::Editor,
+        Self::Reading,
+        Self::Files,
+        Self::Media,
+        Self::About,
+    ];
 
     fn label(self) -> &'static str {
         match self {
             Self::Appearance => "Appearance",
             Self::Editor => "Editor",
+            Self::Reading => "Reading",
             Self::Files => "Explorer",
             Self::Media => "Media",
             Self::About => "About",
@@ -162,6 +176,7 @@ pub fn show_settings(
                                     match tab {
                                         SettingsTab::Appearance => appearance(ui, &view, &t, &mut command, icons),
                                         SettingsTab::Editor => editor(ui, &view, &t, &mut command),
+                                        SettingsTab::Reading => reading(ui, &view, &t, &mut command, icons),
                                         SettingsTab::Files => files(ui, &view, &t, &mut command),
                                         SettingsTab::Media => media(ui, &view, &t, &mut command),
                                         SettingsTab::About => about(ui, &view, &t, &mut command),
@@ -270,16 +285,6 @@ fn appearance(
     );
     if zoom_changed {
         *command = Some(Command::SetZoom(zoom));
-    }
-
-    let mut compact = view.compact_margins;
-    if row_switch(
-        ui,
-        t("Compact reading margins"),
-        t("Reduce the empty space around Markdown previews."),
-        &mut compact,
-    ) {
-        *command = Some(Command::ToggleCompactMargins);
     }
 }
 

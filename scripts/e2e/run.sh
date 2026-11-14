@@ -277,8 +277,23 @@ done
 echo "== settings: open and close paths =="
 click 850 16
 shot "03-settings-appearance"
-toggle_to compact_margins true 767 453
-toggle_to compact_margins false 767 453
+click 240 252
+shot "03b-settings-reading"
+click 700 250
+click 700 332
+sleep 0.4
+expect_cfg margins full
+shot "03c-settings-reading-full"
+click 700 250
+click 700 282
+sleep 0.4
+expect_cfg margins comfortable
+click 773 300
+sleep 0.4
+expect_cfg body_size 14.5
+click 773 313
+sleep 0.4
+expect_cfg body_size 14.0
 click 240 224
 shot "04-settings-editor"
 toggle_to wrap true 767 243
@@ -287,13 +302,13 @@ toggle_to line_numbers false 767 296
 toggle_to line_numbers true 767 296
 toggle_to sync_scroll false 767 349
 toggle_to sync_scroll true 767 349
-click 240 252
+click 240 280
 shot "05-settings-explorer"
 toggle_to show_hidden true 767 242
 toggle_to show_hidden false 767 242
 toggle_to respect_gitignore false 767 296
 toggle_to respect_gitignore true 767 296
-click 240 280
+click 240 308
 shot "06-settings-media"
 toggle_to remote_images false 767 242
 toggle_to remote_images true 767 242
@@ -303,7 +318,7 @@ toggle_to animate_svg false 767 348
 toggle_to animate_svg true 767 348
 toggle_to reduce_motion true 767 396
 toggle_to reduce_motion false 767 396
-click 240 308
+click 240 336
 shot "07-settings-about"
 click 756 576
 expect_cfg private_networks true
@@ -523,8 +538,8 @@ log_has "perf frames="
 grep -q "panicked" "$LOGS/mdview.log" && fail "panic in log"
 grep -q "media load failed" "$LOGS/mdview.log" && fail "media failed to load"
 log_has "media load"
-log_has "image open.*logo.svg"
-log_has "image open.*photo.png"
+log_has "viewer open.*logo.svg"
+log_has "viewer open.*photo.png"
 log_has "source=http://127.0.0.1:8899/photo.png"
 log_has "source=http://127.0.0.1:8899/logo.svg"
 log_has "source=http://127.0.0.1:8899/pulse.svg"

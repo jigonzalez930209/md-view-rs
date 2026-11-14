@@ -105,8 +105,13 @@ pub fn numeric_stepper(
         egui::pos2(rect.right() - button_w, rect.center().y),
         egui::vec2(button_w, CONTROL_HEIGHT / 2.0 - 1.0),
     );
-    let up_response = ui.interact(up, ui.scope_id().with("stepper_up"), egui::Sense::click());
-    let down_response = ui.interact(down, ui.scope_id().with("stepper_down"), egui::Sense::click());
+    let stepper_id = ("stepper", rect.left().to_bits(), rect.top().to_bits());
+    let up_response = ui.interact(up, ui.make_persistent_id(stepper_id).with("up"), egui::Sense::click());
+    let down_response = ui.interact(
+        down,
+        ui.make_persistent_id(stepper_id).with("down"),
+        egui::Sense::click(),
+    );
     for (response, icon, delta) in [
         (up_response, "chevron-up", step),
         (down_response, "chevron-down", -step),

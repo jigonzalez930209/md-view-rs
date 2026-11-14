@@ -173,13 +173,14 @@ pub(crate) fn show_inlines(
     theme: &Theme,
     output: &mut PreviewOutput,
     mut media: Option<&mut MediaContext<'_>>,
+    size: f32,
 ) {
     let segments = segments(inlines);
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
         for segment in &segments {
             let next = media.as_deref_mut();
-            show_segment(ui, segment, theme, output, next);
+            show_segment(ui, segment, theme, output, next, size);
         }
     });
 }
@@ -190,6 +191,7 @@ fn show_segment(
     theme: &Theme,
     output: &mut PreviewOutput,
     media: Option<&mut MediaContext<'_>>,
+    size: f32,
 ) {
     if segment.math {
         show_math(ui, segment, theme, media);
@@ -199,7 +201,7 @@ fn show_segment(
         show_image(ui, segment, theme, output, media);
         return;
     }
-    let mut text = RichText::new(&segment.text).color(theme.text);
+    let mut text = RichText::new(&segment.text).size(size).color(theme.text);
     if segment.strong {
         text = text.strong();
     }
@@ -212,7 +214,7 @@ fn show_segment(
     if segment.monospace {
         text = text
             .monospace()
-            .size(12.0)
+            .size((size - 2.0).max(9.0))
             .background_color(theme.table_header)
             .color(theme.text);
     }
@@ -220,13 +222,16 @@ fn show_segment(
         text = text.background_color(theme.selection);
     }
     if segment.keyboard {
-        text = text.monospace().background_color(theme.table_header).size(12.0);
+        text = text
+            .monospace()
+            .background_color(theme.table_header)
+            .size((size - 2.0).max(9.0));
     }
     if segment.subscript {
-        text = text.size(11.0);
+        text = text.size((size - 2.0).max(9.0));
     }
     if segment.superscript {
-        text = text.size(11.0);
+        text = text.size((size - 2.0).max(9.0));
     }
     if let Some(footnote) = &segment.footnote {
         text = text.color(theme.link).size(11.0).strong();

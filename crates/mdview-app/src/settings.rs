@@ -21,6 +21,8 @@ pub struct Prefs {
     pub editor: EditorSettings,
     /// Restored session and recent files.
     pub session: SessionSettings,
+    /// Markdown reading style.
+    pub reading: ReadingSettings,
     /// Media loading policy.
     pub media: MediaSettings,
     /// Update channel settings.
@@ -86,8 +88,6 @@ pub struct Appearance {
     pub follow_system: bool,
     /// Text scale from 0.8 to 2.0.
     pub zoom: f32,
-    /// Reduce the empty margins around Markdown reading views.
-    pub compact_margins: bool,
 }
 
 impl Default for Appearance {
@@ -96,8 +96,53 @@ impl Default for Appearance {
             theme: "github-light".to_owned(),
             follow_system: false,
             zoom: 1.0,
-            compact_margins: false,
         }
+    }
+}
+
+/// Markdown reading width and per-area text sizes.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct ReadingSettings {
+    /// `comfortable`, `compact`, or `full`.
+    pub margins: String,
+    /// Body text size in points.
+    pub body_size: f32,
+    /// Base heading size in points.
+    pub heading_size: f32,
+    /// Code size in points.
+    pub code_size: f32,
+    /// Table size in points.
+    pub table_size: f32,
+}
+
+impl Default for ReadingSettings {
+    fn default() -> Self {
+        Self {
+            margins: "comfortable".to_owned(),
+            body_size: 14.0,
+            heading_size: 28.0,
+            code_size: 13.0,
+            table_size: 13.0,
+        }
+    }
+}
+
+impl ReadingSettings {
+    /// The selected margin preset.
+    pub fn margins(&self) -> mdview_theme::ReadingMargins {
+        mdview_theme::ReadingMargins::from_setting(&self.margins)
+    }
+
+    /// The selected text sizes, clamped before use.
+    pub fn typography(&self) -> mdview_theme::ReadingTypography {
+        mdview_theme::ReadingTypography {
+            body: self.body_size,
+            headings: self.heading_size,
+            code: self.code_size,
+            tables: self.table_size,
+        }
+        .sanitized()
     }
 }
 

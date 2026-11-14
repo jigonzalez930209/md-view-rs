@@ -183,4 +183,98 @@ mod tests {
             assert!(contrast_ratio(theme.border, theme.background) >= 1.2, "{id:?}");
         }
     }
+
+    #[test]
+    fn reading_margin_settings_round_trip() {
+        for mode in ReadingMargins::ALL {
+            assert_eq!(ReadingMargins::from_setting(mode.as_setting()), mode);
+        }
+        assert_eq!(ReadingMargins::from_setting("unknown"), ReadingMargins::Comfortable);
+    }
+
+    #[test]
+    fn reading_typography_is_bounded() {
+        let sanitized = ReadingTypography {
+            body: 1.0,
+            headings: 200.0,
+            code: 0.0,
+            tables: 80.0,
+        }
+        .sanitized();
+        assert_eq!(sanitized.body, 10.0);
+        assert_eq!(sanitized.headings, 48.0);
+        assert_eq!(sanitized.code, 9.0);
+        assert_eq!(sanitized.tables, 22.0);
+    }
+}
+
+/// Reading-width presets for Markdown previews.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ReadingMargins {
+    /// Centered reading measure with comfortable spacing.
+    #[default]
+    Comfortable,
+    /// Wider measure with tighter vertical spacing.
+    Compact,
+    /// Use nearly the full editor width with a small gutter.
+    Full,
+}
+
+impl ReadingMargins {
+    /// Parse a stored identifier.
+    pub fn from_setting(value: &str) -> Self {
+        match value {
+            "compact" => Self::Compact,
+            "full" => Self::Full,
+            _ => Self::Comfortable,
+        }
+    }
+
+    /// The stored identifier.
+    pub fn as_setting(self) -> &'static str {
+        match self {
+            Self::Comfortable => "comfortable",
+            Self::Compact => "compact",
+            Self::Full => "full",
+        }
+    }
+
+    /// Every mode in display order.
+    pub const ALL: [Self; 3] = [Self::Comfortable, Self::Compact, Self::Full];
+}
+
+/// Per-area text sizes for the Markdown reading view, in points.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ReadingTypography {
+    /// Body paragraphs, lists, quotes, and alerts.
+    pub body: f32,
+    /// Base heading size; lower levels scale down from it.
+    pub headings: f32,
+    /// Fenced and inline code.
+    pub code: f32,
+    /// Table headers and cells.
+    pub tables: f32,
+}
+
+impl Default for ReadingTypography {
+    fn default() -> Self {
+        Self {
+            body: 14.0,
+            headings: 28.0,
+            code: 13.0,
+            tables: 13.0,
+        }
+    }
+}
+
+impl ReadingTypography {
+    /// Clamp every size to a safe range.
+    pub fn sanitized(self) -> Self {
+        Self {
+            body: self.body.clamp(10.0, 22.0),
+            headings: self.headings.clamp(16.0, 48.0),
+            code: self.code.clamp(9.0, 22.0),
+            tables: self.tables.clamp(9.0, 22.0),
+        }
+    }
 }

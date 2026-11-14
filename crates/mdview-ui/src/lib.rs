@@ -110,8 +110,10 @@ pub enum Command {
     ToggleAnimations,
     /// Toggle reduced motion.
     ToggleReduceMotion,
-    /// Reduce the margins around Markdown reading views.
-    ToggleCompactMargins,
+    /// Select the Markdown reading width preset.
+    SetReadingMargins(mdview_theme::ReadingMargins),
+    /// Set the per-area Markdown reading text sizes.
+    SetReadingTypography(mdview_theme::ReadingTypography),
     /// Reload the current file with another encoding.
     ReloadEncoding(Encoding),
     /// Switch the theme variant.

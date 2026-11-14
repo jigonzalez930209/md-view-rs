@@ -20,17 +20,19 @@ pub(crate) struct BlockCtx<'a> {
     pub light: bool,
     pub highlighter: &'a Highlighter,
     pub output: &'a mut PreviewOutput,
+    pub typography: mdview_theme::ReadingTypography,
 }
 
-pub(crate) fn heading_size(level: u8) -> f32 {
-    match level {
-        1 => 28.0,
-        2 => 23.0,
-        3 => 19.0,
-        4 => 16.5,
-        5 => 15.0,
-        _ => 14.0,
-    }
+pub(crate) fn heading_size(level: u8, base: f32) -> f32 {
+    let factor = match level {
+        1 => 1.0,
+        2 => 0.82,
+        3 => 0.68,
+        4 => 0.59,
+        5 => 0.52,
+        _ => 0.47,
+    };
+    (base * factor).max(12.0)
 }
 
 pub(crate) fn show_blocks(
@@ -59,6 +61,7 @@ pub(crate) fn show_block(
                 ctx.theme,
                 ctx.output,
                 media.as_mut().map(|context| &mut **context),
+                ctx.typography.body,
             );
         }
         BlockKind::Heading { level, anchor, inlines } => {
@@ -66,7 +69,7 @@ pub(crate) fn show_block(
             ui.add(
                 Label::new(
                     RichText::new(text)
-                        .size(heading_size(*level))
+                        .size(heading_size(*level, ctx.typography.headings))
                         .strong()
                         .color(ctx.theme.text),
                 )
@@ -86,7 +89,7 @@ pub(crate) fn show_block(
                     ui.label(
                         RichText::new(html.trim_end())
                             .monospace()
-                            .size(12.0)
+                            .size((ctx.typography.code - 1.0).max(9.0))
                             .color(ctx.theme.text_muted),
                     );
                 });
@@ -98,7 +101,12 @@ pub(crate) fn show_block(
                 .inner_margin(10.0)
                 .show(ui, |ui| {
                     if let Some(title) = kind.alert_title() {
-                        ui.label(RichText::new(title).strong().color(alert_color(*kind, ctx.theme)));
+                        ui.label(
+                            RichText::new(title)
+                                .size(ctx.typography.body)
+                                .strong()
+                                .color(alert_color(*kind, ctx.theme)),
+                        );
                         ui.add_space(2.0);
                     }
                     show_blocks(ui, blocks, ctx, media);
@@ -120,7 +128,7 @@ pub(crate) fn show_block(
                     ui.horizontal(|ui| {
                         ui.label(
                             RichText::new(format!("[^{label}]"))
-                                .small()
+                                .size(ctx.typography.body)
                                 .strong()
                                 .color(ctx.theme.text_muted),
                         );
@@ -134,8 +142,9 @@ pub(crate) fn show_block(
     }
 }
 
-fn task_checkbox(ui: &mut Ui, checked: bool, theme: &mdview_theme::Theme) {
-    let (rect, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
+fn task_checkbox(ui: &mut Ui, checked: bool, theme: &mdview_theme::Theme, size: f32) {
+    let side = (size * 1.0).clamp(13.0, 18.0);
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(side, side), egui::Sense::hover());
     let box_rect = rect.shrink(1.5).translate(egui::vec2(0.0, 1.0));
     ui.painter().rect_filled(
         box_rect,
@@ -180,22 +189,31 @@ fn show_list(
     media: &mut Option<&mut MediaContext<'_>>,
 ) {
     let list_width = ui.available_width().max(120.0);
+    let body = ctx.typography.body;
+    let line_height = (body * 1.22).max(14.0);
+    let marker_width = if ordered { 26.0 } else { 16.0 };
     for (index, item) in items.iter().enumerate() {
         ui.horizontal_top(|ui| {
             ui.add_space(4.0);
-            match item.task {
-                Some(checked) => task_checkbox(ui, checked, ctx.theme),
-                None => {
-                    let marker = if ordered {
-                        format!("{}.", start + index as u64)
-                    } else {
-                        "-".to_owned()
-                    };
-                    ui.label(RichText::new(marker).color(ctx.theme.text_muted).strong());
-                }
-            }
+            // Center the marker inside the first text line. Aligning both widgets to the top
+            // made checkboxes and bullets sit above the paragraph they belong to.
+            ui.allocate_ui_with_layout(
+                egui::vec2(marker_width, line_height),
+                Layout::left_to_right(Align::Center),
+                |ui| match item.task {
+                    Some(checked) => task_checkbox(ui, checked, ctx.theme, body),
+                    None => {
+                        let marker = if ordered {
+                            format!("{}.", start + index as u64)
+                        } else {
+                            "•".to_owned()
+                        };
+                        ui.label(RichText::new(marker).size(body).color(ctx.theme.text_muted).strong());
+                    }
+                },
+            );
             ui.add_space(4.0);
-            let content_width = (list_width - 30.0).max(80.0);
+            let content_width = (list_width - marker_width - 14.0).max(80.0);
             ui.allocate_ui_with_layout(egui::vec2(content_width, 0.0), Layout::top_down(Align::Min), |ui| {
                 ui.set_width(content_width);
                 show_blocks(ui, &item.blocks, ctx, media);
@@ -274,6 +292,8 @@ fn show_media_block(
 }
 
 fn show_plain_code(ui: &mut Ui, language: Option<&str>, text: &str, math: bool, ctx: &mut BlockCtx<'_>) {
+    let code_size = ctx.typography.code;
+    let line_height = code_size * 1.46;
     egui::Frame::new()
         .fill(ctx.theme.code_background)
         .stroke(egui::Stroke::new(1.0, ctx.theme.border))
@@ -287,7 +307,12 @@ fn show_plain_code(ui: &mut Ui, language: Option<&str>, text: &str, math: bool, 
                 } else {
                     language.unwrap_or("Code").to_owned()
                 };
-                ui.label(RichText::new(label).size(11.0).color(ctx.theme.text_muted).monospace());
+                ui.label(
+                    RichText::new(label)
+                        .size((code_size - 2.0).max(9.0))
+                        .color(ctx.theme.text_muted)
+                        .monospace(),
+                );
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if ui.small_button("Copy").on_hover_text("Copy code").clicked() {
                         ui.ctx().copy_text(text.to_owned());
@@ -301,7 +326,7 @@ fn show_plain_code(ui: &mut Ui, language: Option<&str>, text: &str, math: bool, 
                 ui.label(
                     RichText::new(text.trim_end())
                         .monospace()
-                        .size(13.0)
+                        .size(code_size)
                         .italics()
                         .color(ctx.theme.accent),
                 );
@@ -329,9 +354,9 @@ fn show_plain_code(ui: &mut Ui, language: Option<&str>, text: &str, math: bool, 
                         &span.text,
                         0.0,
                         TextFormat {
-                            font_id: FontId::monospace(13.0),
+                            font_id: FontId::monospace(code_size),
                             color,
-                            line_height: Some(19.0),
+                            line_height: Some(line_height),
                             ..Default::default()
                         },
                     );
@@ -341,9 +366,9 @@ fn show_plain_code(ui: &mut Ui, language: Option<&str>, text: &str, math: bool, 
                         "\n",
                         0.0,
                         TextFormat {
-                            font_id: FontId::monospace(13.0),
+                            font_id: FontId::monospace(code_size),
                             color: ctx.theme.text,
-                            line_height: Some(19.0),
+                            line_height: Some(line_height),
                             ..Default::default()
                         },
                     );

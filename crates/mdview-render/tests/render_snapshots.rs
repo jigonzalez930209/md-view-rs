@@ -5,7 +5,7 @@
 
 use egui_kittest::Harness;
 use mdview_render::Preview;
-use mdview_theme::{Theme, ThemeMode, apply};
+use mdview_theme::{ReadingMargins, ReadingTypography, Theme, ThemeMode, apply};
 
 const DOCUMENT: &str = r#"# Release notes
 
@@ -59,15 +59,19 @@ Footnotes work too.[^note]
 "#;
 
 fn snapshot(name: &str, mode: ThemeMode) {
-    snapshot_with(name, mode, false);
+    snapshot_with(name, mode, ReadingMargins::Comfortable, ReadingTypography::default());
 }
 
-fn snapshot_with(name: &str, mode: ThemeMode, compact: bool) {
+fn snapshot_with(name: &str, mode: ThemeMode, margins: ReadingMargins, typography: ReadingTypography) {
     let theme = Theme::for_mode(mode);
     let mut preview = Preview::default();
     preview.set_width(680.0);
-    preview.set_compact_margins(compact);
-    let harness_width = if compact { 1100.0 } else { 760.0 };
+    preview.set_reading_style(margins, typography);
+    let harness_width = if margins == ReadingMargins::Comfortable {
+        760.0
+    } else {
+        1100.0
+    };
     let mut harness = Harness::builder()
         .with_size(egui::vec2(harness_width, 900.0))
         .with_context_setup(move |ctx| {
@@ -92,5 +96,25 @@ fn preview_dark_snapshot() {
 
 #[test]
 fn preview_compact_light_snapshot() {
-    snapshot_with("preview-compact-light", ThemeMode::Light, true);
+    snapshot_with(
+        "preview-compact-light",
+        ThemeMode::Light,
+        ReadingMargins::Compact,
+        ReadingTypography::default(),
+    );
+}
+
+#[test]
+fn preview_custom_typography_snapshot() {
+    snapshot_with(
+        "preview-custom-typography",
+        ThemeMode::Light,
+        ReadingMargins::Full,
+        ReadingTypography {
+            body: 16.0,
+            headings: 34.0,
+            code: 15.0,
+            tables: 14.0,
+        },
+    );
 }

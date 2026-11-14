@@ -247,7 +247,7 @@ impl eframe::App for MdViewApp {
                     document_name: &document_name,
                     dirty: self.tabs.editor().document().is_dirty(),
                     mode: self.tabs.active().mode,
-                    is_markdown: self.tabs.active().is_markdown() || self.tabs.active().is_image(),
+                    is_markdown: self.tabs.active().is_markdown() || self.tabs.active().viewer_name().is_some(),
                     sidebar_open: self.sidebar.open,
                     workspace_open: self.workspace.is_some(),
                     workspace_name: workspace_name.as_deref(),
@@ -297,7 +297,7 @@ impl eframe::App for MdViewApp {
                 self.lang,
                 self.tabs.editor().document(),
                 &self.tabs.editor().status(),
-                self.tabs.active().is_image(),
+                self.tabs.active().viewer_name(),
             );
         });
 
@@ -308,8 +308,8 @@ impl eframe::App for MdViewApp {
             let document = self.tabs.editor().document();
             if document.path().is_none() && document.is_empty() {
                 open_requested = mdview_ui::show_welcome(ui, &self.translations, self.lang);
-            } else if self.tabs.active().is_image() {
-                self.show_image_document(ui);
+            } else if self.tabs.active().is_viewer() {
+                self.show_viewer_document(ui);
             } else {
                 if self.tabs.active().is_markdown() && self.tabs.active().is_large() {
                     ui.label(
@@ -335,8 +335,10 @@ impl eframe::App for MdViewApp {
                             .map(std::path::Path::to_path_buf);
                         let tab = self.tabs.active_mut();
                         tab.ensure_preview();
-                        tab.preview
-                            .set_compact_margins(self.prefs.get().appearance.compact_margins);
+                        tab.preview.set_reading_style(
+                            self.prefs.get().reading.margins(),
+                            self.prefs.get().reading.typography(),
+                        );
                         preview_output = Some(tab.preview.show_with_media(
                             ui,
                             &tab.preview_source,
@@ -374,7 +376,8 @@ impl eframe::App for MdViewApp {
                 follow_system: self.follow_system,
                 language: self.language,
                 zoom: ctx.zoom_factor(),
-                compact_margins: self.prefs.get().appearance.compact_margins,
+                reading_margins: self.prefs.get().reading.margins(),
+                typography: self.prefs.get().reading.typography(),
                 wrap: self.tabs.editor().status().wrap,
                 line_numbers: self.tabs.editor().status().line_numbers,
                 sync_scroll: self.prefs.get().editor.sync_scroll,

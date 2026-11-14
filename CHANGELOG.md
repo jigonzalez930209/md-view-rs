@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.13.0 — Reading typography, aligned lists, and viewer plugins
+
+- Added a **Reading** settings tab with three width presets (Comfortable, Compact, Full width)
+  and independent point sizes for body text, headings, code, and tables.
+- Reduced scrollbar width from 10 px to a 6 px active handle with a 3 px dormant line.
+- Kept the tab close button visible while the pointer is anywhere over the tab; it no longer
+  fades out when the pointer moves onto the button.
+- Vertically centered bullets, ordered numbers, and task checkboxes on the first line of each
+  list item instead of aligning them to the top of the block.
+- Disabled ScrollArea animation for programmatic split-sync targets and added sync diagnostics,
+  removing the end-of-document overshoot and flicker.
+- Introduced the read-only viewer plugin API: `ViewerPlugin`, `ViewerInstance`, `ViewerContext`,
+  and a priority registry. The image viewer is now the built-in image plugin.
+- Added `docs/plugins.md`, the custom-typography snapshot, and E2E coverage for all reading
+  presets and the body-size stepper.
+
+
 ## 0.12.0 — Cursor-style workbench, image documents, and compact reading
 
 - Moved the explorer directly under the menu bar. The folder tree and activity rail now occupy

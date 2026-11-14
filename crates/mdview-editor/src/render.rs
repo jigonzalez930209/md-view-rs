@@ -52,6 +52,9 @@ impl Editor {
         let mut geometry = None;
         let mut area = ScrollArea::both()
             .auto_shrink([false, false])
+            // Programmatic split-sync targets must not animate toward the target: the
+            // animation overshoots at the end of the document and looks like flicker.
+            .animated(false)
             .id_salt(("editor_scroll", self.identity));
         let mut programmatic = false;
         if let Some(offset) = self.restore_scroll.take() {

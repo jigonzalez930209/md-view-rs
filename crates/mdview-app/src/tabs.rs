@@ -13,6 +13,8 @@ use mdview_markdown::is_markdown_path;
 use mdview_model::Document;
 use mdview_render::Preview;
 
+use crate::viewers::ViewerInstance;
+
 /// Larger Markdown files keep the editor only, so scrolling and typing never wait for layout.
 const PREVIEW_MAX_BYTES: usize = 2 * 1024 * 1024;
 const PREVIEW_MAX_LINES: usize = 50_000;
@@ -25,6 +27,8 @@ pub struct DocumentTab {
     pub editor: Editor,
     /// The rendered Markdown view and its scroll state.
     pub preview: Preview,
+    /// Plugin viewer for read-only formats (images today; PDF or video later).
+    pub viewer: Option<Box<dyn ViewerInstance>>,
     /// The active presentation.
     pub mode: ViewMode,
     /// The file modification time recorded after the last load or save.
@@ -44,14 +48,15 @@ impl DocumentTab {
     pub fn new(document: Document, disk_mtime: Option<SystemTime>) -> Self {
         static NEXT_ID: AtomicU64 = AtomicU64::new(1);
         let large = document.len_bytes() > PREVIEW_MAX_BYTES || document.line_count() > PREVIEW_MAX_LINES;
-        let image = document.path().is_some_and(mdview_media::is_image_path);
-        let previewable = image || (!large && document.path().is_some_and(is_markdown_path));
+        let viewer = document.path().and_then(crate::viewers::create);
+        let previewable = viewer.is_some() || (!large && document.path().is_some_and(is_markdown_path));
         let mode = if previewable { ViewMode::View } else { ViewMode::Edit };
         let mut editor = Editor::new(document);
         editor.set_identity(NEXT_ID.fetch_add(1, Ordering::Relaxed));
         Self {
             editor,
             preview: Preview::new(),
+            viewer,
             mode,
             disk_mtime,
             conflict: false,
@@ -80,9 +85,14 @@ impl DocumentTab {
         self.editor.document().path().is_some_and(is_markdown_path)
     }
 
-    /// Whether the document opens as a standalone image.
-    pub fn is_image(&self) -> bool {
-        self.editor.document().path().is_some_and(mdview_media::is_image_path)
+    /// Whether the document is painted by a read-only viewer plugin.
+    pub fn is_viewer(&self) -> bool {
+        self.viewer.is_some()
+    }
+
+    /// The viewer plugin name, if any.
+    pub fn viewer_name(&self) -> Option<&'static str> {
+        self.viewer.as_ref().map(|viewer| viewer.name())
     }
 
     /// Whether the document is in large-file mode.
@@ -94,7 +104,7 @@ impl DocumentTab {
 
     /// Set the presentation, refusing preview modes for non-Markdown and large files.
     pub fn set_mode(&mut self, mode: ViewMode) {
-        self.mode = if self.is_image() {
+        self.mode = if self.is_viewer() {
             ViewMode::View
         } else if mode.shows_preview() && (!self.is_markdown() || self.is_large()) {
             ViewMode::Edit

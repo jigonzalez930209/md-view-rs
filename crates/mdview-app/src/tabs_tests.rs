@@ -74,7 +74,7 @@ fn tab_bar_snapshot() {
 #[test]
 fn image_documents_open_in_the_viewer_and_never_edit() {
     let mut tab = DocumentTab::new(document("/tmp/photo.png"), None);
-    assert!(tab.is_image());
+    assert!(tab.is_viewer());
     assert_eq!(tab.mode, ViewMode::View);
     tab.set_mode(ViewMode::Edit);
     assert_eq!(tab.mode, ViewMode::View);

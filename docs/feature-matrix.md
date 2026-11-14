@@ -54,7 +54,10 @@ and a horizontal rule.
 | SVG | `craft-svg`/`resvg` rasterization, static and supported SMIL/CSS animation | `media-*` snapshots; E2E local and HTTP animated SVG assets |
 | Mermaid | native `mermaid-rs-renderer`, no browser | `mermaid.rs` diagram corpus; flowchart and sequence in `media-*` and E2E |
 | Image documents | PNG, JPEG, GIF, WebP, BMP, TIFF, and SVG open in the fitted viewer with lightbox and SVG animation | `image_documents_open_in_the_viewer_and_never_edit`; E2E opens `logo.svg` and `photo.png` |
-| Compact reading margins | Appearance switch widens the Markdown preview and trims top/bottom spacing | `preview-compact-light` snapshot; E2E toggles `compact_margins` |
+| Reading layout | Reading tab: Comfortable, Compact, and Full-width presets with independent body, heading, code, and table sizes | `preview-compact-light` and `preview-custom-typography` snapshots; E2E selects presets and edits body size |
+| Viewer plugins | Compile-time `ViewerPlugin`/`ViewerInstance` registry for read-only formats; image viewer built in | `image_paths_select_the_image_plugin`; E2E opens SVG/PNG documents |
+| Tab close affordance | Close button stays visible while the pointer is anywhere on the tab | tab-bar snapshot and hover interaction |
+| List alignment | Bullets, numbers, and task boxes are vertically centered on the first text line | `preview-*` snapshots |
 | Workbench layout | Explorer under the menu, activity rail full height, tabs in the editor column | E2E initial/tab screenshots; `sidebar` and `tab-bar` snapshots |
 | Tables | weighted columns fill the reading width, header surface, zebra rows, separators, and clickable links inside cells | `preview-*` snapshots; E2E opens `docs/guide.md` from a table link |
 | Editor and preview sync | Rope editor, split view, block-anchor bidirectional scroll | workspace tests, split snapshots, E2E scroll stress |
