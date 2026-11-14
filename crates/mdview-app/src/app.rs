@@ -61,6 +61,7 @@ pub struct MdViewApp {
     pub(crate) last_file_poll: Instant,
     pub(crate) last_window_poll: Instant,
     pub(crate) media: MediaRuntime,
+    pub(crate) icons: mdview_ui::MaterialIcons,
     pub(crate) lightbox: Option<crate::lightbox::LightboxState>,
 }
 
@@ -144,6 +145,7 @@ impl MdViewApp {
             last_file_poll: Instant::now(),
             last_window_poll: Instant::now(),
             media: MediaRuntime::new(&cc.egui_ctx),
+            icons: mdview_ui::MaterialIcons::new(),
             lightbox: None,
         };
 

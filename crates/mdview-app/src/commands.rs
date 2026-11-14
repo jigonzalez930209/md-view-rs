@@ -274,16 +274,18 @@ impl MdViewApp {
         }
         if self.consume_shortcut(ctx, "Cmd+N") {
             self.new_document(ctx);
-        } else if self.consume_shortcut(ctx, "Cmd+O") {
-            self.ask_open();
         } else if self.consume_shortcut(ctx, "Cmd+Shift+O") {
             self.ask_open_folder();
-        } else if self.consume_shortcut(ctx, "Cmd+S") {
-            self.request_save(false);
+        } else if self.consume_shortcut(ctx, "Cmd+O") {
+            self.ask_open();
         } else if self.consume_shortcut(ctx, "Cmd+Shift+S") {
             self.ask_save_as(false);
+        } else if self.consume_shortcut(ctx, "Cmd+S") {
+            self.request_save(false);
         } else if self.consume_shortcut(ctx, "Cmd+W") {
             self.close_tab(self.tabs.active_index(), ctx);
+        } else if self.consume_shortcut(ctx, "Cmd+Shift+E") {
+            self.handle_command(ctx, Command::SetMode(mdview_ui::ViewMode::Split));
         } else if self.consume_shortcut(ctx, "Cmd+E") {
             let mode = self.tabs.active().mode;
             let next = if mode == mdview_ui::ViewMode::Edit {
@@ -292,8 +294,6 @@ impl MdViewApp {
                 mdview_ui::ViewMode::Edit
             };
             self.handle_command(ctx, Command::SetMode(next));
-        } else if self.consume_shortcut(ctx, "Cmd+Shift+E") {
-            self.handle_command(ctx, Command::SetMode(mdview_ui::ViewMode::Split));
         } else if self.consume_shortcut(ctx, "Cmd+Shift+P") {
             self.handle_command(ctx, Command::CommandPalette);
         } else if self.consume_shortcut(ctx, "Cmd+P") {
@@ -311,10 +311,10 @@ impl MdViewApp {
         } else if self.consume_shortcut(ctx, "Cmd+B") {
             self.sidebar.open = !self.sidebar.open;
             self.sync_session();
-        } else if self.consume_shortcut(ctx, "Ctrl+Tab") {
-            self.handle_command(ctx, Command::NextTab);
         } else if self.consume_shortcut(ctx, "Ctrl+Shift+Tab") {
             self.handle_command(ctx, Command::PreviousTab);
+        } else if self.consume_shortcut(ctx, "Ctrl+Tab") {
+            self.handle_command(ctx, Command::NextTab);
         } else if self.consume_shortcut(ctx, "Cmd+Q") {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }

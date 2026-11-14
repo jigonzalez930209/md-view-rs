@@ -9,92 +9,75 @@ impl MdViewApp {
     pub(crate) fn show_split(&mut self, ui: &mut egui::Ui, index: usize) {
         let theme = mdview_theme::Theme::for_id(self.effective_theme);
         let light = self.theme == mdview_theme::ThemeMode::Light;
-        let identity = self
-            .tabs
-            .tabs()
-            .get(index)
-            .map(|tab| tab.editor.identity())
-            .unwrap_or_default();
-        let ratio = self
+        let mut ratio = self
             .tabs
             .tabs()
             .get(index)
             .map(|tab| tab.split_ratio.clamp(0.2, 0.8))
             .unwrap_or(0.5);
-        let available_width = ui.available_width();
-        let narrow = available_width < 760.0;
+        let width = ui.available_width().max(320.0);
+        let height = ui.available_height().max(200.0);
         let mut preview_output = None;
 
-        if narrow {
-            let available = ui.available_height().max(200.0);
-            let panel = egui::Panel::bottom(("split_preview_vertical", identity))
-                .resizable(true)
-                .default_size(available * ratio)
-                .min_size(120.0)
-                .show(ui, |ui| {
-                    let base = self
-                        .tabs
-                        .tabs()
-                        .get(index)
-                        .and_then(|tab| tab.editor.document().path())
-                        .and_then(std::path::Path::parent)
-                        .map(std::path::Path::to_path_buf);
+        if width < 620.0 {
+            let handle_height = 6.0;
+            let preview_height = (height * ratio).clamp(120.0, height - 120.0);
+            let editor_height = (height - preview_height - handle_height).max(80.0);
+            ui.allocate_ui_with_layout(
+                egui::vec2(width, editor_height),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| {
                     if let Some(tab) = self.tabs.tab_mut(index) {
-                        tab.ensure_preview();
-                        preview_output = Some(tab.preview.show_with_media(
-                            ui,
-                            &tab.preview_source,
-                            &theme,
-                            light,
-                            base,
-                            &mut self.media,
-                        ));
+                        tab.editor.show(ui);
                     }
-                });
-            let height = panel.response.rect.height();
-            if height > 0.0
-                && let Some(tab) = self.tabs.tab_mut(index)
-            {
-                tab.split_ratio = (height / available).clamp(0.2, 0.8);
+                },
+            );
+            let handle = ui.allocate_response(egui::vec2(width, handle_height), egui::Sense::drag());
+            paint_divider(ui, &handle, true);
+            if handle.dragged() {
+                ratio = (ratio - handle.drag_delta().y / height).clamp(0.2, 0.8);
+                if let Some(tab) = self.tabs.tab_mut(index) {
+                    tab.split_ratio = ratio;
+                }
             }
-            if let Some(tab) = self.tabs.tab_mut(index) {
-                tab.editor.show(ui);
-            }
+            ui.allocate_ui_with_layout(
+                egui::vec2(width, preview_height),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| {
+                    preview_output = self.preview_pane(ui, index, &theme, light);
+                },
+            );
         } else {
-            let available = available_width.max(400.0);
-            let panel = egui::Panel::right(("split_preview_horizontal", identity))
-                .resizable(true)
-                .default_size(available * ratio)
-                .min_size(200.0)
-                .show(ui, |ui| {
-                    let base = self
-                        .tabs
-                        .tabs()
-                        .get(index)
-                        .and_then(|tab| tab.editor.document().path())
-                        .and_then(std::path::Path::parent)
-                        .map(std::path::Path::to_path_buf);
+            let handle_width = 6.0;
+            let preview_width = (width * ratio).clamp(200.0, width - 200.0);
+            let editor_width = (width - preview_width - handle_width).max(160.0);
+            ui.horizontal_top(|ui| {
+                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.allocate_ui_with_layout(
+                    egui::vec2(editor_width, height),
+                    egui::Layout::top_down(egui::Align::Min),
+                    |ui| {
+                        if let Some(tab) = self.tabs.tab_mut(index) {
+                            tab.editor.show(ui);
+                        }
+                    },
+                );
+                let handle = ui.allocate_response(egui::vec2(handle_width, height), egui::Sense::drag());
+                paint_divider(ui, &handle, false);
+                if handle.dragged() {
+                    ratio = (ratio - handle.drag_delta().x / width).clamp(0.2, 0.8);
                     if let Some(tab) = self.tabs.tab_mut(index) {
-                        tab.ensure_preview();
-                        preview_output = Some(tab.preview.show_with_media(
-                            ui,
-                            &tab.preview_source,
-                            &theme,
-                            light,
-                            base,
-                            &mut self.media,
-                        ));
+                        tab.split_ratio = ratio;
                     }
-                });
-            let width = panel.response.rect.width();
-            if width > 0.0
-                && let Some(tab) = self.tabs.tab_mut(index)
-            {
-                tab.split_ratio = (width / available).clamp(0.2, 0.8);
-            }
-            if let Some(tab) = self.tabs.tab_mut(index) {
-                tab.editor.show(ui);
-            }
+                }
+                ui.allocate_ui_with_layout(
+                    egui::vec2(preview_width, height),
+                    egui::Layout::top_down(egui::Align::Min),
+                    |ui| {
+                        preview_output = self.preview_pane(ui, index, &theme, light);
+                    },
+                );
+            });
         }
 
         self.sync_split_scroll(ui.ctx(), index, {
@@ -133,8 +116,7 @@ impl MdViewApp {
         };
         let editor_scrolled = tab.editor.take_user_scroll();
         let preview_scrolled = tab.preview.take_user_scroll();
-        let winner = choose_source(editor_scrolled, preview_scrolled, hovered);
-        match winner {
+        match choose_source(editor_scrolled, preview_scrolled, hovered) {
             Some(Pane::Editor) => {
                 let line = tab.editor.first_visible_line();
                 tab.preview.scroll_to_line(line, 0.0);
@@ -149,13 +131,53 @@ impl MdViewApp {
             None => {}
         }
     }
+
+    fn preview_pane(
+        &mut self,
+        ui: &mut egui::Ui,
+        index: usize,
+        theme: &mdview_theme::Theme,
+        light: bool,
+    ) -> Option<mdview_render::PreviewOutput> {
+        let base = self
+            .tabs
+            .tabs()
+            .get(index)
+            .and_then(|tab| tab.editor.document().path())
+            .and_then(std::path::Path::parent)
+            .map(std::path::Path::to_path_buf);
+        let tab = self.tabs.tab_mut(index)?;
+        tab.ensure_preview();
+        Some(
+            tab.preview
+                .show_with_media(ui, &tab.preview_source, theme, light, base, &mut self.media),
+        )
+    }
 }
 
-/// Which pane drove the scroll in a frame.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Pane {
-    Editor,
-    Preview,
+fn paint_divider(ui: &egui::Ui, response: &egui::Response, horizontal: bool) {
+    let color = ui.visuals().widgets.inactive.bg_stroke.color;
+    let rect = response.rect;
+    if horizontal {
+        let y = rect.center().y;
+        ui.painter().line_segment(
+            [egui::pos2(rect.left(), y), egui::pos2(rect.right(), y)],
+            egui::Stroke::new(1.0, color),
+        );
+    } else {
+        let x = rect.center().x;
+        ui.painter().line_segment(
+            [egui::pos2(x, rect.top()), egui::pos2(x, rect.bottom())],
+            egui::Stroke::new(1.0, color),
+        );
+    }
+    if response.hovered() {
+        ui.ctx().set_cursor_icon(if horizontal {
+            egui::CursorIcon::ResizeVertical
+        } else {
+            egui::CursorIcon::ResizeHorizontal
+        });
+    }
 }
 
 /// Pick one scroll source per frame. Both scrolled: the hovered pane wins, then the editor.
@@ -166,6 +188,13 @@ pub(crate) fn choose_source(editor_scrolled: bool, preview_scrolled: bool, hover
         (false, true) => Some(Pane::Preview),
         (false, false) => None,
     }
+}
+
+/// Which pane drove the scroll in a frame.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Pane {
+    Editor,
+    Preview,
 }
 
 #[cfg(test)]

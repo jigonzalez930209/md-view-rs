@@ -5,7 +5,7 @@
 use egui_kittest::Harness;
 use mdview_i18n::{LanguagePreference, Translations};
 use mdview_theme::{ThemeId, apply_id};
-use mdview_ui::{PaletteItem, SettingsView, show_palette, show_settings};
+use mdview_ui::{PaletteItem, SettingsView, show_header, show_palette, show_settings};
 
 fn translations() -> (Translations, craft_i18n::Lang) {
     let translations = Translations::new();
@@ -69,4 +69,32 @@ fn palette_snapshot() {
         });
     harness.run();
     harness.snapshot("palette");
+}
+
+#[test]
+fn header_snapshot() {
+    let (translations, lang) = translations();
+    let mut icons = mdview_ui::MaterialIcons::new();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 48.0))
+        .with_context_setup(|ctx| apply_id(ctx, ThemeId::GithubLight))
+        .build_ui(move |ui| {
+            show_header(
+                ui,
+                mdview_ui::HeaderState {
+                    translations: &translations,
+                    lang,
+                    document_name: "notes.md",
+                    dirty: true,
+                    mode: mdview_ui::ViewMode::Split,
+                    is_markdown: true,
+                    sidebar_open: true,
+                    workspace_open: true,
+                    sync_scroll: true,
+                },
+                &mut icons,
+            );
+        });
+    harness.run();
+    harness.snapshot("header");
 }

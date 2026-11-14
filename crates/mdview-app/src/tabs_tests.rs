@@ -150,6 +150,23 @@ fn large_markdown_files_force_edit_mode() {
 }
 
 #[test]
+fn two_megabyte_markdown_files_disable_the_preview() {
+    let text = format!("# Large\n\n{}", "x".repeat(2 * 1024 * 1024 + 1));
+    let document = Document::from_loaded(
+        PathBuf::from("/tmp/large-preview.md"),
+        text,
+        Eol::Lf,
+        Encoding::Utf8,
+        false,
+    );
+    let mut tab = DocumentTab::new(document, None);
+    assert!(tab.is_large());
+    assert_eq!(tab.mode, ViewMode::Edit);
+    tab.set_mode(ViewMode::Split);
+    assert_eq!(tab.mode, ViewMode::Edit);
+}
+
+#[test]
 fn one_hundred_open_close_cycles_stay_stable() {
     let mut tabs = TabSet::new(true, false, true);
     for index in 0..100 {

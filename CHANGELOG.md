@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0 — Minimalist workspace and virtualized preview
+
+- Replaced the text menu bar with a compact icon header: direct sidebar, open-folder, save, Edit/Reading/Split, search, command-palette, and settings actions plus a single hamburger menu.
+- Added a VS Code Material Icon Theme file tree: the upstream manifest, full SVG catalog (including open-folder variants), light-theme overrides, exact file/extension/folder resolution, and cached textures.
+- Added workspace toolbar icons and a consistent 16 px icon rhythm in the sidebar.
+- Virtualized the Markdown preview by block with cached measured heights and estimated offscreen heights; the source map still covers every block for scroll synchronization.
+- Kept split scroll synchronization stable across bidirectional wheel scrolling and 120-event stress runs; fixed the gap fallback that sent the editor to the end.
+- Fixed shifted shortcut precedence (`Ctrl+Shift+E`, `Ctrl+Shift+S`, `Ctrl+Shift+O`, `Ctrl+Shift+Tab`) and replaced the panel split with a draggable 50/50 split.
+- Added header, sidebar, and virtualization regression snapshots/tests; documented icons in `docs/icons.md`.
+
 ## 0.9.0 — Distribution, associations, and updates
 
 - Added `cargo xtask package`: release build, portable tarball, Debian package, RPM, AppDir, optional AppImage, multi-size PNG/ICO/ICNS icons, SHA-256SUMS, CycloneDX SBOM, and an update manifest.

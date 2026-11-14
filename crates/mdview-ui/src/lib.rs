@@ -5,7 +5,9 @@
 
 mod about;
 mod close_prompt;
+mod header;
 mod loading;
+mod material_icons;
 mod menu;
 mod mode;
 mod palette;
@@ -15,7 +17,9 @@ mod welcome;
 
 pub use about::show_about;
 pub use close_prompt::{CloseChoice, show_close_prompt};
+pub use header::{HeaderState, show_header};
 pub use loading::show_loading;
+pub use material_icons::MaterialIcons;
 pub use menu::{MenuState, show_menu};
 pub use mode::ViewMode;
 pub use palette::{PaletteItem, show_palette};

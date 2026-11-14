@@ -61,7 +61,7 @@ pub(crate) fn show_block(
         }
         BlockKind::Heading { level, anchor, inlines } => {
             let text = text_of(inlines);
-            let response = ui.add(
+            ui.add(
                 Label::new(
                     RichText::new(text)
                         .size(heading_size(*level))
@@ -70,7 +70,7 @@ pub(crate) fn show_block(
                 )
                 .selectable(true),
             );
-            ctx.output.anchors_screen.push((anchor.clone(), response.rect.top()));
+            let _ = anchor;
         }
         BlockKind::Code { language, text, math } => {
             show_code(ui, language.as_deref(), text, *math, ctx, media);
@@ -110,9 +110,7 @@ pub(crate) fn show_block(
             ui.separator();
         }
         BlockKind::FootnoteDefinition { label, blocks } => {
-            ctx.output
-                .anchors_screen
-                .push((format!("fn-{label}"), ui.min_rect().top()));
+            let _ = label;
             egui::Frame::new()
                 .stroke(egui::Stroke::new(1.0, ctx.theme.border))
                 .inner_margin(8.0)

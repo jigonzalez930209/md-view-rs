@@ -14,6 +14,10 @@ use mdview_markdown::is_markdown_path;
 use mdview_model::Document;
 use mdview_render::Preview;
 
+/// Larger Markdown files keep the editor only, so scrolling and typing never wait for layout.
+const PREVIEW_MAX_BYTES: usize = 2 * 1024 * 1024;
+const PREVIEW_MAX_LINES: usize = 50_000;
+
 pub use mdview_ui::ViewMode;
 
 /// One open document and its disk reconciliation state.
@@ -40,7 +44,7 @@ impl DocumentTab {
     /// Build a tab from a document.
     pub fn new(document: Document, disk_mtime: Option<SystemTime>) -> Self {
         static NEXT_ID: AtomicU64 = AtomicU64::new(1);
-        let large = document.len_bytes() > 10 * 1024 * 1024 || document.line_count() > 200_000;
+        let large = document.len_bytes() > PREVIEW_MAX_BYTES || document.line_count() > PREVIEW_MAX_LINES;
         let mode = if !large && document.path().is_some_and(is_markdown_path) {
             ViewMode::View
         } else {
@@ -82,6 +86,8 @@ impl DocumentTab {
     /// Whether the document is in large-file mode.
     pub fn is_large(&self) -> bool {
         self.editor.status().large_mode
+            || self.editor.document().len_bytes() > PREVIEW_MAX_BYTES
+            || self.editor.document().line_count() > PREVIEW_MAX_LINES
     }
 
     /// Set the presentation, refusing preview modes for non-Markdown and large files.

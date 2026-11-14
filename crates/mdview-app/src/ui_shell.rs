@@ -42,7 +42,14 @@ impl MdViewApp {
             .default_size(self.sidebar.width)
             .show(ui, |ui| {
                 if let Some(workspace) = &mut self.workspace {
-                    events = self.sidebar.show(ui, workspace, &self.translations, self.lang);
+                    events = self.sidebar.show(
+                        ui,
+                        workspace,
+                        &self.translations,
+                        self.lang,
+                        &mut self.icons,
+                        self.theme == mdview_theme::ThemeMode::Light,
+                    );
                 } else {
                     ui.add_space(8.0);
                     ui.label(egui::RichText::new(self.t("No folder open")).weak());
@@ -189,35 +196,22 @@ impl eframe::App for MdViewApp {
         self.update_title(ui.ctx());
 
         let mut command = None;
-        egui::Panel::top("menu_bar").show(ui, |ui| {
-            let status = self.tabs.editor().status();
-            command = mdview_ui::show_menu(
+        egui::Panel::top("app_header").exact_size(40.0).show(ui, |ui| {
+            let document_name = self.tabs.editor().document().display_name();
+            command = mdview_ui::show_header(
                 ui,
-                mdview_ui::MenuState {
+                mdview_ui::HeaderState {
                     translations: &self.translations,
                     lang: self.lang,
-                    theme: self.theme,
-                    theme_id: self.theme_id,
-                    follow_system: self.follow_system,
-                    language: self.language,
-                    document_name: &self.tabs.editor().document().display_name(),
+                    document_name: &document_name,
                     dirty: self.tabs.editor().document().is_dirty(),
-                    wrap: status.wrap,
-                    line_numbers: status.line_numbers,
-                    sidebar_open: self.sidebar.open,
-                    workspace_open: self.workspace.is_some(),
-                    recent_files: &self.prefs.get().session.recent_files,
-                    recent_workspaces: &self.prefs.get().session.recent_workspaces,
-                    tab_index: self.tabs.active_index(),
-                    tab_count: self.tabs.len(),
                     mode: self.tabs.active().mode,
                     is_markdown: self.tabs.active().is_markdown(),
+                    sidebar_open: self.sidebar.open,
+                    workspace_open: self.workspace.is_some(),
                     sync_scroll: self.prefs.get().editor.sync_scroll,
-                    remote_images: self.prefs.get().media.remote_images,
-                    private_networks: self.prefs.get().media.private_networks,
-                    animate_svg: self.prefs.get().media.animate_svg,
-                    reduce_motion: self.prefs.get().media.reduce_motion,
                 },
+                &mut self.icons,
             );
         });
         if let Some(command) = command {

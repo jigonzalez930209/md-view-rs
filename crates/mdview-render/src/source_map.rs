@@ -71,10 +71,19 @@ impl SourceMap {
         if self.blocks.is_empty() {
             return None;
         }
-        self.blocks
+        if let Some(anchor) = self
+            .blocks
             .iter()
             .find(|anchor| offset >= anchor.top && offset < anchor.top + anchor.height())
-            .or_else(|| self.blocks.last())
+        {
+            return Some(anchor);
+        }
+        // Inter-block spacing is a real gap. Use the nearest preceding block, not the last one.
+        self.blocks
+            .iter()
+            .rev()
+            .find(|anchor| anchor.top <= offset)
+            .or_else(|| self.blocks.first())
     }
 
     /// Convert a content-space offset to a zero-based source line and fraction.
@@ -220,6 +229,15 @@ mod tests {
         );
         let offset = anchor.offset(&reflowed).expect("offset");
         assert!((offset - 70.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn a_gap_maps_to_the_preceding_block() {
+        let mut map = map();
+        map.blocks[0].height = 30.0;
+        map.blocks[1].top = 50.0;
+        let anchor = map.anchor_at_offset(40.0).expect("anchor");
+        assert_eq!(anchor.block_id, 0);
     }
 
     #[test]

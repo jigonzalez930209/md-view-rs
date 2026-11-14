@@ -16,7 +16,10 @@
 
 mod blocks;
 mod inline;
+mod layout;
 mod source_map;
+
+use layout::estimate_height;
 
 use std::collections::{BTreeMap, hash_map::DefaultHasher};
 use std::hash::{Hash, Hasher};
@@ -152,7 +155,7 @@ struct BlockScreen {
     start_line: usize,
     end_line: usize,
     top: f32,
-    bottom: f32,
+    height: f32,
 }
 
 /// The Markdown preview widget and its scroll/cache state.
@@ -168,6 +171,9 @@ pub struct Preview {
     width: f32,
     user_scrolled: bool,
     viewport: egui::Rect,
+    heights: std::collections::HashMap<usize, f32>,
+    layout_width: f32,
+    painted_blocks: usize,
 }
 
 impl Default for Preview {
@@ -184,6 +190,9 @@ impl Default for Preview {
             width: 760.0,
             user_scrolled: false,
             viewport: egui::Rect::NOTHING,
+            heights: std::collections::HashMap::new(),
+            layout_width: 0.0,
+            painted_blocks: 0,
         }
     }
 }
@@ -243,6 +252,11 @@ impl Preview {
     /// The block source map from the last paint.
     pub fn source_map(&self) -> &SourceMap {
         &self.source_map
+    }
+
+    /// Number of blocks painted in the last frame, for virtualization tests.
+    pub fn painted_blocks(&self) -> usize {
+        self.painted_blocks
     }
 
     /// The anchor at the current scroll offset.
@@ -310,11 +324,18 @@ impl Preview {
             });
             self.source_map = SourceMap::default();
             self.anchors.clear();
+            self.heights.clear();
         }
 
+        let outer_width = ui.available_width();
+        if (outer_width - self.layout_width).abs() > 8.0 {
+            self.heights.clear();
+            self.layout_width = outer_width;
+        }
         let mut output = PreviewOutput::default();
-        let mut block_screens = Vec::new();
+        let mut block_screens: Vec<BlockScreen> = Vec::new();
         let mut media = media;
+        let mut heights = std::mem::take(&mut self.heights);
 
         let mut area = egui::ScrollArea::vertical()
             .id_salt("mdview-markdown-preview")
@@ -324,7 +345,7 @@ impl Preview {
             area = area.vertical_scroll_offset(offset);
         }
 
-        let area_output: ScrollAreaOutput<()> = area.show(ui, |ui| {
+        let area_output: ScrollAreaOutput<()> = area.show_viewport(ui, |ui, viewport| {
             ui.set_width(ui.available_width());
             ui.add_space(8.0);
             let available = ui.available_width();
@@ -334,54 +355,89 @@ impl Preview {
                 ui.add_space(margin);
                 ui.vertical(|ui| {
                     ui.set_width(width);
+                    ui.spacing_mut().item_spacing.y = 0.0;
                     let Some(cached) = &self.cached else {
                         return;
                     };
-                    let mut ctx = blocks::BlockCtx {
-                        theme,
-                        light,
-                        highlighter: &self.highlighter,
-                        output: &mut output,
-                    };
-                    for block in &cached.document.blocks {
-                        let response = ui
-                            .scope(|ui| blocks::show_block(ui, block, &mut ctx, &mut media))
-                            .response;
-                        block_screens.push(BlockScreen {
-                            block_id: block.id,
-                            start_line: block.span.start_line,
-                            end_line: block.span.end_line,
-                            top: response.rect.top(),
-                            bottom: response.rect.bottom(),
-                        });
-                        ui.add_space(6.0);
+                    let mut anchor_points = Vec::new();
+                    let mut painted = 0usize;
+                    {
+                        let mut ctx = blocks::BlockCtx {
+                            theme,
+                            light,
+                            highlighter: &self.highlighter,
+                            output: &mut output,
+                        };
+                        let overscan = 320.0;
+                        let mut top = 0.0_f32;
+                        for block in &cached.document.blocks {
+                            let estimated = estimate_height(&block.kind);
+                            let height = heights.get(&block.id).copied().unwrap_or(estimated);
+                            let visible = top + height >= viewport.min.y - overscan && top <= viewport.max.y + overscan;
+                            if visible {
+                                painted += 1;
+                                let response = ui
+                                    .scope(|ui| blocks::show_block(ui, block, &mut ctx, &mut media))
+                                    .response;
+                                let measured = response.rect.height().max(1.0);
+                                heights.insert(block.id, measured);
+                                block_screens.push(BlockScreen {
+                                    block_id: block.id,
+                                    start_line: block.span.start_line,
+                                    end_line: block.span.end_line,
+                                    top,
+                                    height: measured,
+                                });
+                                ui.add_space(6.0);
+                                top += measured + 6.0;
+                            } else {
+                                ui.add_space(height + 6.0);
+                                block_screens.push(BlockScreen {
+                                    block_id: block.id,
+                                    start_line: block.span.start_line,
+                                    end_line: block.span.end_line,
+                                    top,
+                                    height,
+                                });
+                                top += height + 6.0;
+                            }
+                            match &block.kind {
+                                mdview_markdown::BlockKind::Heading { anchor, .. } => {
+                                    anchor_points.push((anchor.clone(), top - height - 6.0));
+                                }
+                                mdview_markdown::BlockKind::FootnoteDefinition { label, .. } => {
+                                    anchor_points.push((format!("fn-{label}"), top - height - 6.0));
+                                }
+                                _ => {}
+                            }
+                        }
                     }
+                    output.anchors_screen.extend(anchor_points);
+                    self.painted_blocks = painted;
+                    ui.add_space(12.0);
                 });
             });
-            ui.add_space(12.0);
         });
+        self.heights = heights;
 
         let scroll = area_output.state.clamped_offset().y;
-        let content_origin = area_output.inner_rect.top() - scroll;
         let mut mapped = Vec::with_capacity(block_screens.len());
         let mut content_height: f32 = 0.0;
         for block in &block_screens {
-            let top = block.top - content_origin;
-            let bottom = block.bottom - content_origin;
-            content_height = content_height.max(bottom);
+            content_height = content_height.max(block.top + block.height);
             mapped.push(BlockAnchor {
                 block_id: block.block_id,
                 start_line: block.start_line,
                 end_line: block.end_line,
-                top,
-                height: (bottom - top).max(1.0),
+                top: block.top,
+                height: block.height.max(1.0),
             });
         }
-        self.source_map = SourceMap::from_anchors(mapped, content_height);
+        self.source_map = SourceMap::from_anchors(mapped, content_height + 12.0);
 
         let mut anchor_map = BTreeMap::new();
-        for (anchor, screen_y) in &output.anchors_screen {
-            anchor_map.insert(anchor.clone(), (screen_y - content_origin).max(0.0));
+        for (anchor, y) in &output.anchors_screen {
+            anchor_map.insert(anchor.clone(), *y);
         }
         self.anchors = anchor_map;
         if !programmatic && (scroll - self.scroll).abs() > 0.5 {

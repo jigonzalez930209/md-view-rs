@@ -33,6 +33,7 @@
 | H7 | DONE (Linux) | SMIL/CSS animation subset with 30 fps playback, reduced motion, offscreen pause, fuzz/hostile tests, and 50 MB scale coverage. |
 | H8 | DONE (Linux; screen-reader/platform checks deferred) | Nine theme variants, contrast tests, settings, command palette, quick open, scaling, pseudo-locale, centered reading layout, and UI snapshots. |
 | H9 | DONE (Linux local artifacts; Windows/macOS signing deferred) | AppImage, deb, RPM, tarball, icons, associations, SBOM, SHA-256SUMS, update manifest/check/download, WiX/macOS/Flatpak sources, and `release-check`. |
+| Post-0.9 UI | DONE (Linux) | Icon header, Material Icon Theme tree, block-virtualized preview, header/sidebar/virtualization snapshots, 120-event scroll stress. |
 | H10–H11 | NOT STARTED | — |
 
 ---
