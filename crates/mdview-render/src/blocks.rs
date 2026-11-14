@@ -3,7 +3,9 @@
 use std::path::PathBuf;
 
 use egui::{Align, Color32, FontId, Label, Layout, RichText, TextFormat, Ui};
-use mdview_markdown::{Alignment, Block, BlockKind, Inline, ListItem, QuoteKind};
+mod table;
+
+use mdview_markdown::{Block, BlockKind, ListItem, QuoteKind};
 use mdview_media::MediaKind;
 use mdview_syntax::Highlighter;
 use mdview_theme::Theme;
@@ -105,7 +107,7 @@ pub(crate) fn show_block(
         BlockKind::List { ordered, start, items } => {
             show_list(ui, *ordered, *start, items, ctx, media);
         }
-        BlockKind::Table { alignments, head, rows } => show_table(ui, alignments, head, rows, ctx, media),
+        BlockKind::Table { alignments, head, rows } => table::show_table(ui, alignments, head, rows, ctx, media),
         BlockKind::Rule => {
             ui.separator();
         }
@@ -134,10 +136,10 @@ pub(crate) fn show_block(
 
 fn task_checkbox(ui: &mut Ui, checked: bool, theme: &mdview_theme::Theme) {
     let (rect, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
-    let box_rect = rect.shrink(2.0).translate(egui::vec2(0.0, 1.0));
+    let box_rect = rect.shrink(1.5).translate(egui::vec2(0.0, 1.0));
     ui.painter().rect_filled(
         box_rect,
-        egui::CornerRadius::same(3),
+        egui::CornerRadius::same(2),
         if checked {
             theme.accent
         } else {
@@ -146,7 +148,7 @@ fn task_checkbox(ui: &mut Ui, checked: bool, theme: &mdview_theme::Theme) {
     );
     ui.painter().rect_stroke(
         box_rect,
-        egui::CornerRadius::same(3),
+        egui::CornerRadius::same(2),
         egui::Stroke::new(1.2, if checked { theme.accent } else { theme.text_muted }),
         egui::StrokeKind::Inside,
     );
@@ -177,6 +179,7 @@ fn show_list(
     ctx: &mut BlockCtx<'_>,
     media: &mut Option<&mut MediaContext<'_>>,
 ) {
+    let list_width = ui.available_width().max(120.0);
     for (index, item) in items.iter().enumerate() {
         ui.horizontal_top(|ui| {
             ui.add_space(4.0);
@@ -192,73 +195,13 @@ fn show_list(
                 }
             }
             ui.add_space(4.0);
-            ui.vertical(|ui| {
+            let content_width = (list_width - 30.0).max(80.0);
+            ui.allocate_ui_with_layout(egui::vec2(content_width, 0.0), Layout::top_down(Align::Min), |ui| {
+                ui.set_width(content_width);
                 show_blocks(ui, &item.blocks, ctx, media);
             });
         });
     }
-}
-
-fn show_table(
-    ui: &mut Ui,
-    alignments: &[Alignment],
-    head: &[Vec<Inline>],
-    rows: &[Vec<Vec<Inline>>],
-    ctx: &mut BlockCtx<'_>,
-    media: &mut Option<&mut MediaContext<'_>>,
-) {
-    egui::Frame::new()
-        .stroke(egui::Stroke::new(1.0, ctx.theme.border))
-        .inner_margin(6.0)
-        .show(ui, |ui| {
-            ui.spacing_mut().item_spacing.x = 14.0;
-            egui::Grid::new(ui.next_auto_id())
-                .striped(true)
-                .min_col_width(76.0)
-                .show(ui, |ui| {
-                    for (index, cell) in head.iter().enumerate() {
-                        let align = alignments.get(index).copied().unwrap_or_default();
-                        table_cell(ui, cell, align, ctx, media, true);
-                    }
-                    ui.end_row();
-                    for row in rows {
-                        for (index, cell) in row.iter().enumerate() {
-                            let align = alignments.get(index).copied().unwrap_or_default();
-                            table_cell(ui, cell, align, ctx, media, false);
-                        }
-                        ui.end_row();
-                    }
-                });
-        });
-}
-
-fn table_cell(
-    ui: &mut Ui,
-    inlines: &[Inline],
-    alignment: Alignment,
-    ctx: &mut BlockCtx<'_>,
-    media: &mut Option<&mut MediaContext<'_>>,
-    header: bool,
-) {
-    let layout = match alignment {
-        Alignment::Right => Layout::right_to_left(Align::Center),
-        Alignment::Center => Layout::centered_and_justified(egui::Direction::LeftToRight),
-        Alignment::Left | Alignment::None => Layout::left_to_right(Align::Center),
-    };
-    ui.with_layout(layout, |ui| {
-        if header {
-            let text = text_of(inlines);
-            ui.label(RichText::new(text).strong().color(ctx.theme.text));
-        } else {
-            show_inlines(
-                ui,
-                inlines,
-                ctx.theme,
-                ctx.output,
-                media.as_mut().map(|context| &mut **context),
-            );
-        }
-    });
 }
 
 fn show_code(

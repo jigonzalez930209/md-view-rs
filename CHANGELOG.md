@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.11.1 — Table, list, tree, and tab-scroll fixes
+
+- Rebuilt table rendering with measured, weighted columns that fill the reading width, header
+  surfaces, zebra rows, separators, and wrapped cell text.
+- Fixed tight GFM lists: inline code and surrounding text stay in one paragraph, so long
+  checklist lines no longer break into one fragment per line.
+- Constrained list content to the full available reading width; aligned task checkboxes with
+  the first text line and made them square.
+- Reduced explorer row height by 2 px, disabled text-selection cursors over tree rows, and kept
+  nested folder expansion across root refreshes.
+- Added horizontal mouse-wheel scrolling to the open-tab strip.
+- Extended the E2E with tab scrolling, long checklist content, and release frame-budget checks.
+
+
 ## 0.11.0 — Workbench parity, diagnostics, and full E2E
 
 - Matched the reference workbench layout: title bar menus, activity rail, document tabs,

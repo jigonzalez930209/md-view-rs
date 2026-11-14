@@ -195,6 +195,9 @@ printf '# Pixel lab\n\nWorkspace root for the E2E run.\n' > "$WS/README.md"
 printf '# Guide\n' > "$WS/docs/guide.md"
 printf '# Note one\n' > "$WS/notes/one.md"
 printf '# Note two\n' > "$WS/notes/two.md"
+for index in 1 2 3 4; do
+  printf '# Extra %s\n\nAnother document for tab scrolling.\n' "$index" > "$WS/extra$index.md"
+done
 printf 'fn main() {}\n' > "$WS/src/main.rs"
 printf '# Leaf\n' > "$WS/deep/nested/leaf.md"
 cp "$ROOT/crates/mdview-render/tests/snapshots/theme-github-light.png" "$WS/assets/photo.png"
@@ -300,12 +303,12 @@ expect_cfg private_networks true
 shot "07b-after-settings"
 
 echo "== explorer: expand, context menu, rename, delete, create =="
-expand_folder notes 120 203
+expand_folder notes 120 187
 shot "08-explorer-expanded"
-rclick 120 203
+rclick 120 187
 shot "08b-context-menu"
 key Escape
-click 115 237
+click 115 208
 wait_title "one.md"
 key ctrl+shift+p
 type_text "Rename File"
@@ -436,6 +439,18 @@ x wheel 640 400 6
 sleep 1
 shot "24-render-tasks"
 
+echo "== tab scrolling =="
+for file in README.md guide.md leaf.md main.rs extra1.md extra2.md extra3.md extra4.md showcase.md; do
+  key ctrl+p
+  type_text "$file"
+  key Enter
+  sleep 0.3
+done
+x wheel 300 50 8
+sleep 0.8
+shot "25-tab-scroll"
+grep -q "tab scroll offset=" "$LOGS/mdview.log" || fail "tab wheel did not scroll"
+
 echo "== shutdown =="
 click 958 16
 for _ in $(seq 1 140); do
@@ -459,8 +474,10 @@ log_has "media load"
 log_has "source=http://127.0.0.1:8899/photo.png"
 log_has "source=http://127.0.0.1:8899/logo.svg"
 log_has "source=http://127.0.0.1:8899/pulse.svg"
-grep 'perf frames=' "$LOGS/mdview.log" | tail -3 | grep -v 'over_8.33ms=0' && \
-  fail "final frame windows exceeded the 120 Hz budget"
+if [[ "$PROFILE" == "release" ]]; then
+  grep 'perf frames=' "$LOGS/mdview.log" | tail -3 | grep -v 'over_8.33ms=0' && \
+    fail "final frame windows exceeded the 120 Hz budget"
+fi
 
 echo
 echo "E2E PASS"

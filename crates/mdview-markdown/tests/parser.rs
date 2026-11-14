@@ -127,3 +127,20 @@ fn large_document_parses_quickly() {
         "1 MB parse took {elapsed:?}"
     );
 }
+
+#[test]
+fn tight_list_items_keep_inline_runs_together() {
+    let source = "- [ ] Roadmap in `docs/roadmap/` and `docs/api/parity.md`\n- [ ] plain\n";
+    let document = parse(source);
+    let BlockKind::List { items, .. } = &document.blocks[0].kind else {
+        panic!("expected a list");
+    };
+    assert_eq!(items.len(), 2);
+    assert_eq!(items[0].blocks.len(), 1);
+    let BlockKind::Paragraph(inlines) = &items[0].blocks[0].kind else {
+        panic!("expected a paragraph");
+    };
+    assert_eq!(inlines.len(), 4);
+    assert!(matches!(inlines[1], mdview_markdown::Inline::Code(_)));
+    assert!(matches!(inlines[3], mdview_markdown::Inline::Code(_)));
+}

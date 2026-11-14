@@ -21,7 +21,8 @@ A paragraph with **strong**, *emphasis*, ~~strikethrough~~, `inline code`, and a
 - second item with a nested list
   - nested
 - [x] completed task
-- [ ] open task
+- [ ] Roadmap checkboxes updated in `docs/roadmap/` and the parity matrix in `docs/api/parity.md`
+- [ ] long checklist item with inline `xtalforge` code and enough text to wrap naturally
 
 1. ordered one
 2. ordered two

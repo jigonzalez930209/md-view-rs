@@ -244,7 +244,7 @@ impl Sidebar {
     ) {
         let selected = self.selected.as_deref() == Some(entry.path.as_path());
         let width = ui.available_width();
-        let (rect, _) = ui.allocate_exact_size(egui::vec2(width, 23.0), egui::Sense::hover());
+        let (rect, _) = ui.allocate_exact_size(egui::vec2(width, 21.0), egui::Sense::hover());
         let hovered = ui.rect_contains_pointer(rect);
         let fill = if selected {
             ui.visuals().selection.bg_fill
@@ -261,6 +261,7 @@ impl Sidebar {
                 .max_rect(inner)
                 .layout(egui::Layout::left_to_right(egui::Align::Center)),
             |ui| {
+                ui.style_mut().interaction.selectable_labels = false;
                 ui.spacing_mut().item_spacing.x = 4.0;
                 ui.add_space((depth as f32) * 12.0 + 2.0);
                 if entry.is_dir {
@@ -290,11 +291,13 @@ impl Sidebar {
             },
         );
 
-        let response = ui.interact(
-            rect,
-            ui.scope_id().with(("tree_row", entry.path.as_os_str())),
-            egui::Sense::click(),
-        );
+        let response = ui
+            .interact(
+                rect,
+                ui.scope_id().with(("tree_row", entry.path.as_os_str())),
+                egui::Sense::click(),
+            )
+            .on_hover_cursor(egui::CursorIcon::Default);
         if entry.is_dir {
             if response.clicked() {
                 self.selected = Some(entry.path.clone());

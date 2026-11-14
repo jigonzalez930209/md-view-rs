@@ -40,8 +40,20 @@ pub fn show_tab_bar(ui: &mut egui::Ui, tabs: &[TabInfo], active: usize, view: Ta
             .layout(egui::Layout::left_to_right(egui::Align::Center)),
         |ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
-            egui::ScrollArea::horizontal()
+            let scroll_id = egui::Id::unique("tab_bar_horizontal_scroll");
+            let mut offset: f32 = ui.ctx().data_mut(|data| *data.get_temp_mut_or_default(scroll_id));
+            if ui.rect_contains_pointer(tabs_rect) {
+                let delta = ui.input(|input| input.smooth_scroll_delta);
+                if delta.y.abs() > 0.0 {
+                    offset = (offset - delta.y * 40.0).max(0.0);
+                    log::debug!("tab scroll offset={offset:.1}");
+                    ui.ctx().request_repaint();
+                }
+            }
+            let output = egui::ScrollArea::horizontal()
                 .auto_shrink([false, true])
+                .scroll_source(egui::scroll_area::ScrollSource::SCROLL_BAR)
+                .horizontal_scroll_offset(offset)
                 .show(ui, |ui| {
                     ui.horizontal_centered(|ui| {
                         ui.spacing_mut().item_spacing.x = 2.0;
@@ -54,6 +66,8 @@ pub fn show_tab_bar(ui: &mut egui::Ui, tabs: &[TabInfo], active: usize, view: Ta
                         }
                     });
                 });
+            ui.ctx()
+                .data_mut(|data| data.insert_temp(scroll_id, output.state.clamped_offset().x));
         },
     );
     if let Some(index) = close_requested {
