@@ -40,7 +40,8 @@
 | 0.11.2 fixes | DONE (Linux) | Nested folders stay expanded after every watcher refresh, the five-level pre-1.0 acceptance workspace and feature matrix exist, code blocks match editor conventions, inline code chips are visible, and LaTeX display sizing is readable. |
 | 0.11.1 fixes | DONE (Linux) | Weighted full-width tables, tight-list inline grouping, aligned task checkboxes, 21 px tree rows with normal cursor, and wheel-scrollable tabs. |
 | 0.11 workbench | DONE (Linux) | VS Code-like title/menu/tab/activity layout, settings modal tabs, compact context menus, centered fields, numeric steppers, workspace Quick Open, 1 MiB rotating logs, and `cargo xtask e2e`. |
-| H10–H11 | NOT STARTED | — |
+| Pre-1.0 review | OPEN | Release, scrolling, icon, and UX findings with IDs, severities, and required E2E additions in [`docs/pre-1.0-review.md`](docs/pre-1.0-review.md). P0 items block `1.0.0-beta.1`. |
+| H10–H11 | NOT STARTED | Blocked by the P0 items in the pre-1.0 review. |
 
 ---
 

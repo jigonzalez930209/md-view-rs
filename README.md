@@ -64,4 +64,5 @@ Testing and diagnostics are documented in [`docs/testing.md`](docs/testing.md) a
 [`docs/logging.md`](docs/logging.md). Viewer extension points are in
 [`docs/plugins.md`](docs/plugins.md). The roadmap is the source of truth for scope. The deferred
 1.0 platform checks are in
-[`docs/release-checks.md`](docs/release-checks.md).
+[`docs/release-checks.md`](docs/release-checks.md). Open pre-1.0 findings and the UX backlog
+are tracked in [`docs/pre-1.0-review.md`](docs/pre-1.0-review.md).
