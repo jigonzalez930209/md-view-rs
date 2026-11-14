@@ -1,4 +1,4 @@
-# Markdown support (`0.11.2`)
+# Markdown support (`0.11.3`)
 
 MD View parses Markdown with `pulldown-cmark` (CommonMark 0.31 + GFM) into a spanned AST. The
 document buffer in the editor is always the source of truth; the reading view is derived and
@@ -54,8 +54,6 @@ UPDATE_SNAPSHOTS=1 cargo test -p mdview-render
 
 ## Known limits
 
-- Links inside table cells are painted but not yet clickable; open them from the source or the
-  paragraph form. Table cells still render inline code, emphasis, and alignment.
 - Split mode reparses the document when its revision changes and repaints the visible frame;
   per-block incremental layout is not yet cached.
 - Media security and caching details are in [`media.md`](media.md).

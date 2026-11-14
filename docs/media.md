@@ -1,4 +1,4 @@
-# Rich content (`0.11.2`)
+# Rich content (`0.11.3`)
 
 MD View renders images, static SVG, LaTeX math, and Mermaid diagrams without a webview or
 JavaScript runtime. Media never edits the document; the source buffer remains authoritative.

@@ -43,10 +43,28 @@ pub fn show_tab_bar(ui: &mut egui::Ui, tabs: &[TabInfo], active: usize, view: Ta
             let scroll_id = egui::Id::unique("tab_bar_horizontal_scroll");
             let mut offset: f32 = ui.ctx().data_mut(|data| *data.get_temp_mut_or_default(scroll_id));
             if ui.rect_contains_pointer(tabs_rect) {
-                let delta = ui.input(|input| input.smooth_scroll_delta);
-                if delta.y.abs() > 0.0 {
-                    offset = (offset - delta.y * 40.0).max(0.0);
-                    log::debug!("tab scroll offset={offset:.1}");
+                // Use the raw wheel event instead of the smoothed scroll delta. The smoothed
+                // value keeps moving after the wheel stops, which made the tab strip overshoot
+                // and clamp at the end after a single notch.
+                let wheel = ui.input(|input| {
+                    input
+                        .events
+                        .iter()
+                        .filter_map(|event| match event {
+                            egui::Event::MouseWheel {
+                                unit, delta, modifiers, ..
+                            } if !modifiers.command && !modifiers.alt => Some(match unit {
+                                egui::MouseWheelUnit::Point => -delta.y,
+                                egui::MouseWheelUnit::Line => -delta.y * 20.0,
+                                egui::MouseWheelUnit::Page => -delta.y * tabs_rect.width(),
+                            }),
+                            _ => None,
+                        })
+                        .sum::<f32>()
+                });
+                if wheel.abs() > 0.0 {
+                    offset = (offset + wheel).max(0.0);
+                    log::debug!("tab wheel delta={wheel:.1} offset={offset:.1}");
                     ui.ctx().request_repaint();
                 }
             }

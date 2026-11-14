@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.11.3 — Tab wheel feel, LaTeX sizing, and table links
+
+- Tab strips now consume raw wheel events at 40 px per notch instead of replaying egui's
+  smoothed scroll delta, so one notch moves one controlled step and the strip no longer
+  overshoots to the end after the wheel stops.
+- Inline LaTeX keeps ordinary formulas close to the text height while giving fractions,
+  integrals, and sums the extra height they need; display formulas are centered and rendered
+  at full readable size.
+- Links inside table cells are now clickable, with a pointing-hand cursor and destination
+  tooltip, including local workspace documents.
+- Added a table link to `showcase.md` and the E2E, which opens `docs/guide.md` from the table.
+- Verified the final release E2E with zero frames over the 8.33 ms budget.
+
+
 ## 0.11.2 — Nested folders, GitHub-style code, and the pre-1.0 workspace
 
 - Fixed the remaining nested-folder collapse: any watcher refresh of a parent directory now

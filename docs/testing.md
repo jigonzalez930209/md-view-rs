@@ -22,8 +22,9 @@
 - Tabs: select, close, close other tabs, new tab, overflow menu.
 - Editor: edit and save, find, replace bar, go-to-line with the up/down arrows.
 - Split mode and 120 wheel events across both panes.
-- Rendering: inline and display LaTeX, tables, local and HTTP PNG/SVG, animated SVG, two
-  Mermaid diagrams, syntax-highlighted Rust code, and task checkboxes.
+- Rendering: inline and display LaTeX, tables with a clickable cell link, local and HTTP
+  PNG/SVG, animated SVG, two Mermaid diagrams, syntax-highlighted Rust code, and task
+  checkboxes.
 - Shutdown through the custom window close button.
 - Diagnostics: log file present, event coverage, remote media sources, no panics, no media
   failures, final 120 Hz windows with zero frames over 8.33 ms, and total log size ≤ 1 MiB.

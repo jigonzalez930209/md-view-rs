@@ -141,6 +141,7 @@ Inline math \$a^2 + b^2 = c^2\$ and a display integral:
 | Tables | yes | yes | ready |
 | SVG | yes | yes | animated |
 | Mermaid | yes | yes | ready |
+| [Open guide](docs/guide.md) | table link | ready | ready |
 
 ## Local media
 
@@ -454,6 +455,12 @@ echo "== render pass =="
 for _ in $(seq 1 40); do x wheelup 640 400 2; done
 sleep 1
 shot "20-render-top"
+click 350 438
+wait_title "guide.md"
+key ctrl+p
+type_text "showcase"
+key Enter
+wait_title "showcase.md"
 x wheel 640 400 5
 sleep 1
 shot "21-render-media"
@@ -477,7 +484,12 @@ done
 x wheel 300 50 8
 sleep 0.8
 shot "25-tab-scroll"
-grep -q "tab scroll offset=" "$LOGS/mdview.log" || fail "tab wheel did not scroll"
+grep -q "tab wheel delta=" "$LOGS/mdview.log" || fail "tab wheel did not scroll"
+tab_offset=$(grep -o 'offset=[0-9.]*' "$LOGS/mdview.log" | tail -1 | cut -d= -f2)
+python3 - "$tab_offset" <<'PY' || fail "tab wheel moved $tab_offset px instead of 320 px"
+import sys
+raise SystemExit(0 if abs(float(sys.argv[1]) - 320.0) <= 1.0 else 1)
+PY
 
 echo "== shutdown =="
 click 958 16

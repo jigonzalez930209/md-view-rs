@@ -1,6 +1,8 @@
 //! Table layout and painting.
 
 use super::*;
+use crate::LinkActivation;
+use crate::inline::LinkTarget;
 use mdview_markdown::{Alignment, Inline};
 
 pub(super) fn show_table(
@@ -35,7 +37,7 @@ pub(super) fn show_table(
     let mut all_rows = Vec::with_capacity(rows.len() + 1);
     all_rows.push(head.to_vec());
     all_rows.extend(rows.iter().cloned());
-    let galleys: Vec<Vec<std::sync::Arc<egui::Galley>>> = all_rows
+    let galleys: Vec<Vec<LaidCell>> = all_rows
         .iter()
         .enumerate()
         .map(|(row, cells)| {
@@ -51,11 +53,11 @@ pub(super) fn show_table(
         .collect();
     let heights: Vec<f32> = galleys
         .iter()
-        .map(|row| row.iter().map(|galley| galley.rect.height()).fold(16.0, f32::max) + 8.0)
+        .map(|row| row.iter().map(|cell| cell.galley.rect.height()).fold(16.0, f32::max) + 8.0)
         .collect();
     let total_height: f32 = heights.iter().sum();
     let (rect, _) = ui.allocate_exact_size(egui::vec2(available, total_height), egui::Sense::hover());
-    let painter = ui.painter();
+    let painter = ui.painter().clone();
     painter.rect_filled(rect, 0.0, ctx.theme.background);
     let mut y = rect.top();
     for (row, row_galleys) in galleys.iter().enumerate() {
@@ -75,18 +77,45 @@ pub(super) fn show_table(
             );
         }
         let mut x = row_rect.left() + 6.0;
-        for (column, galley) in row_galleys.iter().enumerate() {
+        for (column, cell) in row_galleys.iter().enumerate() {
             let width = widths.get(column).copied().unwrap_or(64.0);
-            let text_x = match alignments.get(column).copied().unwrap_or_default() {
-                Alignment::Right => x + width - 12.0 - galley.rect.width(),
-                Alignment::Center => x + (width - 12.0 - galley.rect.width()) / 2.0,
-                Alignment::Left | Alignment::None => x,
-            };
-            painter.galley(
-                egui::pos2(text_x.max(x), row_rect.top() + 4.0),
-                galley.clone(),
-                ctx.theme.text,
+            let origin = egui::pos2(
+                match alignments.get(column).copied().unwrap_or_default() {
+                    Alignment::Right => x + width - 12.0 - cell.galley.rect.width(),
+                    Alignment::Center => x + (width - 12.0 - cell.galley.rect.width()) / 2.0,
+                    Alignment::Left | Alignment::None => x,
+                }
+                .max(x),
+                row_rect.top() + 4.0,
             );
+            painter.galley(origin, cell.galley.clone(), ctx.theme.text);
+            let cell_rect = egui::Rect::from_min_size(egui::pos2(x, row_rect.top()), egui::vec2(width, heights[row]));
+            for (link_index, link) in cell.links.iter().enumerate() {
+                let start = cell.galley.pos_from_cursor(egui::text::CCursor::new(link.start));
+                let end = cell.galley.pos_from_cursor(egui::text::CCursor::new(link.end));
+                let hit = egui::Rect::from_min_max(
+                    origin + start.left_top().to_vec2(),
+                    origin + end.right_bottom().to_vec2(),
+                )
+                .intersect(cell_rect);
+                if hit.width() <= 0.0 || hit.height() <= 0.0 {
+                    continue;
+                }
+                let response = ui
+                    .interact(
+                        hit,
+                        ui.make_persistent_id(("table_link", row, column, link_index)),
+                        egui::Sense::click(),
+                    )
+                    .on_hover_cursor(egui::CursorIcon::PointingHand)
+                    .on_hover_text(&link.target.destination);
+                if response.clicked() {
+                    ctx.output.link = Some(LinkActivation {
+                        destination: link.target.destination.clone(),
+                        kind: link.target.kind,
+                    });
+                }
+            }
             x += width + spacing;
         }
         y += heights[row];
@@ -99,16 +128,26 @@ pub(super) fn show_table(
     );
 }
 
-fn layout_table_cell(
-    ui: &Ui,
-    inlines: &[Inline],
-    width: f32,
-    theme: &mdview_theme::Theme,
-    header: bool,
-) -> std::sync::Arc<egui::Galley> {
+struct CellLink {
+    /// Character offsets in the laid-out cell, not byte offsets.
+    start: usize,
+    end: usize,
+    target: LinkTarget,
+}
+
+struct LaidCell {
+    galley: std::sync::Arc<egui::Galley>,
+    links: Vec<CellLink>,
+}
+
+fn layout_table_cell(ui: &Ui, inlines: &[Inline], width: f32, theme: &mdview_theme::Theme, header: bool) -> LaidCell {
     let mut job = egui::text::LayoutJob::default();
     job.wrap.max_width = width;
+    let mut chars = 0usize;
+    let mut links = Vec::new();
     for segment in crate::inline::segments(inlines) {
+        let start = chars;
+        chars += segment.text.chars().count();
         let font = if segment.monospace {
             egui::FontId::monospace(12.0)
         } else if header || segment.strong {
@@ -124,7 +163,7 @@ fn layout_table_cell(
                 font_id: font,
                 color,
                 background: if segment.monospace {
-                    theme.sunken
+                    theme.table_header
                 } else {
                     egui::Color32::TRANSPARENT
                 },
@@ -142,6 +181,16 @@ fn layout_table_cell(
                 ..Default::default()
             },
         );
+        if let Some(target) = &segment.link {
+            links.push(CellLink {
+                start,
+                end: chars,
+                target: target.clone(),
+            });
+        }
     }
-    ui.painter().layout_job(job)
+    LaidCell {
+        galley: ui.painter().layout_job(job),
+        links,
+    }
 }

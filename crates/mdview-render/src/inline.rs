@@ -352,11 +352,23 @@ fn show_math(ui: &mut Ui, segment: &Segment, theme: &Theme, media: Option<&mut M
         }
         MediaState::Ready(texture) => {
             let points = texture.size_vec2() / ui.ctx().pixels_per_point().max(1.0);
-            // RaTeX lays formulas out at 40 px. Inline formulas must stay close to the
-            // surrounding 13 px text, while display formulas keep their full size.
-            let max_height = if segment.display_math { 120.0 } else { 38.0 };
+            // RaTeX lays formulas out at 40 px. Simple inline formulas should not grow the
+            // line for every exponent; fractions, integrals, and sums need the extra height
+            // to stay legible. Display formulas are centered and keep their full size.
+            let max_height = if segment.display_math {
+                120.0
+            } else if points.y > 90.0 {
+                42.0
+            } else {
+                24.0
+            };
             let scale = (max_width / points.x).min(max_height / points.y).min(1.0);
-            ui.add(egui::Image::new(&texture).fit_to_exact_size(points * scale));
+            let size = points * scale;
+            if segment.display_math {
+                let free = (ui.available_width() - size.x).max(0.0);
+                ui.add_space(free / 2.0);
+            }
+            ui.add(egui::Image::new(&texture).fit_to_exact_size(size));
         }
         MediaState::Error(error) => {
             ui.label(

@@ -53,7 +53,7 @@ and a horizontal rule.
 | Raster images | `mdview-media` local and cached remote images with lightbox | `media-*` snapshots; E2E local and HTTP PNG assets |
 | SVG | `craft-svg`/`resvg` rasterization, static and supported SMIL/CSS animation | `media-*` snapshots; E2E local and HTTP animated SVG assets |
 | Mermaid | native `mermaid-rs-renderer`, no browser | `mermaid.rs` diagram corpus; flowchart and sequence in `media-*` and E2E |
-| Tables | weighted columns fill the reading width, header surface, zebra rows, separators | `preview-*` snapshots; E2E table screenshot |
+| Tables | weighted columns fill the reading width, header surface, zebra rows, separators, and clickable links inside cells | `preview-*` snapshots; E2E opens `docs/guide.md` from a table link |
 | Editor and preview sync | Rope editor, split view, block-anchor bidirectional scroll | workspace tests, split snapshots, E2E scroll stress |
 | 120 Hz scrolling | block-virtualized preview, release frame-budget gate | `cargo xtask perf`; release E2E `over_8.33ms=0` |
 | Diagnostics | two rotating 512 KiB logs, 1 MiB hard cap | E2E log-size assertion and `docs/logging.md` |

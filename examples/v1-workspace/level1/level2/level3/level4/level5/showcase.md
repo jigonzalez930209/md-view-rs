@@ -37,6 +37,7 @@ done
 | PNG | Local bitmap renders below | ready |
 | SVG | Local vector renders below | ready |
 | Mermaid | Flowchart and sequence diagrams render | ready |
+| [Rust source](deep.rs) | Local link inside a table cell | ready |
 
 ## Lists and tasks
 
