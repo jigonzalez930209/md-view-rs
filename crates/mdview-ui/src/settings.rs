@@ -9,6 +9,10 @@ use mdview_theme::ThemeId;
 
 use crate::{Command, MaterialIcons, numeric_stepper, primary_button, secondary_button};
 
+#[path = "settings_about.rs"]
+mod settings_about;
+use settings_about::about;
+
 /// Current values shown by the settings dialog.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SettingsView {
@@ -20,6 +24,8 @@ pub struct SettingsView {
     pub language: LanguagePreference,
     /// Text scale.
     pub zoom: f32,
+    /// Reduce the empty margins around Markdown reading views.
+    pub compact_margins: bool,
     /// Soft wrap.
     pub wrap: bool,
     /// Line numbers.
@@ -265,6 +271,16 @@ fn appearance(
     if zoom_changed {
         *command = Some(Command::SetZoom(zoom));
     }
+
+    let mut compact = view.compact_margins;
+    if row_switch(
+        ui,
+        t("Compact reading margins"),
+        t("Reduce the empty space around Markdown previews."),
+        &mut compact,
+    ) {
+        *command = Some(Command::ToggleCompactMargins);
+    }
 }
 
 fn editor(ui: &mut Ui, view: &SettingsView, t: &dyn Fn(&str) -> String, command: &mut Option<Command>) {
@@ -357,34 +373,6 @@ fn media(ui: &mut Ui, view: &SettingsView, t: &dyn Fn(&str) -> String, command: 
     let mut reduce = view.reduce_motion;
     if row_switch(ui, t("Reduce motion"), t("Pause non-essential animation."), &mut reduce) {
         *command = Some(Command::ToggleReduceMotion);
-    }
-}
-
-fn about(ui: &mut Ui, view: &SettingsView, t: &dyn Fn(&str) -> String, command: &mut Option<Command>) {
-    section(ui, t("About MD View"), t("A native Markdown, text, and code editor."));
-    ui.label(format!("MD View {}", env!("CARGO_PKG_VERSION")));
-    ui.add_space(4.0);
-    ui.label(
-        RichText::new(t("Rendered with egui and a block-virtualized reading view."))
-            .small()
-            .weak(),
-    );
-    ui.add_space(14.0);
-    if secondary_button(ui, &t("Check for Updates…")).clicked() {
-        *command = Some(Command::CheckUpdates);
-    }
-    ui.add_space(14.0);
-    ui.label(
-        RichText::new(format!(
-            "{} {:.1} KB / 1024 KB",
-            t("Diagnostic log:"),
-            view.log_bytes as f64 / 1024.0
-        ))
-        .small()
-        .weak(),
-    );
-    if secondary_button(ui, &t("Open Logs Folder")).clicked() {
-        *command = Some(Command::OpenLogs);
     }
 }
 

@@ -72,6 +72,17 @@ fn tab_bar_snapshot() {
 }
 
 #[test]
+fn image_documents_open_in_the_viewer_and_never_edit() {
+    let mut tab = DocumentTab::new(document("/tmp/photo.png"), None);
+    assert!(tab.is_image());
+    assert_eq!(tab.mode, ViewMode::View);
+    tab.set_mode(ViewMode::Edit);
+    assert_eq!(tab.mode, ViewMode::View);
+    tab.set_mode(ViewMode::Split);
+    assert_eq!(tab.mode, ViewMode::View);
+}
+
+#[test]
 fn opening_the_same_path_reuses_the_tab() {
     let mut tabs = TabSet::new(true, false, true);
     let first = tabs.open(document("/tmp/a.md"), None);

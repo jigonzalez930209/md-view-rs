@@ -271,6 +271,10 @@ impl MdViewApp {
                 self.prefs.update(|prefs| prefs.media.reduce_motion = reduce);
                 self.media.set_reduced_motion(reduce);
             }
+            Command::ToggleCompactMargins => {
+                let compact = !self.prefs.get().appearance.compact_margins;
+                self.prefs.update(|prefs| prefs.appearance.compact_margins = compact);
+            }
             Command::ToggleShowHidden => {
                 let show = !self.sidebar.show_hidden;
                 self.sidebar.show_hidden = show;

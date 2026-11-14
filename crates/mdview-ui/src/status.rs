@@ -12,40 +12,75 @@ pub fn show_status(
     lang: craft_i18n::Lang,
     document: &Document,
     status: &EditorStatus,
+    image: bool,
 ) {
     let t = |source: &str| translations.t(lang, source);
     ui.horizontal_centered(|ui| {
-        let path = document
+        let full_path = document
             .path()
             .map(|p| p.display().to_string())
             .unwrap_or_else(|| t("No file open"));
-        ui.label(RichText::new(path).small());
-        ui.separator();
-        ui.label(RichText::new(if document.is_dirty() { t("Modified") } else { t("Saved") }).small());
+        let path = if full_path.chars().count() > 48 {
+            let tail: String = full_path.chars().skip(full_path.chars().count() - 47).collect();
+            format!("…{tail}")
+        } else {
+            full_path.clone()
+        };
+        ui.label(RichText::new(path).small()).on_hover_text(full_path);
         ui.separator();
         ui.label(
-            RichText::new(format!(
-                "{} {}, {} {}",
-                t("Ln"),
-                status.line + 1,
-                t("Col"),
-                status.column + 1
-            ))
+            RichText::new(if image {
+                "Image".to_owned()
+            } else if document.is_dirty() {
+                t("Modified")
+            } else {
+                t("Saved")
+            })
             .small(),
         );
-        if status.selection_chars > 0 {
+        if !image {
             ui.separator();
-            ui.label(RichText::new(format!("{} {}", t("Sel"), status.selection_chars)).small());
+            ui.label(
+                RichText::new(format!(
+                    "{} {}, {} {}",
+                    t("Ln"),
+                    status.line + 1,
+                    t("Col"),
+                    status.column + 1
+                ))
+                .small(),
+            );
+            if status.selection_chars > 0 {
+                ui.separator();
+                ui.label(RichText::new(format!("{} {}", t("Sel"), status.selection_chars)).small());
+            }
         }
 
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.label(RichText::new(status.encoding.label()).small());
-            ui.separator();
-            ui.label(RichText::new(status.eol.label()).small());
-            ui.separator();
-            ui.label(RichText::new(status.indentation.label()).small());
-            ui.separator();
-            ui.label(RichText::new(&status.language).small());
+            let extension = document
+                .path()
+                .and_then(|path| path.extension())
+                .and_then(|extension| extension.to_str())
+                .map(str::to_ascii_uppercase)
+                .unwrap_or_else(|| t("Image"));
+            ui.label(
+                RichText::new(if image {
+                    extension
+                } else {
+                    status.encoding.label().to_owned()
+                })
+                .small(),
+            );
+            if !image {
+                ui.separator();
+                ui.label(RichText::new(status.eol.label()).small());
+                ui.separator();
+                ui.label(RichText::new(status.indentation.label()).small());
+                ui.separator();
+            }
+            if !image {
+                ui.label(RichText::new(status.language.clone()).small());
+            }
             if status.large_mode {
                 ui.separator();
                 ui.label(RichText::new(t("Large file")).color(ui.visuals().warn_fg_color).small());

@@ -277,6 +277,8 @@ done
 echo "== settings: open and close paths =="
 click 850 16
 shot "03-settings-appearance"
+toggle_to compact_margins true 767 453
+toggle_to compact_margins false 767 453
 click 240 224
 shot "04-settings-editor"
 toggle_to wrap true 767 243
@@ -310,26 +312,26 @@ shot "07b-after-settings"
 echo "== explorer: five nested folders survive refreshes =="
 # deep is the second root row (assets, deep, docs, ...). Expanding each level must survive
 # the debounced watcher refresh triggered by a change in the workspace root.
-expand_folder deep 120 137
-expand_folder deep/nested 120 161
-expand_folder deep/nested/three 120 185
-expand_folder deep/nested/three/four 120 209
-expand_folder deep/nested/three/four/five 120 233
+expand_folder deep 120 105
+expand_folder deep/nested 120 129
+expand_folder deep/nested/three 120 153
+expand_folder deep/nested/three/four 120 177
+expand_folder deep/nested/three/four/five 120 201
 touch "$WS/README.md"
 sleep 1.4
 shot "08a-nested-folders"
-click 200 257
+click 200 225
 wait_title "final.md"
-click 120 137
+click 120 105
 sleep 0.5
 
 echo "== explorer: expand, context menu, rename, delete, create =="
-expand_folder notes 120 187
+expand_folder notes 120 153
 shot "08-explorer-expanded"
-rclick 120 187
+rclick 120 153
 shot "08b-context-menu"
 key Escape
-click 115 208
+click 115 177
 wait_title "one.md"
 key ctrl+shift+p
 type_text "Rename File"
@@ -368,30 +370,30 @@ done
 [[ ! -f "$WS/notes/two.md" ]] || fail "delete did not remove two.md"
 shot "09-deleted"
 
-click 193 85
+click 202 48
 key Escape
 [[ ! -f "$WS/untitled.md" ]] || fail "escape created untitled.md"
-click 193 85
+click 202 48
 click 572 436
 [[ ! -f "$WS/untitled.md" ]] || fail "cancel created untitled.md"
-click 193 85
+click 202 48
 click 679 292
 [[ ! -f "$WS/untitled.md" ]] || fail "close created untitled.md"
-click 193 85
+click 202 48
 key ctrl+a
 type_text "e2e-created.md"
 key Return
 wait_file "$WS/e2e-created.md"
 wait_title "e2e-created.md"
-click 222 85
+click 226 48
 key ctrl+a
 type_text "e2e-folder"
 key Return
 wait_file "$WS/e2e-folder"
 shot "10-created"
-click 280 85
+click 274 48
 shot "11-collapsed"
-click 251 85
+click 250 48
 
 echo "== palette, tabs, quick open =="
 key ctrl+shift+p
@@ -458,6 +460,16 @@ shot "20-render-top"
 click 350 438
 wait_title "guide.md"
 key ctrl+p
+type_text "logo.svg"
+key Enter
+wait_title "logo.svg"
+shot "20b-image-svg"
+key ctrl+p
+type_text "photo.png"
+key Enter
+wait_title "photo.png"
+shot "20c-image-png"
+key ctrl+p
 type_text "showcase"
 key Enter
 wait_title "showcase.md"
@@ -481,7 +493,7 @@ for file in README.md guide.md leaf.md main.rs extra1.md extra2.md extra3.md ext
   key Enter
   sleep 0.3
 done
-x wheel 300 50 8
+x wheel 500 50 8
 sleep 0.8
 shot "25-tab-scroll"
 grep -q "tab wheel delta=" "$LOGS/mdview.log" || fail "tab wheel did not scroll"
@@ -511,6 +523,8 @@ log_has "perf frames="
 grep -q "panicked" "$LOGS/mdview.log" && fail "panic in log"
 grep -q "media load failed" "$LOGS/mdview.log" && fail "media failed to load"
 log_has "media load"
+log_has "image open.*logo.svg"
+log_has "image open.*photo.png"
 log_has "source=http://127.0.0.1:8899/photo.png"
 log_has "source=http://127.0.0.1:8899/logo.svg"
 log_has "source=http://127.0.0.1:8899/pulse.svg"

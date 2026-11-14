@@ -148,6 +148,8 @@ impl MdViewApp {
             .map(std::path::Path::to_path_buf);
         let tab = self.tabs.tab_mut(index)?;
         tab.ensure_preview();
+        tab.preview
+            .set_compact_margins(self.prefs.get().appearance.compact_margins);
         Some(
             tab.preview
                 .show_with_media(ui, &tab.preview_source, theme, light, base, &mut self.media),

@@ -35,3 +35,22 @@ pub(crate) fn estimate_height(kind: &BlockKind) -> f32 {
         }
     }
 }
+
+/// Stable hash of Markdown source for the preview cache.
+pub(crate) fn hash(text: &str) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    text.hash(&mut hasher);
+    hasher.finish()
+}
+
+impl crate::Preview {
+    /// Reduce the empty margins around the reading view.
+    pub fn set_compact_margins(&mut self, compact: bool) {
+        if self.compact_margins != compact {
+            self.compact_margins = compact;
+            self.heights.clear();
+            self.layout_width = 0.0;
+        }
+    }
+}

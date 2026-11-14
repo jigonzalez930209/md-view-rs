@@ -14,7 +14,7 @@ impl MdViewApp {
         let light = self.theme == mdview_theme::ThemeMode::Light;
         let infos = self.tabs.infos(&mut self.icons, light);
         let mut action = None;
-        egui::Panel::top("tab_bar").exact_size(32.0).show(ui, |ui| {
+        egui::Panel::top("tab_bar").exact_size(34.0).show(ui, |ui| {
             action = crate::tab_bar::show_tab_bar(
                 ui,
                 &infos,
@@ -50,6 +50,11 @@ impl MdViewApp {
         let panel = egui::Panel::left("workspace_sidebar")
             .resizable(true)
             .default_size(self.sidebar.width)
+            .frame(
+                egui::Frame::new()
+                    .fill(ui.visuals().window_fill)
+                    .inner_margin(egui::Margin::same(0)),
+            )
             .show(ui, |ui| {
                 if let Some(workspace) = &mut self.workspace {
                     events = self.sidebar.show(
@@ -242,7 +247,7 @@ impl eframe::App for MdViewApp {
                     document_name: &document_name,
                     dirty: self.tabs.editor().document().is_dirty(),
                     mode: self.tabs.active().mode,
-                    is_markdown: self.tabs.active().is_markdown(),
+                    is_markdown: self.tabs.active().is_markdown() || self.tabs.active().is_image(),
                     sidebar_open: self.sidebar.open,
                     workspace_open: self.workspace.is_some(),
                     workspace_name: workspace_name.as_deref(),
@@ -280,8 +285,10 @@ impl eframe::App for MdViewApp {
             self.handle_command(ui.ctx(), command);
         }
 
-        self.show_tabs(ui);
+        // The explorer starts directly under the menu bar, as in VS Code/Cursor. The document
+        // tab strip therefore belongs to the editor column only.
         self.show_sidebar(ui);
+        self.show_tabs(ui);
 
         egui::Panel::bottom("status_bar").exact_size(24.0).show(ui, |ui| {
             mdview_ui::show_status(
@@ -290,6 +297,7 @@ impl eframe::App for MdViewApp {
                 self.lang,
                 self.tabs.editor().document(),
                 &self.tabs.editor().status(),
+                self.tabs.active().is_image(),
             );
         });
 
@@ -300,6 +308,8 @@ impl eframe::App for MdViewApp {
             let document = self.tabs.editor().document();
             if document.path().is_none() && document.is_empty() {
                 open_requested = mdview_ui::show_welcome(ui, &self.translations, self.lang);
+            } else if self.tabs.active().is_image() {
+                self.show_image_document(ui);
             } else {
                 if self.tabs.active().is_markdown() && self.tabs.active().is_large() {
                     ui.label(
@@ -325,6 +335,8 @@ impl eframe::App for MdViewApp {
                             .map(std::path::Path::to_path_buf);
                         let tab = self.tabs.active_mut();
                         tab.ensure_preview();
+                        tab.preview
+                            .set_compact_margins(self.prefs.get().appearance.compact_margins);
                         preview_output = Some(tab.preview.show_with_media(
                             ui,
                             &tab.preview_source,
@@ -362,6 +374,7 @@ impl eframe::App for MdViewApp {
                 follow_system: self.follow_system,
                 language: self.language,
                 zoom: ctx.zoom_factor(),
+                compact_margins: self.prefs.get().appearance.compact_margins,
                 wrap: self.tabs.editor().status().wrap,
                 line_numbers: self.tabs.editor().status().line_numbers,
                 sync_scroll: self.prefs.get().editor.sync_scroll,

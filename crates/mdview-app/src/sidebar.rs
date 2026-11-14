@@ -112,7 +112,7 @@ impl Sidebar {
             ui.add_space(6.0);
             ui.label(
                 egui::RichText::new(&root_name)
-                    .size(11.0)
+                    .size(11.5)
                     .strong()
                     .color(ui.visuals().weak_text_color()),
             );
@@ -270,7 +270,7 @@ impl Sidebar {
                     } else {
                         "chevron-right"
                     };
-                    draw_glyph(ui, ctx.icons, arrow, 12.0);
+                    draw_glyph(ui, ctx.icons, arrow, 14.0);
                 } else {
                     ui.add_space(12.0);
                 }
@@ -283,7 +283,7 @@ impl Sidebar {
                 ui.add(
                     egui::Label::new(
                         egui::RichText::new(&entry.name)
-                            .size(12.0)
+                            .size(12.5)
                             .color(ui.visuals().text_color()),
                     )
                     .truncate(),
@@ -384,7 +384,7 @@ fn icon_button(ui: &mut egui::Ui, icons: &mut MaterialIcons, icon: &str, tooltip
     if let Some(texture) = icons.ui_texture(ui.ctx(), icon) {
         ui.painter().image(
             texture.id(),
-            rect.shrink(3.0),
+            rect.shrink(2.5),
             egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
             ui.visuals().text_color(),
         );

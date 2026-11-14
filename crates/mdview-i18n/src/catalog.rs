@@ -141,6 +141,8 @@ pub(crate) const SPANISH: &str = concat!(
     "\tSave or discard your changes before installing an update.\tGuarda o descarta tus cambios antes de instalar una actualización.\n",
     "\tThe release has no asset for this platform.\tLa versión no tiene un archivo para esta plataforma.\n",
     "\tText scale\tEscala de texto\n",
+    "\tCompact reading margins\tMárgenes de lectura compactos\n",
+    "\tReduce the empty space around Markdown previews.\tReduce el espacio vacío alrededor de las vistas Markdown.\n",
     "\tReset text scale\tRestablecer escala de texto\n",
     "\tEditor\tEditor\n",
     "\tLoading image…\tCargando imagen…\n",

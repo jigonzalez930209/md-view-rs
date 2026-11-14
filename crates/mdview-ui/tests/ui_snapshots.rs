@@ -36,6 +36,7 @@ fn settings_snapshot() {
                     follow_system: false,
                     language: LanguagePreference::English,
                     zoom: 1.0,
+                    compact_margins: false,
                     wrap: false,
                     line_numbers: true,
                     sync_scroll: true,

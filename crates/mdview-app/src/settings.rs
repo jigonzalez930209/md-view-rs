@@ -86,6 +86,8 @@ pub struct Appearance {
     pub follow_system: bool,
     /// Text scale from 0.8 to 2.0.
     pub zoom: f32,
+    /// Reduce the empty margins around Markdown reading views.
+    pub compact_margins: bool,
 }
 
 impl Default for Appearance {
@@ -94,6 +96,7 @@ impl Default for Appearance {
             theme: "github-light".to_owned(),
             follow_system: false,
             zoom: 1.0,
+            compact_margins: false,
         }
     }
 }

@@ -1,7 +1,13 @@
-# Rich content (`0.11.3`)
+# Rich content (`0.12.0`)
 
 MD View renders images, static SVG, LaTeX math, and Mermaid diagrams without a webview or
 JavaScript runtime. Media never edits the document; the source buffer remains authoritative.
+
+## Image documents
+
+PNG, JPEG, GIF, WebP, BMP, TIFF, and SVG files can be opened directly and render in a fitted
+image viewer instead of the text editor. Clicking the image opens the lightbox; animated SVG
+plays under the same Media settings. Unsupported or corrupt files show a bounded diagnostic.
 
 ## Images
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.12.0 — Cursor-style workbench, image documents, and compact reading
+
+- Moved the explorer directly under the menu bar. The folder tree and activity rail now occupy
+  the full workbench height, and the document tabs belong to the editor column only, matching
+  VS Code/Cursor.
+- Reworked the tab strip for that model: raised chrome surface, active tab merging with the
+  editor background, muted inactive labels, 34 px height, and 16 px file icons.
+- Increased activity-rail icons to 24 px, explorer action icons to 16 px, and tree chevrons to
+  14 px while keeping 21 px tree rows.
+- Opening PNG, JPEG, GIF, WebP, BMP, TIFF, or SVG files now shows a dedicated image viewer
+  instead of decoding the file as text. The viewer fits the pane, keeps SVG animation, opens
+  the lightbox on click, and reports the format in the status bar.
+- Added the Appearance setting **Compact reading margins** to widen Markdown previews and trim
+  their top and bottom spacing.
+- Added compact-preview, image-document, and settings coverage to the automated snapshots and
+  E2E for the new explorer/tab layout.
+
+
 ## 0.11.3 — Tab wheel feel, LaTeX sizing, and table links
 
 - Tab strips now consume raw wheel events at 40 px per notch instead of replaying egui's

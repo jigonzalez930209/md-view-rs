@@ -59,11 +59,17 @@ Footnotes work too.[^note]
 "#;
 
 fn snapshot(name: &str, mode: ThemeMode) {
+    snapshot_with(name, mode, false);
+}
+
+fn snapshot_with(name: &str, mode: ThemeMode, compact: bool) {
     let theme = Theme::for_mode(mode);
     let mut preview = Preview::default();
     preview.set_width(680.0);
+    preview.set_compact_margins(compact);
+    let harness_width = if compact { 1100.0 } else { 760.0 };
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(760.0, 900.0))
+        .with_size(egui::vec2(harness_width, 900.0))
         .with_context_setup(move |ctx| {
             apply(ctx, mode);
         })
@@ -82,4 +88,9 @@ fn preview_light_snapshot() {
 #[test]
 fn preview_dark_snapshot() {
     snapshot("preview-dark", ThemeMode::Dark);
+}
+
+#[test]
+fn preview_compact_light_snapshot() {
+    snapshot_with("preview-compact-light", ThemeMode::Light, true);
 }

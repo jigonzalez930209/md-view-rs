@@ -25,7 +25,9 @@ pub fn show_tab_bar(ui: &mut egui::Ui, tabs: &[TabInfo], active: usize, view: Ta
     let t = |source: &str| view.translations.t(view.lang, source);
     let mut action = None;
     let bar = ui.max_rect();
-    ui.painter().rect_filled(bar, 0.0, ui.visuals().panel_fill);
+    // Chrome uses the raised surface; the active tab uses the editor background so it merges
+    // with the document, matching the VS Code/Cursor tab model.
+    ui.painter().rect_filled(bar, 0.0, ui.visuals().window_fill);
 
     let controls_width = 154.0;
     let tabs_rect = egui::Rect::from_min_max(
@@ -196,8 +198,8 @@ fn tab_button(
         )
         .rect
         .width();
-    let width = (text_width + 58.0).clamp(112.0, 210.0);
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 30.0), egui::Sense::click());
+    let width = (text_width + 62.0).clamp(118.0, 212.0);
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 34.0), egui::Sense::click());
     let active_t = ui
         .ctx()
         .animate_bool_with_time(response.id.with("tab_active"), active, 0.16);
@@ -205,22 +207,14 @@ fn tab_button(
         .ctx()
         .animate_bool_with_time(response.id.with("tab_hover"), response.hovered() && !active, 0.10);
     let radius = egui::CornerRadius {
-        nw: 6,
-        ne: 6,
+        nw: 4,
+        ne: 4,
         sw: 0,
         se: 0,
     };
     if active_t > 0.01 {
         ui.painter()
-            .rect_filled(rect, radius, ui.visuals().extreme_bg_color.gamma_multiply(active_t));
-        ui.painter().rect_filled(
-            egui::Rect::from_min_max(
-                egui::pos2(rect.left() + 6.0, rect.top()),
-                egui::pos2(rect.right() - 6.0, rect.top() + 1.5),
-            ),
-            1.0,
-            ui.visuals().selection.bg_fill.gamma_multiply(active_t),
-        );
+            .rect_filled(rect, radius, ui.visuals().panel_fill.gamma_multiply(active_t));
     }
     if hover_t > 0.01 {
         ui.painter().rect_filled(
@@ -230,7 +224,7 @@ fn tab_button(
         );
     }
     let icon_rect =
-        egui::Rect::from_center_size(egui::pos2(rect.left() + 16.0, rect.center().y), egui::vec2(15.0, 15.0));
+        egui::Rect::from_center_size(egui::pos2(rect.left() + 16.0, rect.center().y), egui::vec2(16.0, 16.0));
     let icon = icons
         .texture(ui.ctx(), &tab.icon, light)
         .or_else(|| icons.texture(ui.ctx(), "file", light));
@@ -244,14 +238,16 @@ fn tab_button(
     }
     let color = if tab.conflict || tab.missing {
         ui.visuals().warn_fg_color
-    } else {
+    } else if active {
         ui.visuals().text_color()
+    } else {
+        ui.visuals().weak_text_color()
     };
     ui.painter().text(
-        egui::pos2(rect.left() + 28.0, rect.center().y),
+        egui::pos2(rect.left() + 29.0, rect.center().y),
         egui::Align2::LEFT_CENTER,
         &tab.label,
-        egui::FontId::proportional(12.0),
+        egui::FontId::proportional(12.5),
         color,
     );
     if tab.dirty && !response.hovered() && !active {

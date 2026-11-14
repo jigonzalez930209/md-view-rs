@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
 use eframe::egui;
-use mdview_model::{Document, Encoding};
+use mdview_model::{Document, Encoding, Eol};
 
 use crate::app::MdViewApp;
 use crate::conflict::{ConflictAction, DiskState, classify_disk};
@@ -38,6 +38,18 @@ impl MdViewApp {
         if let Some(index) = self.tabs.find_path(&path) {
             self.tabs.set_active(index);
             log::info!("file focus existing path={}", path.display());
+            return Ok(());
+        }
+        if mdview_media::is_image_path(&path) {
+            let mut document = Document::from_loaded(path.clone(), String::new(), Eol::Lf, Encoding::Utf8, false);
+            document.mark_saved();
+            log::info!(
+                "image open path={} kind={} elapsed_ms={:.3}",
+                path.display(),
+                mdview_media::image_kind_for_path(&path).label(),
+                started.elapsed().as_secs_f64() * 1000.0
+            );
+            self.open_document(document, file_ops::modified(&path));
             return Ok(());
         }
         let length = std::fs::metadata(&path)?.len();
@@ -116,6 +128,10 @@ impl MdViewApp {
 
     /// Ask for a path or save directly, then optionally close the window.
     pub(crate) fn request_save(&mut self, close_after: bool) {
+        if self.tabs.active().is_image() {
+            log::debug!("image document save ignored");
+            return;
+        }
         let Some(path) = self.tabs.editor().document().path().map(PathBuf::from) else {
             self.ask_save_as(close_after);
             return;
@@ -125,6 +141,10 @@ impl MdViewApp {
 
     /// Save the active tab to a concrete path.
     pub(crate) fn save_to(&mut self, path: &Path, close_after: bool, ctx: Option<&egui::Context>) {
+        if self.tabs.active().is_image() {
+            log::debug!("image document save ignored");
+            return;
+        }
         let started = std::time::Instant::now();
         let bytes = self.tabs.editor().document().len_bytes();
         match file_ops::save(self.tabs.editor().document(), path) {
@@ -315,6 +335,14 @@ impl MdViewApp {
                     tab.missing = false;
                 }
             }
+        }
+        if self.tabs.tabs().get(index).is_some_and(|tab| tab.is_image()) {
+            if let Some(tab) = self.tabs.tab_mut(index) {
+                tab.disk_mtime = mtime;
+            }
+            self.media.clear_cache();
+            ctx.request_repaint();
+            return;
         }
         if let Ok(document) = file_ops::load(&path) {
             log::info!("reloaded externally changed clean file: {}", path.display());

@@ -184,7 +184,7 @@ pub fn show_activity_bar(ui: &mut Ui, state: ActivityState<'_>, icons: &mut Mate
     let t = |source: &str| state.translations.t(state.lang, source);
     let mut command = None;
     let rect = ui.max_rect();
-    ui.painter().rect_filled(rect, 0.0, ui.visuals().panel_fill);
+    ui.painter().rect_filled(rect, 0.0, ui.visuals().window_fill);
 
     let top = Rect::from_min_max(rect.min, egui::pos2(rect.right(), rect.top() + 112.0));
     ui.scope_builder(
@@ -349,7 +349,7 @@ fn window_button(
 }
 
 fn activity_button(ui: &mut Ui, icons: &mut MaterialIcons, icon: &str, tooltip: String, active: bool) -> bool {
-    let (rect, response) = ui.allocate_exact_size(Vec2::new(36.0, 36.0), Sense::click());
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(38.0, 38.0), Sense::click());
     if active {
         ui.painter().rect_filled(
             egui::Rect::from_min_size(egui::pos2(rect.left() - 6.0, rect.top() + 7.0), Vec2::new(2.0, 22.0)),
@@ -369,10 +369,10 @@ fn activity_button(ui: &mut Ui, icons: &mut MaterialIcons, icon: &str, tooltip: 
         } else {
             ui.visuals().weak_text_color()
         };
-        let icon_rect = Rect::from_center_size(rect.center(), Vec2::splat(20.0));
+        let icon_rect = Rect::from_center_size(rect.center(), Vec2::splat(24.0));
         ui.put(
             icon_rect,
-            Image::new(&texture).fit_to_exact_size(Vec2::splat(20.0)).tint(color),
+            Image::new(&texture).fit_to_exact_size(Vec2::splat(24.0)).tint(color),
         );
     }
     response.on_hover_text(tooltip).clicked()

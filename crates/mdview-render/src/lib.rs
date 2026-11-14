@@ -19,10 +19,9 @@ mod inline;
 mod layout;
 mod source_map;
 
-use layout::estimate_height;
+use layout::{estimate_height, hash};
 
-use std::collections::{BTreeMap, hash_map::DefaultHasher};
-use std::hash::{Hash, Hasher};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -169,6 +168,7 @@ pub struct Preview {
     source_map: SourceMap,
     anchors: BTreeMap<String, f32>,
     width: f32,
+    compact_margins: bool,
     user_scrolled: bool,
     viewport: egui::Rect,
     heights: std::collections::HashMap<usize, f32>,
@@ -189,6 +189,7 @@ impl Default for Preview {
             source_map: SourceMap::default(),
             anchors: BTreeMap::new(),
             width: 760.0,
+            compact_margins: false,
             user_scrolled: false,
             viewport: egui::Rect::NOTHING,
             heights: std::collections::HashMap::new(),
@@ -360,10 +361,18 @@ impl Preview {
 
         let area_output: ScrollAreaOutput<()> = area.show_viewport(ui, |ui, viewport| {
             ui.set_width(ui.available_width());
-            ui.add_space(8.0);
+            ui.add_space(if self.compact_margins { 2.0 } else { 8.0 });
             let available = ui.available_width();
-            let width = self.width.min(available);
-            let margin = ((available - width) * 0.5).max(4.0);
+            let width = if self.compact_margins {
+                if available > self.width {
+                    (available - 24.0).max(280.0)
+                } else {
+                    available
+                }
+            } else {
+                self.width.min(available)
+            };
+            let margin = ((available - width) * 0.5).max(if self.compact_margins { 8.0 } else { 4.0 });
             ui.horizontal_top(|ui| {
                 ui.add_space(margin);
                 ui.vertical(|ui| {
@@ -401,10 +410,11 @@ impl Preview {
                                     top,
                                     height: measured,
                                 });
-                                ui.add_space(6.0);
-                                top += measured + 6.0;
+                                ui.add_space(if self.compact_margins { 4.0 } else { 6.0 });
+                                top += measured + if self.compact_margins { 4.0 } else { 6.0 };
                             } else {
-                                ui.add_space(height + 6.0);
+                                let gap = if self.compact_margins { 4.0 } else { 6.0 };
+                                ui.add_space(height + gap);
                                 block_screens.push(BlockScreen {
                                     block_id: block.id,
                                     start_line: block.span.start_line,
@@ -412,7 +422,7 @@ impl Preview {
                                     top,
                                     height,
                                 });
-                                top += height + 6.0;
+                                top += height + gap;
                             }
                             match &block.kind {
                                 mdview_markdown::BlockKind::Heading { anchor, .. } => {
@@ -427,7 +437,7 @@ impl Preview {
                     }
                     output.anchors_screen.extend(anchor_points);
                     self.painted_blocks = painted;
-                    ui.add_space(12.0);
+                    ui.add_space(if self.compact_margins { 4.0 } else { 12.0 });
                 });
             });
         });
@@ -446,7 +456,8 @@ impl Preview {
                 height: block.height.max(1.0),
             });
         }
-        self.source_map = SourceMap::from_anchors(mapped, content_height + 12.0);
+        self.source_map =
+            SourceMap::from_anchors(mapped, content_height + if self.compact_margins { 4.0 } else { 12.0 });
 
         let mut anchor_map = BTreeMap::new();
         for (anchor, y) in &output.anchors_screen {
@@ -478,10 +489,4 @@ impl Preview {
 
         output
     }
-}
-
-fn hash(text: &str) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    text.hash(&mut hasher);
-    hasher.finish()
 }

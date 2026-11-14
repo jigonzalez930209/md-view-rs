@@ -53,6 +53,9 @@ and a horizontal rule.
 | Raster images | `mdview-media` local and cached remote images with lightbox | `media-*` snapshots; E2E local and HTTP PNG assets |
 | SVG | `craft-svg`/`resvg` rasterization, static and supported SMIL/CSS animation | `media-*` snapshots; E2E local and HTTP animated SVG assets |
 | Mermaid | native `mermaid-rs-renderer`, no browser | `mermaid.rs` diagram corpus; flowchart and sequence in `media-*` and E2E |
+| Image documents | PNG, JPEG, GIF, WebP, BMP, TIFF, and SVG open in the fitted viewer with lightbox and SVG animation | `image_documents_open_in_the_viewer_and_never_edit`; E2E opens `logo.svg` and `photo.png` |
+| Compact reading margins | Appearance switch widens the Markdown preview and trims top/bottom spacing | `preview-compact-light` snapshot; E2E toggles `compact_margins` |
+| Workbench layout | Explorer under the menu, activity rail full height, tabs in the editor column | E2E initial/tab screenshots; `sidebar` and `tab-bar` snapshots |
 | Tables | weighted columns fill the reading width, header surface, zebra rows, separators, and clickable links inside cells | `preview-*` snapshots; E2E opens `docs/guide.md` from a table link |
 | Editor and preview sync | Rope editor, split view, block-anchor bidirectional scroll | workspace tests, split snapshots, E2E scroll stress |
 | 120 Hz scrolling | block-virtualized preview, release frame-budget gate | `cargo xtask perf`; release E2E `over_8.33ms=0` |

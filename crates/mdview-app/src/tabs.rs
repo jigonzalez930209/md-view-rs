@@ -44,11 +44,9 @@ impl DocumentTab {
     pub fn new(document: Document, disk_mtime: Option<SystemTime>) -> Self {
         static NEXT_ID: AtomicU64 = AtomicU64::new(1);
         let large = document.len_bytes() > PREVIEW_MAX_BYTES || document.line_count() > PREVIEW_MAX_LINES;
-        let mode = if !large && document.path().is_some_and(is_markdown_path) {
-            ViewMode::View
-        } else {
-            ViewMode::Edit
-        };
+        let image = document.path().is_some_and(mdview_media::is_image_path);
+        let previewable = image || (!large && document.path().is_some_and(is_markdown_path));
+        let mode = if previewable { ViewMode::View } else { ViewMode::Edit };
         let mut editor = Editor::new(document);
         editor.set_identity(NEXT_ID.fetch_add(1, Ordering::Relaxed));
         Self {
@@ -82,6 +80,11 @@ impl DocumentTab {
         self.editor.document().path().is_some_and(is_markdown_path)
     }
 
+    /// Whether the document opens as a standalone image.
+    pub fn is_image(&self) -> bool {
+        self.editor.document().path().is_some_and(mdview_media::is_image_path)
+    }
+
     /// Whether the document is in large-file mode.
     pub fn is_large(&self) -> bool {
         self.editor.status().large_mode
@@ -91,7 +94,9 @@ impl DocumentTab {
 
     /// Set the presentation, refusing preview modes for non-Markdown and large files.
     pub fn set_mode(&mut self, mode: ViewMode) {
-        self.mode = if mode.shows_preview() && (!self.is_markdown() || self.is_large()) {
+        self.mode = if self.is_image() {
+            ViewMode::View
+        } else if mode.shows_preview() && (!self.is_markdown() || self.is_large()) {
             ViewMode::Edit
         } else {
             mode

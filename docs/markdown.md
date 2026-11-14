@@ -1,4 +1,4 @@
-# Markdown support (`0.11.3`)
+# Markdown support (`0.12.0`)
 
 MD View parses Markdown with `pulldown-cmark` (CommonMark 0.31 + GFM) into a spanned AST. The
 document buffer in the editor is always the source of truth; the reading view is derived and
@@ -32,6 +32,12 @@ never edits text.
   and unsafe URL destinations are refused with an error; the reading view stays intact.
 - `javascript:`, `vbscript:`, and `data:text/html` destinations are rejected.
 - External links use the platform browser and never load inside the app.
+
+## Reading margins
+
+Appearance → **Compact reading margins** widens the reading column to the full editor pane
+(leaving a 12 px gutter) and reduces the top and bottom spacing. It is off by default, so the
+comfortable 760 px measure is unchanged unless requested.
 
 ## Modes and scroll
 

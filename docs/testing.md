@@ -14,6 +14,8 @@
 - Every title-bar menu (`File`, `Edit`, `View`, `Go`, `Help`).
 - Settings: all five tabs, every switch on and off, the numeric text-scale stepper, Done,
   close, Escape, and persisted configuration values.
+- Workbench layout: explorer under the menu bar, tabs confined to the editor column, and the
+  new tab surfaces.
 - Explorer: five nested folders expanded, a root file touched so the debounced watcher rescans
   the tree, then the fifth-level file opened; context menu, open a file, rename through the
   palette command, delete with cancel and confirmation, new-file Escape/Cancel/close/Create,
@@ -25,6 +27,9 @@
 - Rendering: inline and display LaTeX, tables with a clickable cell link, local and HTTP
   PNG/SVG, animated SVG, two Mermaid diagrams, syntax-highlighted Rust code, and task
   checkboxes.
+- Standalone image documents: open `logo.svg` and `photo.png` from Quick Open and verify the
+  image viewer and `image open` diagnostics.
+- Appearance: toggle compact reading margins on and off and verify persistence.
 - Shutdown through the custom window close button.
 - Diagnostics: log file present, event coverage, remote media sources, no panics, no media
   failures, final 120 Hz windows with zero frames over 8.33 ms, and total log size ≤ 1 MiB.

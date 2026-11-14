@@ -358,7 +358,7 @@ fn show_plain_code(ui: &mut Ui, language: Option<&str>, text: &str, math: bool, 
                     mouse_wheel: false,
                 })
                 .show(ui, |ui| {
-                    ui.add(Label::new(job).selectable(true));
+                    ui.add(Label::new(job).selectable(true).wrap_mode(egui::TextWrapMode::Extend));
                 });
         });
 }

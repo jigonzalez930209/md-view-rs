@@ -110,6 +110,8 @@ pub enum Command {
     ToggleAnimations,
     /// Toggle reduced motion.
     ToggleReduceMotion,
+    /// Reduce the margins around Markdown reading views.
+    ToggleCompactMargins,
     /// Reload the current file with another encoding.
     ReloadEncoding(Encoding),
     /// Switch the theme variant.

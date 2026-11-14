@@ -14,7 +14,7 @@ mod mermaid;
 mod svg;
 pub mod svg_anim;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use thiserror::Error;
 
@@ -24,6 +24,30 @@ pub use math::render_math;
 pub use mermaid::render_mermaid;
 pub use svg::rasterize_svg;
 pub use svg_anim::{Animation, frame_svg, parse as parse_animation};
+
+/// Image extensions that the application can open as an image document.
+pub const SUPPORTED_IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "svg"];
+
+/// Whether a path has a supported image extension and should open as an image document.
+pub fn is_image_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .map(str::to_ascii_lowercase)
+        .is_some_and(|extension| SUPPORTED_IMAGE_EXTENSIONS.contains(&extension.as_str()))
+}
+
+/// The media kind used to display an image document.
+pub fn image_kind_for_path(path: &Path) -> MediaKind {
+    if path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("svg"))
+    {
+        MediaKind::Svg
+    } else {
+        MediaKind::Image
+    }
+}
 
 /// The kind of media to produce.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -259,6 +283,17 @@ pub const MAX_SVG_DEPTH: usize = 128;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn image_paths_are_classified_by_extension() {
+        assert!(is_image_path(Path::new("photo.PNG")));
+        assert!(is_image_path(Path::new("mark.svg")));
+        assert!(is_image_path(Path::new("animation.gif")));
+        assert!(!is_image_path(Path::new("README.md")));
+        assert!(!is_image_path(Path::new("archive.png.txt")));
+        assert_eq!(image_kind_for_path(Path::new("mark.svg")), MediaKind::Svg);
+        assert_eq!(image_kind_for_path(Path::new("photo.webp")), MediaKind::Image);
+    }
 
     #[test]
     fn cache_keys_change_with_content_and_size() {
