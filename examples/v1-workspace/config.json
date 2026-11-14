@@ -1,0 +1,6 @@
+{
+  "workspace": "v1-feature-matrix",
+  "nestedLevels": 5,
+  "features": ["markdown", "latex", "images", "svg", "mermaid", "tables", "syntax"],
+  "release": "1.0.0"
+}

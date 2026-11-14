@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.11.2 — Nested folders, GitHub-style code, and the pre-1.0 workspace
+
+- Fixed the remaining nested-folder collapse: any watcher refresh of a parent directory now
+  records and re-applies every expanded descendant, not only root-level folders.
+- Added `examples/v1-workspace`, five folders nested one inside the next with alternating
+  Markdown, JSON, shell, CSV, Python, TSX, Rust, PNG, SVG, and Mermaid files, plus a full
+  render matrix in `showcase.md`.
+- Added `docs/feature-matrix.md` with per-feature implementation and automated evidence.
+- Reworked code blocks: 19 px line height, a separated header with language and copy, no
+  trailing blank line, horizontal scroll for long lines, and visible inline-code chips.
+- Increased LaTeX inline sizing and restored full-size display formulas.
+- Extended the release E2E with five-level expansion, a watcher refresh, the fifth-level file
+  open, and a robust edit/save handshake.
+
+
 ## 0.11.1 — Table, list, tree, and tab-scroll fixes
 
 - Rebuilt table rendering with measured, weighted columns that fill the reading width, header

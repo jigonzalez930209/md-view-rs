@@ -1,0 +1,7 @@
+flowchart LR
+    Workspace[Workspace tree] --> Parser[Markdown parser]
+    Parser --> Renderer[Preview renderer]
+    Renderer --> Media[Media pipeline]
+    Media --> Math[LaTeX]
+    Media --> Images[PNG and SVG]
+    Media --> Mermaid[Mermaid]

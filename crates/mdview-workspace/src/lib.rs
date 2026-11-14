@@ -210,16 +210,30 @@ impl Workspace {
     }
 
     /// Reload one loaded directory from disk.
+    ///
+    /// Rescanning replaces the child entries, so the expansions below that directory are
+    /// captured first and re-applied afterwards. Without this, any watcher event in a parent
+    /// (including the workspace root) would silently collapse folders the user had opened.
     pub fn refresh_dir(&mut self, path: &Path) {
         if path == self.root.path {
             self.reload_root();
             return;
         }
         let loaded = self.root.find(path).is_some_and(|entry| entry.children.is_some());
-        if loaded {
-            let children = self.scan_dir(path);
-            if let Some(entry) = self.root.find_mut(path) {
-                entry.children = Some(children);
+        if !loaded {
+            return;
+        }
+        let mut expanded = Vec::new();
+        if let Some(entry) = self.root.find(path) {
+            collect_expanded_dirs(entry, &mut expanded);
+        }
+        let children = self.scan_dir(path);
+        if let Some(entry) = self.root.find_mut(path) {
+            entry.children = Some(children);
+        }
+        for expanded_path in expanded {
+            if expanded_path != path {
+                self.expand(&expanded_path);
             }
         }
     }

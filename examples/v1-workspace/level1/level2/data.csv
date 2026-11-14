@@ -1,0 +1,6 @@
+level,folder,file
+1,level1,notes.md
+2,level2,guide.md
+3,level3,reference.md
+4,level4,component.tsx
+5,level5,showcase.md

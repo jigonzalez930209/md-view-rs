@@ -1,4 +1,4 @@
-# Markdown support (`0.4.0`)
+# Markdown support (`0.11.2`)
 
 MD View parses Markdown with `pulldown-cmark` (CommonMark 0.31 + GFM) into a spanned AST. The
 document buffer in the editor is always the source of truth; the reading view is derived and
@@ -11,15 +11,15 @@ never edits text.
 | Headings | Levels 1–6, GitHub-style anchors, explicit `{#id}`, duplicate suffixes |
 | Emphasis / strong / strikethrough | Inline styling in the reading view |
 | Links | External (`http`, `https`, `mailto`) in the system browser; anchor and workspace links in the app |
-| Images | Placeholder with alt text and source until the media milestone; images never block reading |
+| Images | Local and cached remote PNG/JPEG/GIF/WebP, static and animated SVG render inline with a zoomable lightbox; failures show an inline diagnostic |
 | Lists | Ordered, unordered, nested, and GFM task lists |
 | Block quotes | Ordinary quotes and GFM alerts (`NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`) |
-| Tables | GFM tables with left, center, and right alignment and zebra rows |
-| Code | Fenced and indented blocks, language label, syntax highlighting, copy button |
+| Tables | GFM tables with left, center, and right alignment, weighted columns that fill the reading width, header surface, zebra rows, and separators |
+| Code | Fenced and indented blocks, language label, syntax highlighting, copy button, 19 px line height, horizontal scrolling for long lines, and visible inline-code chips |
 | Thematic breaks | Rendered as separators |
 | Footnotes | Definition blocks and inline references with backlinks |
 | Front matter | YAML/TOML-style front matter is parsed and hidden from the view |
-| Math | `$…$`, `$$…$$`, and ```` ```math ```` are parsed and shown as TeX placeholders until the media milestone |
+| Math | `$…$`, `$$…$$`, and ```` ```math ```` are laid out with RaTeX; inline formulas stay near the text size and display formulas render at full size |
 | Inline HTML | Safe subset: `br`, `sub`, `sup`, `kbd`, `mark`; `script`, `style`, `iframe`, `object`, and `embed` contents are suppressed |
 
 ## Links
@@ -52,11 +52,15 @@ and dark modes. Regenerate deliberately with:
 UPDATE_SNAPSHOTS=1 cargo test -p mdview-render
 ```
 
-## Known limits in `0.6.0`
+## Known limits
 
-- Tables are horizontally compact rather than scrollable; wide-table polish arrives with the
-  theme and layout milestone.
+- Links inside table cells are painted but not yet clickable; open them from the source or the
+  paragraph form. Table cells still render inline code, emphasis, and alignment.
 - Split mode reparses the document when its revision changes and repaints the visible frame;
   per-block incremental layout is not yet cached.
 - Media security and caching details are in [`media.md`](media.md).
 - Cross-platform manual checks are deferred to the `1.0.0` release gate.
+
+The runnable acceptance document for every feature above is
+`examples/v1-workspace/level1/level2/level3/level4/level5/showcase.md`; see
+[`feature-matrix.md`](feature-matrix.md).

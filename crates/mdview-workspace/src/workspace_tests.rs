@@ -26,6 +26,71 @@ fn refreshing_the_root_preserves_expansion() {
 }
 
 #[test]
+fn refreshing_a_parent_keeps_nested_expansion() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    fs::create_dir_all(dir.path().join("level1/level2/level3")).expect("dirs");
+    fs::write(dir.path().join("level1/level2/level3/deep.md"), "# deep\n").expect("file");
+    let mut workspace = Workspace::open(dir.path()).expect("open");
+    let level1 = dir.path().join("level1");
+    let level2 = level1.join("level2");
+    let level3 = level2.join("level3");
+    workspace.expand(&level1);
+    workspace.expand(&level2);
+    workspace.expand(&level3);
+
+    // A watcher event for the workspace root or for level1 itself must not collapse
+    // level2/level3. This is the regression reported against nested project folders.
+    workspace.refresh_dir(dir.path());
+    workspace.refresh_dir(&level1);
+    workspace.refresh_dir(&level1);
+    std::thread::sleep(Duration::from_millis(550));
+    workspace.refresh_dir(dir.path());
+
+    for path in [&level1, &level2, &level3] {
+        let entry = workspace
+            .root_entry()
+            .find(path)
+            .unwrap_or_else(|| panic!("missing {}", path.display()));
+        assert!(entry.expanded, "{} collapsed", path.display());
+        assert!(entry.children.is_some(), "{} lost its children", path.display());
+    }
+}
+
+#[test]
+fn v1_feature_workspace_has_five_nested_levels() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../examples/v1-workspace")
+        .canonicalize()
+        .expect("canonical fixture path");
+    assert!(root.is_dir(), "missing {}", root.display());
+    let mut workspace = Workspace::open(&root).expect("open fixture");
+    let mut current = root;
+    for level in 1..=5 {
+        current = current.join(format!("level{level}"));
+        workspace.expand(&current);
+        let entry = workspace
+            .root_entry()
+            .find(&current)
+            .unwrap_or_else(|| panic!("missing {}", current.display()));
+        assert!(entry.expanded);
+        assert!(entry.children.as_ref().is_some_and(|children| !children.is_empty()));
+    }
+    let showcase = fs::read_to_string(current.join("showcase.md")).expect("showcase");
+    for marker in [
+        "```rust",
+        "```mermaid",
+        "$$",
+        "image.png",
+        "mark.svg",
+        "| Feature |",
+        "- [x]",
+        "[^v1]",
+    ] {
+        assert!(showcase.contains(marker), "showcase is missing {marker:?}");
+    }
+}
+
+#[test]
 fn lazy_tree_filters_and_expands() {
     let dir = tempfile::tempdir().expect("temp dir");
     fs::create_dir(dir.path().join("src")).expect("src");

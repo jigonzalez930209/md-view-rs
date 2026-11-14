@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # Run on macOS with the release binary already built for both architectures.
-VERSION="${VERSION:-0.11.1}"
+VERSION="${VERSION:-0.11.2}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 APP="$ROOT/dist/MD View.app"
 rm -rf "$APP"

@@ -1,4 +1,4 @@
-# Rich content (`0.6.0`)
+# Rich content (`0.11.2`)
 
 MD View renders images, static SVG, LaTeX math, and Mermaid diagrams without a webview or
 JavaScript runtime. Media never edits the document; the source buffer remains authoritative.
@@ -41,7 +41,7 @@ JavaScript runtime. Media never edits the document; the source buffer remains au
 ## Mermaid
 
 - Fenced ```` ```mermaid ```` blocks render with `mermaid-rs-renderer` 0.3.1 and `resvg`.
-- Supported in `0.6.0`: flowchart/graph, sequence, class, state, ER, pie, gantt, journey, timeline,
+- Supported: flowchart/graph, sequence, class, state, ER, pie, gantt, journey, timeline,
   mindmap, gitGraph, quadrant, xychart, requirement, sankey, packet, radar, C4, block,
   architecture, kanban, treemap, and zenUML as provided by the renderer.
 - The release-blocking Tier A set is exercised by a 20-diagram test.

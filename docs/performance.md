@@ -16,9 +16,9 @@ Latest result on the Linux development machine:
 
 ```text
 120Hz frame budget (120 frames):
-editor  p50=0.457 ms p95=0.571 ms
-preview p50=2.851 ms p95=3.408 ms
-combined p50=3.331 ms p95=3.882 ms max=4.602 ms
+editor  p50=0.245 ms p95=0.333 ms
+preview p50=1.391 ms p95=1.772 ms
+combined p50=1.624 ms p95=2.057 ms max=2.583 ms
 ```
 
 The release test asserts `combined p95 <= 8.33 ms`. Debug builds use a relaxed assertion so the
@@ -71,20 +71,21 @@ under the 8.33 ms budget.
 - Bidirectional E2E screenshots are kept outside the repository during manual verification; the
   committed snapshots remain the reproducible references.
 
-## Release E2E interaction run (0.11.0)
+## Release E2E interaction run (0.11.2)
 
-`MDVIEW_E2E_PROFILE=release cargo xtask e2e` exercises menus, settings, prompts, file
-operations, tabs, editing, find/goto, split scrolling, local/remote media, LaTeX, tables,
-and Mermaid in one run (7,920 frames). Steady-state windows after the render pass:
+`MDVIEW_E2E_PROFILE=release cargo xtask e2e` exercises menus, settings, prompts, five-level
+folder expansion through a watcher refresh, file operations, tabs, editing, find/goto, split
+scrolling, local/remote media, LaTeX, code blocks, tables, and Mermaid in one run (9,000
+frames). Steady-state windows after the render pass:
 
 ```text
-frames=7440 p50=0.232ms p95=0.369ms max=0.441ms over_8.33ms=0
-frames=7560 p50=0.317ms p95=0.419ms max=0.564ms over_8.33ms=0
-frames=7680 p50=0.278ms p95=0.398ms max=0.683ms over_8.33ms=0
-frames=7800 p50=0.239ms p95=0.361ms max=0.448ms over_8.33ms=0
-frames=7920 p50=0.451ms p95=0.691ms max=0.949ms over_8.33ms=0
+frames=8520 p50=0.341ms p95=0.570ms max=0.717ms over_8.33ms=0
+frames=8640 p50=0.271ms p95=0.433ms max=0.573ms over_8.33ms=0
+frames=8760 p50=0.309ms p95=0.481ms max=0.673ms over_8.33ms=0
+frames=8880 p50=0.335ms p95=0.493ms max=0.584ms over_8.33ms=0
+frames=9000 p50=0.292ms p95=0.459ms max=0.537ms over_8.33ms=0
 ```
 
-Three transition windows contain one over-budget frame each out of 7,920: cold start
-(50 ms), the first large media upload (103 ms), and the first split-mode layout after switching
-(9.6 ms). There are no over-budget frames in steady-state scrolling, editing, or rendering.
+Transition frames can still exceed 8.33 ms during cold start, the first large media upload,
+and the first split-mode layout. There are no over-budget frames in steady-state scrolling,
+editing, or rendering.

@@ -210,13 +210,17 @@ fn show_segment(
         text = text.strikethrough();
     }
     if segment.monospace {
-        text = text.monospace().background_color(theme.sunken).color(theme.text);
+        text = text
+            .monospace()
+            .size(12.0)
+            .background_color(theme.table_header)
+            .color(theme.text);
     }
     if segment.mark {
         text = text.background_color(theme.selection);
     }
     if segment.keyboard {
-        text = text.monospace().background_color(theme.sunken).size(12.0);
+        text = text.monospace().background_color(theme.table_header).size(12.0);
     }
     if segment.subscript {
         text = text.size(11.0);
@@ -318,8 +322,10 @@ fn show_image(
                 .stroke(egui::Stroke::new(1.0, theme.danger))
                 .inner_margin(6.0)
                 .show(ui, |ui| {
-                    ui.label(RichText::new(&alt).italics().color(theme.text_muted));
-                    ui.label(RichText::new(error).small().color(theme.danger));
+                    ui.vertical(|ui| {
+                        ui.label(RichText::new(&alt).italics().color(theme.text_muted));
+                        ui.label(RichText::new(error).small().color(theme.danger));
+                    });
                 });
         }
     }
@@ -339,14 +345,16 @@ fn show_math(ui: &mut Ui, segment: &Segment, theme: &Theme, media: Option<&mut M
         ui.label(RichText::new(&segment.text).italics().color(theme.accent));
         return;
     };
-    let max_width = ui.available_width().clamp(32.0, 480.0);
+    let max_width = ui.available_width().clamp(32.0, 720.0);
     match media_context.load(ui.ctx(), MediaKind::Math, &segment.text, max_width, theme.is_dark()) {
         MediaState::Loading => {
             ui.spinner();
         }
         MediaState::Ready(texture) => {
             let points = texture.size_vec2() / ui.ctx().pixels_per_point().max(1.0);
-            let max_height = if segment.display_math { 40.0 } else { 22.0 };
+            // RaTeX lays formulas out at 40 px. Inline formulas must stay close to the
+            // surrounding 13 px text, while display formulas keep their full size.
+            let max_height = if segment.display_math { 120.0 } else { 38.0 };
             let scale = (max_width / points.x).min(max_height / points.y).min(1.0);
             ui.add(egui::Image::new(&texture).fit_to_exact_size(points * scale));
         }

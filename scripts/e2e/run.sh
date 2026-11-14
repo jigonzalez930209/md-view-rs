@@ -199,7 +199,11 @@ for index in 1 2 3 4; do
   printf '# Extra %s\n\nAnother document for tab scrolling.\n' "$index" > "$WS/extra$index.md"
 done
 printf 'fn main() {}\n' > "$WS/src/main.rs"
+mkdir -p "$WS/deep/nested/three/four/five"
 printf '# Leaf\n' > "$WS/deep/nested/leaf.md"
+printf '# Level three\n' > "$WS/deep/nested/three/three.md"
+printf '# Level four\n' > "$WS/deep/nested/three/four/four.md"
+printf '# Level five\n' > "$WS/deep/nested/three/four/five/final.md"
 cp "$ROOT/crates/mdview-render/tests/snapshots/theme-github-light.png" "$WS/assets/photo.png"
 cp "$ROOT/crates/mdview-render/tests/snapshots/theme-github-light.png" "$WEB/photo.png"
 cat > "$WS/assets/logo.svg" <<'EOF'
@@ -302,6 +306,22 @@ click 756 576
 expect_cfg private_networks true
 shot "07b-after-settings"
 
+echo "== explorer: five nested folders survive refreshes =="
+# deep is the second root row (assets, deep, docs, ...). Expanding each level must survive
+# the debounced watcher refresh triggered by a change in the workspace root.
+expand_folder deep 120 137
+expand_folder deep/nested 120 161
+expand_folder deep/nested/three 120 185
+expand_folder deep/nested/three/four 120 209
+expand_folder deep/nested/three/four/five 120 233
+touch "$WS/README.md"
+sleep 1.4
+shot "08a-nested-folders"
+click 200 257
+wait_title "final.md"
+click 120 137
+sleep 0.5
+
 echo "== explorer: expand, context menu, rename, delete, create =="
 expand_folder notes 120 187
 shot "08-explorer-expanded"
@@ -392,10 +412,18 @@ wait_title "showcase.md"
 
 echo "== editor, find, replace, goto, save =="
 key ctrl+e
+sleep 0.8
 click 640 400
+sleep 0.5
 type_text "E2E "
+sleep 1.0
 key ctrl+s
-sleep 0.7
+sleep 0.8
+if ! grep -q "E2E" "$WS/showcase.md"; then
+  # Debug builds can still be highlighting the first editor frame when Ctrl+S arrives.
+  key ctrl+s
+  sleep 0.8
+fi
 grep -q "E2E" "$WS/showcase.md" || fail "Ctrl+S did not save the edit"
 key ctrl+f
 type_text "E2E"

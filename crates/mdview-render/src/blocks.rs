@@ -275,18 +275,19 @@ fn show_media_block(
 
 fn show_plain_code(ui: &mut Ui, language: Option<&str>, text: &str, math: bool, ctx: &mut BlockCtx<'_>) {
     egui::Frame::new()
-        .fill(ctx.theme.sunken)
+        .fill(ctx.theme.code_background)
         .stroke(egui::Stroke::new(1.0, ctx.theme.border))
-        .corner_radius(4.0)
-        .inner_margin(8.0)
+        .corner_radius(6.0)
+        .inner_margin(egui::Margin::symmetric(10, 6))
         .show(ui, |ui| {
+            ui.spacing_mut().item_spacing.y = 0.0;
             ui.horizontal(|ui| {
                 let label = if math {
                     "Math".to_owned()
                 } else {
                     language.unwrap_or("Code").to_owned()
                 };
-                ui.label(RichText::new(label).small().color(ctx.theme.text_muted).monospace());
+                ui.label(RichText::new(label).size(11.0).color(ctx.theme.text_muted).monospace());
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if ui.small_button("Copy").on_hover_text("Copy code").clicked() {
                         ui.ctx().copy_text(text.to_owned());
@@ -294,7 +295,9 @@ fn show_plain_code(ui: &mut Ui, language: Option<&str>, text: &str, math: bool, 
                     }
                 });
             });
+            ui.separator();
             if math {
+                ui.add_space(4.0);
                 ui.label(
                     RichText::new(text.trim_end())
                         .monospace()
@@ -304,11 +307,14 @@ fn show_plain_code(ui: &mut Ui, language: Option<&str>, text: &str, math: bool, 
                 );
                 return;
             }
+            ui.add_space(4.0);
             let path = language_path(language);
             let highlighted = ctx.highlighter.highlight(text, path.as_deref(), ctx.light);
             let mut job = egui::text::LayoutJob::default();
-            job.wrap.max_width = ui.available_width();
-            for line in &highlighted.lines {
+            // Code lines keep their indentation and scroll horizontally, like GitHub and
+            // desktop editors, instead of soft-wrapping in the middle of a token.
+            job.wrap.max_width = f32::INFINITY;
+            for (index, line) in highlighted.lines.iter().enumerate() {
                 for span in line {
                     let color = span
                         .color
@@ -325,21 +331,35 @@ fn show_plain_code(ui: &mut Ui, language: Option<&str>, text: &str, math: bool, 
                         TextFormat {
                             font_id: FontId::monospace(13.0),
                             color,
+                            line_height: Some(19.0),
                             ..Default::default()
                         },
                     );
                 }
-                job.append(
-                    "\n",
-                    0.0,
-                    TextFormat {
-                        font_id: FontId::monospace(13.0),
-                        color: ctx.theme.text,
-                        ..Default::default()
-                    },
-                );
+                if index + 1 < highlighted.lines.len() {
+                    job.append(
+                        "\n",
+                        0.0,
+                        TextFormat {
+                            font_id: FontId::monospace(13.0),
+                            color: ctx.theme.text,
+                            line_height: Some(19.0),
+                            ..Default::default()
+                        },
+                    );
+                }
             }
-            ui.add(Label::new(job).selectable(true));
+            egui::ScrollArea::horizontal()
+                .id_salt((language, text.len(), text.as_ptr()))
+                .auto_shrink([false, true])
+                .scroll_source(egui::scroll_area::ScrollSource {
+                    scroll_bar: true,
+                    drag: egui::scroll_area::DragScroll::Always,
+                    mouse_wheel: false,
+                })
+                .show(ui, |ui| {
+                    ui.add(Label::new(job).selectable(true));
+                });
         });
 }
 

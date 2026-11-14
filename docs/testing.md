@@ -14,14 +14,16 @@
 - Every title-bar menu (`File`, `Edit`, `View`, `Go`, `Help`).
 - Settings: all five tabs, every switch on and off, the numeric text-scale stepper, Done,
   close, Escape, and persisted configuration values.
-- Explorer: expand, context menu, open a file, rename through the palette command, delete with
-  cancel and confirmation, new-file Escape/Cancel/close/Create, new folder, collapse all, refresh.
+- Explorer: five nested folders expanded, a root file touched so the debounced watcher rescans
+  the tree, then the fifth-level file opened; context menu, open a file, rename through the
+  palette command, delete with cancel and confirmation, new-file Escape/Cancel/close/Create,
+  new folder, collapse all, refresh.
 - Quick Open across indexed workspace files, command palette filtering and activation.
 - Tabs: select, close, close other tabs, new tab, overflow menu.
 - Editor: edit and save, find, replace bar, go-to-line with the up/down arrows.
 - Split mode and 120 wheel events across both panes.
-- Rendering: LaTeX, tables, local and HTTP PNG/SVG, animated SVG, two Mermaid diagrams,
-  code blocks, and task checkboxes.
+- Rendering: inline and display LaTeX, tables, local and HTTP PNG/SVG, animated SVG, two
+  Mermaid diagrams, syntax-highlighted Rust code, and task checkboxes.
 - Shutdown through the custom window close button.
 - Diagnostics: log file present, event coverage, remote media sources, no panics, no media
   failures, final 120 Hz windows with zero frames over 8.33 ms, and total log size ≤ 1 MiB.
@@ -37,7 +39,9 @@ MDVIEW_E2E_PROFILE=release cargo xtask e2e
 ```
 
 The release profile is the authoritative interaction/performance run. It also proves that the
-release binary packages the same behavior.
+release binary packages the same behavior. The `examples/v1-workspace` fixture is the manual
+counterpart and is also asserted by `cargo test -p mdview-workspace --lib`; see
+[`docs/feature-matrix.md`](feature-matrix.md).
 
 ## Snapshots and unit tests
 
