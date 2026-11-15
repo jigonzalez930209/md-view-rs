@@ -12,3 +12,6 @@
 
 # local packaging output
 /dist
+
+# Python bytecode from the E2E driver
+__pycache__/

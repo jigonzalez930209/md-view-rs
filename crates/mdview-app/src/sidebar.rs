@@ -8,13 +8,15 @@ use std::path::PathBuf;
 
 use eframe::egui;
 use mdview_i18n::Translations;
-use mdview_ui::{ConfirmPrompt, MaterialIcons, NamePrompt, PromptAction, compact_menu};
+use mdview_ui::{ConfirmPrompt, MaterialIcons, NamePrompt, PromptAction, compact_menu, menu_item};
 use mdview_workspace::{Entry, Workspace};
 
 use crate::workspace_ops;
 
 #[path = "sidebar_dialogs.rs"]
 mod sidebar_dialogs;
+#[path = "sidebar_keyboard.rs"]
+mod sidebar_keyboard;
 
 /// Something the application must react to.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -150,6 +152,7 @@ impl Sidebar {
             ui.add_space(2.0);
         }
 
+        let focus_id = ui.scope_id().with("tree_focus");
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             ui.add_space(2.0);
             let root = workspace.root_entry().clone();
@@ -158,6 +161,7 @@ impl Sidebar {
                     actions: &mut actions,
                     icons,
                     light,
+                    focus_id,
                 };
                 for child in children {
                     self.entry(ui, child, 0, &mut ctx, &t);
@@ -165,6 +169,9 @@ impl Sidebar {
             }
             ui.add_space(12.0);
         });
+        if ui.memory(|memory| memory.has_focus(focus_id)) {
+            self.keyboard_navigation(ui, workspace, focus_id, &mut actions);
+        }
 
         if !actions.is_empty() {
             ui.ctx().request_repaint();
@@ -298,30 +305,35 @@ impl Sidebar {
                 egui::Sense::click(),
             )
             .on_hover_cursor(egui::CursorIcon::Default);
+        if response.clicked() {
+            self.selected = Some(entry.path.clone());
+            ui.memory_mut(|memory| memory.request_focus(ctx.focus_id));
+        }
         if entry.is_dir {
             if response.clicked() {
-                self.selected = Some(entry.path.clone());
                 ctx.actions.push(Action::Toggle(entry.path.clone()));
             }
             response.context_menu(|ui| {
                 compact_menu(ui);
-                if ui.button(t("New file")).clicked() {
+                ui.set_min_width(196.0);
+                if menu_item(ui, ctx.icons, "file-plus", &t("New file"), None, false) {
                     ctx.actions.push(Action::NewFile(entry.path.clone()));
                     ui.close();
                 }
-                if ui.button(t("New folder")).clicked() {
+                if menu_item(ui, ctx.icons, "folder-plus", &t("New folder"), None, false) {
                     ctx.actions.push(Action::NewFolder(entry.path.clone()));
                     ui.close();
                 }
-                if ui.button(t("Reveal")).clicked() {
+                if menu_item(ui, ctx.icons, "eye", &t("Reveal"), None, false) {
                     ctx.actions.push(Action::Reveal(entry.path.clone()));
                     ui.close();
                 }
-                if ui.button(t("Rename…")).clicked() {
+                ui.separator();
+                if menu_item(ui, ctx.icons, "edit", &t("Rename…"), Some("F2"), false) {
                     ctx.actions.push(Action::Rename(entry.path.clone()));
                     ui.close();
                 }
-                if ui.button(t("Delete…")).clicked() {
+                if menu_item(ui, ctx.icons, "close", &t("Delete…"), None, true) {
                     ctx.actions.push(Action::Delete(entry.path.clone()));
                     ui.close();
                 }
@@ -333,25 +345,27 @@ impl Sidebar {
                     self.entry(ui, child, depth + 1, ctx, t);
                 }
             }
-        } else {
-            if response.clicked() {
-                ctx.actions.push(Action::Open(entry.path.clone()));
-            }
+        } else if response.clicked() {
+            ctx.actions.push(Action::Open(entry.path.clone()));
+        }
+        if !entry.is_dir {
             response.context_menu(|ui| {
                 compact_menu(ui);
-                if ui.button(t("Open")).clicked() {
+                ui.set_min_width(196.0);
+                if menu_item(ui, ctx.icons, "eye", &t("Open"), Some("Enter"), false) {
                     ctx.actions.push(Action::Open(entry.path.clone()));
                     ui.close();
                 }
-                if ui.button(t("Reveal")).clicked() {
+                if menu_item(ui, ctx.icons, "history", &t("Reveal"), None, false) {
                     ctx.actions.push(Action::Reveal(entry.path.clone()));
                     ui.close();
                 }
-                if ui.button(t("Rename…")).clicked() {
+                ui.separator();
+                if menu_item(ui, ctx.icons, "edit", &t("Rename…"), Some("F2"), false) {
                     ctx.actions.push(Action::Rename(entry.path.clone()));
                     ui.close();
                 }
-                if ui.button(t("Delete…")).clicked() {
+                if menu_item(ui, ctx.icons, "close", &t("Delete…"), None, true) {
                     ctx.actions.push(Action::Delete(entry.path.clone()));
                     ui.close();
                 }
@@ -374,12 +388,13 @@ fn draw_glyph(ui: &mut egui::Ui, icons: &mut MaterialIcons, icon: &str, size: f3
 
 fn icon_button(ui: &mut egui::Ui, icons: &mut MaterialIcons, icon: &str, tooltip: &str) -> bool {
     let (rect, response) = ui.allocate_exact_size(egui::vec2(21.0, 21.0), egui::Sense::click());
-    if response.hovered() {
-        ui.painter().rect_filled(
-            rect,
-            egui::CornerRadius::same(4),
-            ui.visuals().widgets.hovered.weak_bg_fill,
-        );
+    if response.is_pointer_button_down_on() || response.hovered() {
+        let fill = if response.is_pointer_button_down_on() {
+            ui.visuals().widgets.active.weak_bg_fill
+        } else {
+            ui.visuals().widgets.hovered.weak_bg_fill
+        };
+        ui.painter().rect_filled(rect, egui::CornerRadius::same(4), fill);
     }
     if let Some(texture) = icons.ui_texture(ui.ctx(), icon) {
         ui.painter().image(
@@ -396,6 +411,7 @@ struct TreeCtx<'a> {
     actions: &'a mut Vec<Action>,
     icons: &'a mut MaterialIcons,
     light: bool,
+    focus_id: egui::Id,
 }
 
 enum Action {
@@ -428,8 +444,7 @@ mod tests {
         assert!(sidebar.should_show(true));
     }
 
-    #[test]
-    fn sidebar_snapshot() {
+    fn sidebar_snapshot_with(name: &str, pixels_per_point: f32) {
         let temp = tempfile::tempdir().expect("temp dir");
         let dir = temp.path().join("project");
         std::fs::create_dir(&dir).expect("project");
@@ -448,10 +463,21 @@ mod tests {
         let lang = translations.lang(LanguagePreference::English);
         let mut harness = Harness::builder()
             .with_size(egui::vec2(260.0, 380.0))
+            .with_pixels_per_point(pixels_per_point)
             .build_ui(move |ui| {
                 sidebar.show(ui, &mut workspace, &translations, lang, &mut icons, true);
             });
         harness.run();
-        harness.snapshot("sidebar");
+        harness.snapshot(name);
+    }
+
+    #[test]
+    fn sidebar_snapshot() {
+        sidebar_snapshot_with("sidebar", 1.0);
+    }
+
+    #[test]
+    fn sidebar_2x_snapshot() {
+        sidebar_snapshot_with("sidebar-2x", 2.0);
     }
 }

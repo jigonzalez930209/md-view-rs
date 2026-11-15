@@ -73,6 +73,10 @@ pub(super) fn edit_menu(ui: &mut Ui, t: &dyn Fn(&str) -> String, command: &mut O
         *command = Some(Command::Find);
         ui.close();
     }
+    if ui.button(t("Search in Workspace…")).clicked() {
+        *command = Some(Command::SearchWorkspace);
+        ui.close();
+    }
     if ui.button(t("Replace")).clicked() {
         *command = Some(Command::Replace);
         ui.close();
@@ -97,7 +101,11 @@ pub(super) fn view_menu(
     crate::compact_menu(ui);
     ui.set_min_width(230.0);
     for mode in [ViewMode::Edit, ViewMode::View, ViewMode::Split] {
-        let enabled = state.is_markdown || mode == ViewMode::Edit;
+        let enabled = match mode {
+            ViewMode::Edit => state.can_edit,
+            ViewMode::View => state.can_view,
+            ViewMode::Split => state.can_split,
+        };
         let clicked = ui
             .add_enabled_ui(enabled, |ui| {
                 ui.selectable_label(state.mode == mode, t(mode.label())).clicked()
@@ -141,6 +149,15 @@ pub(super) fn view_menu(
 pub(super) fn go_menu(ui: &mut Ui, t: &dyn Fn(&str) -> String, command: &mut Option<Command>) {
     crate::compact_menu(ui);
     ui.set_min_width(200.0);
+    if ui.button(t("Back")).clicked() {
+        *command = Some(Command::Back);
+        ui.close();
+    }
+    if ui.button(t("Forward")).clicked() {
+        *command = Some(Command::Forward);
+        ui.close();
+    }
+    ui.separator();
     if ui.button(t("Quick Open…")).clicked() {
         *command = Some(Command::QuickOpen);
         ui.close();

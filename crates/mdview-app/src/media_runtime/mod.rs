@@ -7,13 +7,16 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use eframe::egui;
-use mdview_media::{MediaRequest, Raster, render_svg_frame};
+use mdview_media::{MediaRequest, render_svg_frame};
 
-#[path = "media_policy.rs"]
+mod animation;
+mod cache;
 mod media_policy;
+mod types;
 use mdview_render::{AnimationStatus, MediaProvider, MediaState};
 pub use media_policy::MediaPolicy;
 use media_policy::media_source;
+use types::{AnimationInfo, Completed, CompletedMedia, Job, JobMode, Playback, TextureEntry};
 
 /// The main-thread media service: worker channel plus texture cache.
 pub struct MediaRuntime {
@@ -31,54 +34,6 @@ pub struct MediaRuntime {
     playbacks: HashMap<String, Playback>,
     playing: bool,
     reduced_motion: bool,
-}
-
-struct Job {
-    key: String,
-    request: MediaRequest,
-    generation: u64,
-    mode: JobMode,
-}
-
-enum JobMode {
-    Load,
-    Frame { source: String, time: f32 },
-}
-
-struct Completed {
-    key: String,
-    request: MediaRequest,
-    result: Result<CompletedMedia, String>,
-    generation: u64,
-    is_frame: bool,
-}
-
-struct CompletedMedia {
-    raster: Raster,
-    animation: Option<AnimationInfo>,
-    source: Option<String>,
-}
-
-struct AnimationInfo {
-    duration: f32,
-    unsupported: bool,
-}
-
-struct Playback {
-    request: MediaRequest,
-    source: String,
-    duration: f32,
-    unsupported: bool,
-    frame_time: f32,
-    last_tick: Instant,
-    visible: bool,
-    frame_pending: bool,
-    failed: bool,
-}
-
-struct TextureEntry {
-    texture: egui::TextureHandle,
-    bytes: usize,
 }
 
 impl MediaRuntime {
@@ -261,83 +216,6 @@ impl MediaRuntime {
             ctx.request_repaint_after(Duration::from_millis(40));
         }
     }
-
-    fn mark_frame_failed(&mut self, key: &str) {
-        if let Some(playback) = self.playbacks.get_mut(key) {
-            playback.frame_pending = false;
-            playback.failed = true;
-        }
-    }
-
-    fn tick_animations(&mut self, ctx: &egui::Context) {
-        if !self.playing || self.reduced_motion {
-            return;
-        }
-        let now = Instant::now();
-        let Some(sender) = self.sender.clone() else {
-            return;
-        };
-        let mut active = false;
-        for (key, playback) in &mut self.playbacks {
-            if playback.unsupported || playback.failed || !playback.visible || playback.frame_pending {
-                continue;
-            }
-            let elapsed = now.duration_since(playback.last_tick);
-            if elapsed < Duration::from_millis(33) {
-                continue;
-            }
-            playback.frame_time = (playback.frame_time + elapsed.as_secs_f32()) % playback.duration;
-            playback.last_tick = now;
-            playback.frame_pending = true;
-            active = true;
-            let _ = sender.send(Job {
-                key: key.clone(),
-                request: playback.request.clone(),
-                generation: self.generation,
-                mode: JobMode::Frame {
-                    source: playback.source.clone(),
-                    time: playback.frame_time,
-                },
-            });
-        }
-        if active || self.playbacks.values().any(|playback| playback.visible) {
-            ctx.request_repaint_after(Duration::from_millis(16));
-        }
-    }
-
-    /// Cached texture bytes.
-    #[cfg(test)]
-    pub fn cached_bytes(&self) -> usize {
-        self.bytes
-    }
-
-    fn insert_texture(&mut self, key: String, texture: egui::TextureHandle, bytes: usize) {
-        if let Some(previous) = self.textures.remove(&key) {
-            self.bytes = self.bytes.saturating_sub(previous.bytes);
-        }
-        self.order.retain(|entry| entry != &key);
-        self.bytes += bytes;
-        self.textures.insert(key.clone(), TextureEntry { texture, bytes });
-        self.order.push_back(key);
-        while self.bytes > self.budget {
-            let Some(oldest) = self.order.pop_front() else {
-                break;
-            };
-            if let Some(entry) = self.textures.remove(&oldest) {
-                self.bytes = self.bytes.saturating_sub(entry.bytes);
-                self.playbacks.remove(&oldest);
-            }
-        }
-    }
-
-    fn cached(&mut self, key: &str) -> Option<&egui::TextureHandle> {
-        if !self.textures.contains_key(key) {
-            return None;
-        }
-        self.order.retain(|entry| entry != key);
-        self.order.push_back(key.to_owned());
-        self.textures.get(key).map(|entry| &entry.texture)
-    }
 }
 
 impl MediaProvider for MediaRuntime {
@@ -421,15 +299,21 @@ mod tests {
         let mut request = MediaRequest::new(mdview_media::MediaKind::Image, "pixel.png");
         request.base = Some(directory.path().to_path_buf());
         assert!(matches!(runtime.resolve(&ctx, &request), MediaState::Loading));
-        for _ in 0..600 {
-            runtime.poll(&ctx);
-            if runtime.cached_bytes() > 0 {
-                break;
+        wait_until(&ctx, &mut runtime, |runtime| runtime.cached_bytes() > 0);
+        assert!(runtime.cached_bytes() > 0);
+        assert!(matches!(runtime.resolve(&ctx, &request), MediaState::Ready(_)));
+    }
+
+    fn wait_until(ctx: &egui::Context, runtime: &mut MediaRuntime, predicate: impl Fn(&mut MediaRuntime) -> bool) {
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while Instant::now() < deadline {
+            runtime.poll(ctx);
+            if predicate(runtime) {
+                return;
             }
             std::thread::sleep(Duration::from_millis(10));
         }
-        assert!(runtime.cached_bytes() > 0);
-        assert!(matches!(runtime.resolve(&ctx, &request), MediaState::Ready(_)));
+        panic!("media worker did not finish before the deadline");
     }
 
     #[test]
@@ -445,13 +329,9 @@ mod tests {
         let mut request = MediaRequest::new(mdview_media::MediaKind::Image, "pulse.svg");
         request.base = Some(directory.path().to_path_buf());
         assert!(matches!(runtime.resolve(&ctx, &request), MediaState::Loading));
-        for _ in 0..1200 {
-            runtime.poll(&ctx);
-            if runtime.animation_status(&request.cache_key()) != AnimationStatus::None {
-                break;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        }
+        wait_until(&ctx, &mut runtime, |runtime| {
+            runtime.animation_status(&request.cache_key()) != AnimationStatus::None
+        });
         let key = request.cache_key();
         runtime.mark_visible(&key, true);
         assert_eq!(runtime.animation_status(&key), AnimationStatus::Playing);

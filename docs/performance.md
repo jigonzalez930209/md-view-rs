@@ -16,9 +16,9 @@ Latest result on the Linux development machine:
 
 ```text
 120Hz frame budget (120 frames):
-editor  p50=0.242 ms p95=0.363 ms
-preview p50=1.412 ms p95=1.895 ms
-combined p50=1.620 ms p95=2.238 ms max=3.037 ms
+editor  p50=0.242 ms p95=0.288 ms
+preview p50=1.365 ms p95=1.669 ms
+combined p50=1.609 ms p95=1.925 ms max=2.229 ms
 ```
 
 The release test asserts `combined p95 <= 8.33 ms`. Debug builds use a relaxed assertion so the
@@ -71,20 +71,20 @@ under the 8.33 ms budget.
 - Bidirectional E2E screenshots are kept outside the repository during manual verification; the
   committed snapshots remain the reproducible references.
 
-## Release E2E interaction run (0.13.0)
+## Release E2E interaction run (0.14.0)
 
 `MDVIEW_E2E_PROFILE=release cargo xtask e2e` exercises menus, settings, prompts, five-level
 folder expansion through a watcher refresh, file operations, tabs, editing, find/goto, split
 scrolling, local/remote media, standalone image documents, LaTeX, code blocks, a clickable
-table link, tables, Mermaid, the Reading settings, and standalone viewer plugins in one run
-(9,360 frames). Steady-state windows after the render pass:
+table link, tables, Mermaid, the Reading settings, search/history, segmented modes, image
+zoom/pan/lightbox, conflict recovery, and language/theme switching in one run (13,680 frames).
+Steady-state windows after the theme change:
 
 ```text
-frames=8880 p50=0.332ms p95=0.536ms max=3.844ms over_8.33ms=0
-frames=9000 p50=0.336ms p95=0.554ms max=1.310ms over_8.33ms=0
-frames=9120 p50=0.348ms p95=0.720ms max=1.126ms over_8.33ms=0
-frames=9240 p50=0.310ms p95=0.461ms max=0.860ms over_8.33ms=0
-frames=9360 p50=0.397ms p95=0.746ms max=1.470ms over_8.33ms=0
+frames=13320 p50=0.331ms p95=0.523ms max=0.672ms over_8.33ms=0
+frames=13440 p50=0.357ms p95=0.610ms max=0.814ms over_8.33ms=0
+frames=13560 p50=0.325ms p95=0.478ms max=0.693ms over_8.33ms=0
+frames=13680 p50=0.350ms p95=0.551ms max=1.108ms over_8.33ms=0
 ```
 
 Transition frames can still exceed 8.33 ms during cold start, the first large media upload,

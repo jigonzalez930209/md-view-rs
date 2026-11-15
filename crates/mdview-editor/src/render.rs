@@ -21,10 +21,10 @@ impl Editor {
         self.ensure_layout();
         self.ensure_language();
         self.ensure_brackets();
-        self.show_find_bar(ui);
 
-        let font = FontId::monospace(13.0);
-        let row_height = ui.ctx().fonts_mut(|fonts| fonts.row_height(&font));
+        let font = FontId::monospace(self.style.font_size);
+        let natural_row_height = ui.ctx().fonts_mut(|fonts| fonts.row_height(&font));
+        let row_height = natural_row_height.max(self.style.font_size * self.style.line_height);
         let char_width = ui.ctx().fonts_mut(|fonts| fonts.glyph_width(&font, ' '));
         let digits = self.document.line_count().to_string().len().max(3);
         let gutter = if self.line_numbers {
@@ -46,7 +46,15 @@ impl Editor {
         } else {
             (gutter + max_width as f32 * char_width + 40.0).max(available)
         };
-        let content_height = (total_rows as f32 * row_height + 10.0).max(available_height);
+        // Keep the content height independent of transient scrollbar allocation. The old
+        // `.max(available_height)` made the maximum offset oscillate when the horizontal
+        // scrollbar appeared, which looked like flicker at the end of the document.
+        let overscroll = if self.style.scroll_beyond_last_line {
+            (available_height - row_height).max(0.0)
+        } else {
+            0.0
+        };
+        let content_height = total_rows as f32 * row_height + 10.0 + overscroll;
 
         let mut response = None;
         let mut geometry = None;
@@ -66,18 +74,20 @@ impl Editor {
             area = area.vertical_scroll_offset((row as f32 + fraction) * row_height);
             programmatic = true;
         }
+        if std::mem::take(&mut self.pending_end) {
+            area = area.vertical_scroll_offset((content_height - available_height).max(0.0));
+            programmatic = true;
+        }
         let output = area.show_viewport(ui, |ui, viewport| {
             let (painted, painter) =
                 ui.allocate_painter(Vec2::new(content_width, content_height), Sense::click_and_drag());
             let origin = painted.rect.min;
             let start_row = (viewport.min.y / row_height).floor().max(0.0) as usize;
-            let end_row = ((viewport.max.y / row_height).ceil() as usize + 1).min(total_rows);
+            let end_row = ((viewport.max.y / row_height).ceil() as usize)
+                .saturating_add(1)
+                .min(total_rows);
 
             painter.rect_filled(painted.rect, 0.0, ui.visuals().extreme_bg_color);
-            if gutter > 0.0 {
-                let gutter_rect = Rect::from_min_max(origin, Pos2::new(origin.x + gutter, origin.y + content_height));
-                painter.rect_filled(gutter_rect, 0.0, ui.visuals().faint_bg_color);
-            }
 
             let mut row = 0usize;
             let mut line = 0usize;
@@ -122,44 +132,53 @@ impl Editor {
                     if line == cursor_line {
                         painter.rect_filled(
                             Rect::from_min_max(
-                                Pos2::new(origin.x + gutter, y),
+                                Pos2::new(origin.x, y),
                                 Pos2::new(origin.x + content_width, y + row_height),
                             ),
                             0.0,
-                            ui.visuals().faint_bg_color,
+                            ui.visuals().selection.bg_fill.gamma_multiply(0.18),
                         );
                     }
-                    self.paint_brackets(
-                        &painter, row_rect, line, line_start, segment, columns, gutter, char_width, origin,
-                    );
-                    self.paint_selection(
-                        &painter,
+                    let paint_row = crate::paint::RowPaint {
+                        painter: &painter,
                         row_rect,
                         line,
                         line_start,
                         segment,
                         columns,
+                        gutter,
+                        char_width,
+                        origin,
+                        y,
+                        row_height,
+                    };
+                    if self.style.indent_guides {
+                        self.paint_indent_guides(&paint_row);
+                    }
+                    self.paint_brackets(&paint_row);
+                    self.paint_selection(
+                        &paint_row,
                         selection_start,
                         selection_end,
                         selection_start_line,
                         selection_end_line,
-                        gutter,
-                        char_width,
-                        origin,
                     );
                     if self.find.open {
-                        self.paint_matches(
-                            &painter, row_rect, line, line_start, segment, columns, gutter, char_width, origin,
-                        );
+                        self.paint_matches(&paint_row);
                     }
                     if segment == 0 && gutter > 0.0 {
                         let number = (line + 1).to_string();
+                        let color = if line == cursor_line {
+                            ui.visuals().text_color()
+                        } else {
+                            ui.visuals().weak_text_color()
+                        };
                         painter.text(
                             Pos2::new(origin.x + gutter - 8.0, y),
                             Align2::RIGHT_TOP,
                             number,
                             font.clone(),
-                            ui.visuals().weak_text_color(),
+                            color,
                         );
                     }
 
@@ -169,6 +188,9 @@ impl Editor {
                         Pos2::new(origin.x + content_width, y + row_height),
                     );
                     let row_painter = painter.with_clip_rect(clip);
+                    if self.style.whitespace != crate::WhitespaceMode::None {
+                        self.paint_whitespace(&paint_row, &text, selection_start, selection_end, ui.visuals());
+                    }
                     let segment_shift = segment as f32 * columns as f32 * char_width;
                     let mut x = origin.x + gutter + 8.0 - segment_shift;
                     let spans = self
@@ -254,12 +276,14 @@ impl Editor {
             self.user_scrolled = true;
         }
         self.scroll_y = new_scroll;
+        self.last_max_offset = (content_height - output.inner_rect.height()).max(0.0);
         self.last_row_height = row_height;
         self.last_columns = columns;
         self.viewport_rect = output.inner_rect;
         self.programmatic_scroll = false;
 
         let response = response.unwrap_or_else(|| ui.allocate_exact_size(Vec2::ZERO, Sense::hover()).1);
+        self.show_find_overlay(ui, self.viewport_rect);
         let geometry = geometry.unwrap_or(Geometry {
             content_rect: response.rect,
             row_height,
@@ -268,140 +292,6 @@ impl Editor {
             columns,
         });
         (response, geometry)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn paint_brackets(
-        &self,
-        painter: &egui::Painter,
-        row_rect: Rect,
-        line: usize,
-        line_start: usize,
-        segment: usize,
-        columns: usize,
-        gutter: f32,
-        char_width: f32,
-        origin: Pos2,
-    ) {
-        let Some((first, second)) = self.bracket_match else {
-            return;
-        };
-        let text = self.document.line(line);
-        let line_end = line_start + text.chars().count();
-        for index in [first, second] {
-            if index < line_start || index >= line_end {
-                continue;
-            }
-            let column = index - line_start;
-            let display = display_col(&text, column);
-            let segment_start = segment * columns;
-            let segment_end = if columns > 0 {
-                segment_start + columns
-            } else {
-                usize::MAX
-            };
-            if display < segment_start || display >= segment_end {
-                continue;
-            }
-            let x = origin.x + gutter + 8.0 + display as f32 * char_width;
-            painter.rect_filled(
-                Rect::from_min_max(Pos2::new(x, row_rect.min.y), Pos2::new(x + char_width, row_rect.max.y)),
-                2.0,
-                Color32::from_rgba_unmultiplied(110, 170, 255, 60),
-            );
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn paint_selection(
-        &self,
-        painter: &egui::Painter,
-        row_rect: Rect,
-        line: usize,
-        line_start: usize,
-        segment: usize,
-        columns: usize,
-        selection_start: usize,
-        selection_end: usize,
-        selection_start_line: usize,
-        selection_end_line: usize,
-        gutter: f32,
-        char_width: f32,
-        origin: Pos2,
-    ) {
-        if selection_start == selection_end || line < selection_start_line || line > selection_end_line {
-            return;
-        }
-        let text = self.document.line(line);
-        let start_col = selection_start.saturating_sub(line_start).min(text.chars().count());
-        let end_col = selection_end.saturating_sub(line_start).min(text.chars().count());
-        if start_col == end_col {
-            return;
-        }
-        let segment_start = segment * columns;
-        let segment_end = if columns > 0 {
-            segment_start + columns
-        } else {
-            usize::MAX
-        };
-        let start = display_col(&text, start_col).max(segment_start);
-        let end = display_col(&text, end_col).min(segment_end);
-        if start >= end {
-            return;
-        }
-        let x = origin.x + gutter + 8.0 + start as f32 * char_width;
-        let width = (end - start) as f32 * char_width;
-        painter.rect_filled(
-            Rect::from_min_max(Pos2::new(x, row_rect.min.y), Pos2::new(x + width, row_rect.max.y)),
-            0.0,
-            self.selection_color(painter),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn paint_matches(
-        &self,
-        painter: &egui::Painter,
-        row_rect: Rect,
-        line: usize,
-        line_start: usize,
-        segment: usize,
-        columns: usize,
-        gutter: f32,
-        char_width: f32,
-        origin: Pos2,
-    ) {
-        let text = self.document.line(line);
-        let line_end = line_start + text.chars().count();
-        for (start, end) in &self.find.matches {
-            if *end <= line_start || *start >= line_end {
-                continue;
-            }
-            let start_col = start.saturating_sub(line_start).min(text.chars().count());
-            let end_col = end.saturating_sub(line_start).min(text.chars().count());
-            let segment_start = segment * columns;
-            let segment_end = if columns > 0 {
-                segment_start + columns
-            } else {
-                usize::MAX
-            };
-            let start = display_col(&text, start_col).max(segment_start);
-            let end = display_col(&text, end_col).min(segment_end);
-            if start >= end {
-                continue;
-            }
-            let x = origin.x + gutter + 8.0 + start as f32 * char_width;
-            let width = (end - start) as f32 * char_width;
-            painter.rect_filled(
-                Rect::from_min_max(Pos2::new(x, row_rect.min.y), Pos2::new(x + width, row_rect.max.y)),
-                0.0,
-                Color32::from_rgba_unmultiplied(245, 196, 70, 70),
-            );
-        }
-    }
-
-    fn selection_color(&self, painter: &egui::Painter) -> Color32 {
-        painter.ctx().global_style().visuals.selection.bg_fill
     }
 
     fn total_rows(&self, columns: usize) -> usize {

@@ -12,7 +12,7 @@ WEB="$TMP/web"
 CONFIG="$TMP/config"
 LOGS="$TMP/logs"
 SHOTS="$ROOT/target/e2e"
-DISPLAY=:97
+DISPLAY=${MDVIEW_E2E_DISPLAY:-:97}
 PORT=8899
 APP_PID=""
 SERVER_PID=""
@@ -247,9 +247,11 @@ for _ in $(seq 1 40); do
 done
 
 echo "== display =="
-Xvfb "$DISPLAY" -screen 0 1280x900x24 >"$TMP/xvfb.log" 2>&1 &
-XVFB_PID=$!
-sleep 0.7
+if ! xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
+  Xvfb "$DISPLAY" -screen 0 1280x900x24 >"$TMP/xvfb.log" 2>&1 &
+  XVFB_PID=$!
+  sleep 0.7
+fi
 
 echo "== launch =="
 env -u WAYLAND_DISPLAY XDG_SESSION_TYPE=x11 DISPLAY="$DISPLAY" USER=mdview_e2e \
@@ -302,6 +304,14 @@ toggle_to line_numbers false 767 296
 toggle_to line_numbers true 767 296
 toggle_to sync_scroll false 767 349
 toggle_to sync_scroll true 767 349
+toggle_to scroll_beyond_last_line false 767 506
+toggle_to scroll_beyond_last_line true 767 506
+click 771 398
+sleep 0.4
+expect_cfg font_size 13.5
+click 771 412
+sleep 0.4
+expect_cfg font_size 13.0
 click 240 280
 shot "05-settings-explorer"
 toggle_to show_hidden true 767 242
@@ -385,30 +395,30 @@ done
 [[ ! -f "$WS/notes/two.md" ]] || fail "delete did not remove two.md"
 shot "09-deleted"
 
-click 202 48
+click 158 48
 key Escape
 [[ ! -f "$WS/untitled.md" ]] || fail "escape created untitled.md"
-click 202 48
+click 158 48
 click 572 436
 [[ ! -f "$WS/untitled.md" ]] || fail "cancel created untitled.md"
-click 202 48
+click 158 48
 click 679 292
 [[ ! -f "$WS/untitled.md" ]] || fail "close created untitled.md"
-click 202 48
+click 158 48
 key ctrl+a
 type_text "e2e-created.md"
 key Return
 wait_file "$WS/e2e-created.md"
 wait_title "e2e-created.md"
-click 226 48
+click 185 48
 key ctrl+a
 type_text "e2e-folder"
 key Return
 wait_file "$WS/e2e-folder"
 shot "10-created"
-click 274 48
+click 240 48
 shot "11-collapsed"
-click 250 48
+click 213 48
 
 echo "== palette, tabs, quick open =="
 key ctrl+shift+p
@@ -419,22 +429,25 @@ key ctrl+p
 type_text "showcase"
 key Enter
 wait_title "showcase.md"
-click 903 50
+click 926 50
 shot "13-tab-menu"
-click 750 117
+key Escape
+key ctrl+shift+p
+type_text "Close Other Tabs"
+key Enter
+sleep 0.5
 [[ "$(title)" == "showcase.md" ]] || fail "close other tabs changed active title"
-click 875 50
-wait_title "Untitled"
-key ctrl+w
-wait_title "showcase.md"
 
 echo "== editor, find, replace, goto, save =="
-key ctrl+e
+key ctrl+shift+p
+type_text "Edit mode"
+key Enter
 sleep 0.8
 click 640 400
 sleep 0.5
 type_text "E2E "
 sleep 1.0
+shot "14a-editor-typed"
 key ctrl+s
 sleep 0.8
 if ! grep -q "E2E" "$WS/showcase.md"; then
@@ -469,10 +482,10 @@ key ctrl+e
 wait_title "showcase.md"
 
 echo "== render pass =="
-for _ in $(seq 1 40); do x wheelup 640 400 2; done
-sleep 1
+x wheelup 640 400 200
+sleep 1.5
 shot "20-render-top"
-click 350 438
+click 306 359
 wait_title "guide.md"
 key ctrl+p
 type_text "logo.svg"
@@ -518,8 +531,156 @@ import sys
 raise SystemExit(0 if abs(float(sys.argv[1]) - 320.0) <= 1.0 else 1)
 PY
 
+echo "== search, history, and segmented modes =="
+key ctrl+shift+f
+sleep 0.5
+type_text "Pixel"
+sleep 1.5
+log_has "workspace search query=Pixel"
+log_has "workspace search hits="
+shot "26-search-workspace"
+key Enter
+wait_title "README.md"
+key alt+Left
+wait_title "showcase.md"
+click 802 16
+sleep 0.5
+log_has "command Search"
+shot "27-search-document"
+key Escape
+key ctrl+f
+sleep 0.4
+key ctrl+a
+type_text "Table"
+sleep 0.8
+shot "28-find-overlay"
+key Escape
+
+key ctrl+shift+e
+sleep 0.6
+click 756 51
+sleep 0.5
+click 810 51
+sleep 0.5
+click 864 51
+sleep 0.5
+log_has "command SetMode\(View\)"
+log_has "command SetMode\(Edit\)"
+log_has "command SetMode\(Split\)"
+
+echo "== image viewer, zoom, pan, and lightbox =="
+key ctrl+p
+type_text "logo.svg"
+key Enter
+wait_title "logo.svg"
+shot "20b-image-svg"
+x drag 490 360 560 410
+sleep 0.5
+log_has "image pan="
+x wheel 490 360 3
+sleep 0.5
+log_has "image zoom"
+click 490 360
+sleep 0.8
+log_has "lightbox open"
+shot "29-lightbox"
+key Escape
+sleep 0.4
+# Disabled segmented segments: an image cannot enter the editor or split mode.
+before_modes=$(grep -c 'command SetMode' "$LOGS/mdview.log" || true)
+click 810 51
+click 864 51
+sleep 0.4
+after_modes=$(grep -c 'command SetMode' "$LOGS/mdview.log" || true)
+[[ "$before_modes" == "$after_modes" ]] || fail "image document accepted Edit/Split mode"
+key ctrl+p
+type_text "showcase"
+key Enter
+wait_title "showcase.md"
+
+echo "== split end stability =="
+key ctrl+shift+e
+sleep 0.6
+x wheel 700 400 300
+sleep 2
+log_has "preview scroll end"
+log_has "editor scroll end"
+shot "30-split-end"
+python3 - "$LOGS/mdview.log" <<'PY' || fail "scroll end diagnostics invalid"
+import re
+import sys
+text = open(sys.argv[1], encoding="utf-8").read()
+editors = [tuple(map(float, m)) for m in re.findall(r"editor scroll end offset=([0-9.]+) max=([0-9.]+)", text)]
+previews = [tuple(map(float, m)) for m in re.findall(r"preview scroll end offset=([0-9.]+) max=([0-9.]+) last_bottom=([0-9.]+) content=([0-9.]+)", text)]
+if len(editors) < 3:
+    raise SystemExit(f"only {len(editors)} editor end diagnostics")
+if len({round(offset, 1) for offset, _ in editors[-3:]}) != 1:
+    raise SystemExit(f"editor end offsets are unstable: {editors[-3:]}")
+if len(previews) < 1:
+    raise SystemExit("no preview end diagnostic")
+offset, maximum, bottom, content = previews[-1]
+if offset < maximum - 2:
+    raise SystemExit(f"preview stopped at {offset} of {maximum}")
+if bottom > content + 1:
+    raise SystemExit(f"last block {bottom} exceeds content {content}")
+PY
+
+echo "== external conflict and reload =="
+key ctrl+shift+p
+type_text "Edit mode"
+key Enter
+sleep 0.5
+click 640 400
+type_text "CONFLICT "
+printf '\nExternal change\n' >> "$WS/showcase.md"
+sleep 2
+log_has "disk conflict for dirty file"
+shot "31-conflict"
+key alt+r
+sleep 2
+log_has "reloaded externally changed clean file"
+
+echo "== Spanish, pseudo-locale, and dark theme =="
+click 850 16
+sleep 0.5
+click 240 185
+click 700 350
+click 700 435
+sleep 0.6
+shot "32-settings-spanish"
+key Escape
+sleep 0.3
+key ctrl+shift+p
+type_text "Pseudo"
+key Enter
+sleep 0.5
+click 850 16
+sleep 0.4
+shot "33-settings-pseudo"
+key Escape
+sleep 0.3
+key ctrl+shift+p
+type_text "Follow"
+key Enter
+sleep 0.4
+click 850 16
+sleep 0.4
+click 700 242
+click 700 301
+sleep 0.6
+click 756 576
+sleep 0.8
+expect_cfg theme github-dark
+key Escape
+sleep 0.3
+click 756 51
+sleep 0.6
+shot "34-dark-render"
+key Escape
+sleep 4
+
 echo "== shutdown =="
-click 958 16
+click 950 16
 for _ in $(seq 1 140); do
   kill -0 "$APP_PID" 2>/dev/null || break
   sleep 0.1

@@ -124,7 +124,7 @@ pub fn numeric_stepper(
             );
         }
         if let Some(texture) = icons.ui_texture(ui.ctx(), icon) {
-            let icon_rect = egui::Rect::from_center_size(response.rect.center(), egui::vec2(11.0, 11.0));
+            let icon_rect = egui::Rect::from_center_size(response.rect.center(), egui::vec2(14.0, 14.0));
             ui.painter().image(
                 texture.id(),
                 icon_rect,
@@ -148,4 +148,57 @@ pub fn compact_menu(ui: &mut Ui) {
         .text_styles
         .insert(egui::TextStyle::Button, egui::FontId::proportional(12.0));
     ui.style_mut().spacing.menu_margin = Margin::same(4);
+}
+
+/// A compact context-menu row with an icon, label, optional shortcut, and danger styling.
+pub fn menu_item(
+    ui: &mut Ui,
+    icons: &mut MaterialIcons,
+    icon: &str,
+    label: &str,
+    shortcut: Option<&str>,
+    danger: bool,
+) -> bool {
+    let height = 22.0;
+    let width = ui.available_width().max(180.0);
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::click());
+    if response.hovered() {
+        ui.painter().rect_filled(
+            rect,
+            egui::CornerRadius::same(4),
+            ui.visuals().widgets.hovered.weak_bg_fill,
+        );
+    }
+    let color = if danger {
+        ui.visuals().error_fg_color
+    } else {
+        ui.visuals().text_color()
+    };
+    if let Some(texture) = icons.ui_texture(ui.ctx(), icon) {
+        let icon_rect =
+            egui::Rect::from_center_size(egui::pos2(rect.left() + 13.0, rect.center().y), egui::vec2(14.0, 14.0));
+        ui.painter().image(
+            texture.id(),
+            icon_rect,
+            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+            color,
+        );
+    }
+    ui.painter().text(
+        egui::pos2(rect.left() + 25.0, rect.center().y),
+        egui::Align2::LEFT_CENTER,
+        label,
+        egui::FontId::proportional(12.0),
+        color,
+    );
+    if let Some(shortcut) = shortcut {
+        ui.painter().text(
+            egui::pos2(rect.right() - 6.0, rect.center().y),
+            egui::Align2::RIGHT_CENTER,
+            shortcut,
+            egui::FontId::proportional(10.5),
+            ui.visuals().weak_text_color(),
+        );
+    }
+    response.on_hover_cursor(egui::CursorIcon::PointingHand).clicked()
 }

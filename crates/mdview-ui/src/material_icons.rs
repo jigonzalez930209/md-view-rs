@@ -83,7 +83,7 @@ impl Default for Manifest {
 /// Material icon resolver and texture cache.
 pub struct MaterialIcons {
     manifest: Manifest,
-    textures: HashMap<(String, bool), TextureHandle>,
+    textures: HashMap<(String, bool, u32), TextureHandle>,
     ui_textures: HashMap<String, TextureHandle>,
 }
 
@@ -186,23 +186,36 @@ impl MaterialIcons {
         Assets::get(&path).map(|file| file.data.into_owned())
     }
 
-    /// Load or create the texture for an icon id.
-    pub fn texture(&mut self, ctx: &Context, id: &str, light: bool) -> Option<TextureHandle> {
-        let key = (id.to_owned(), light);
+    /// Load or create the texture for an icon id at a specific display size.
+    pub fn texture_sized(&mut self, ctx: &Context, id: &str, light: bool, size_points: f32) -> Option<TextureHandle> {
+        // Rasterize at the device pixel ratio so folder glyphs keep their inner detail.
+        let pixels = (size_points * ctx.pixels_per_point().max(1.0))
+            .round()
+            .clamp(16.0, 64.0) as u32;
+        let key = (id.to_owned(), light, pixels);
         if let Some(texture) = self.textures.get(&key) {
             return Some(texture.clone());
         }
         let bytes = self.icon_svg(id)?;
         let mut request = mdview_media::MediaRequest::new(mdview_media::MediaKind::Svg, id);
-        request.max_width = 32;
-        request.max_height = 32;
+        request.max_width = pixels;
+        request.max_height = pixels;
         request.dark = !light;
         let raster = mdview_media::rasterize_svg(&bytes, &request).ok()?;
         let image =
             egui::ColorImage::from_rgba_unmultiplied([raster.width as usize, raster.height as usize], &raster.rgba);
-        let texture = ctx.load_texture(format!("material-icon-{id}-{light}"), image, TextureOptions::LINEAR);
+        let texture = ctx.load_texture(
+            format!("material-icon-{id}-{light}-{pixels}"),
+            image,
+            TextureOptions::LINEAR,
+        );
         self.textures.insert(key, texture.clone());
         Some(texture)
+    }
+
+    /// Load or create the texture for a standard 16-point icon.
+    pub fn texture(&mut self, ctx: &Context, id: &str, light: bool) -> Option<TextureHandle> {
+        self.texture_sized(ctx, id, light, crate::ICON_MEDIUM)
     }
 
     /// Draw a monochrome UI action icon tinted with the current text color.
@@ -238,7 +251,7 @@ impl MaterialIcons {
 
     /// Draw an icon at the current cursor. Returns false when the icon has no asset.
     pub fn draw(&mut self, ui: &mut egui::Ui, id: &str, light: bool, size: f32) -> bool {
-        let Some(texture) = self.texture(ui.ctx(), id, light) else {
+        let Some(texture) = self.texture_sized(ui.ctx(), id, light, size) else {
             return false;
         };
         ui.add(egui::Image::new(&texture).fit_to_exact_size(egui::vec2(size, size)));

@@ -23,6 +23,7 @@ impl MdViewApp {
         let current = self.tabs.active().editor.document().path().map(PathBuf::from);
         match resolve_link(current.as_deref(), destination, kind) {
             LinkAction::Anchor(anchor) => {
+                self.record_navigation();
                 self.tabs.active_mut().preview.scroll_to_anchor(&anchor);
                 ctx.request_repaint();
             }

@@ -38,6 +38,22 @@ impl Editor {
         self.programmatic_scroll = true;
     }
 
+    /// Scroll to the maximum offset on the next frame.
+    pub fn scroll_to_end(&mut self) {
+        self.pending_end = true;
+        self.programmatic_scroll = true;
+    }
+
+    /// Whether the editor is at the end of its scrollable range.
+    pub fn is_at_end(&self) -> bool {
+        self.last_max_offset > 0.0 && self.scroll_y >= self.last_max_offset - 2.0
+    }
+
+    /// The largest vertical offset from the last paint.
+    pub fn max_scroll_offset(&self) -> f32 {
+        self.last_max_offset
+    }
+
     /// Whether the user scrolled this frame, consuming the flag.
     pub fn take_user_scroll(&mut self) -> bool {
         std::mem::take(&mut self.user_scrolled)

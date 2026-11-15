@@ -20,8 +20,7 @@ fn document(path: &str) -> Document {
     )
 }
 
-#[test]
-fn tab_bar_snapshot() {
+fn tab_bar_snapshot_with(name: &str, pixels_per_point: f32) {
     let translations = Translations::new();
     let lang = translations.lang(mdview_i18n::LanguagePreference::English);
     let infos = vec![
@@ -50,6 +49,7 @@ fn tab_bar_snapshot() {
     let mut icons = mdview_ui::MaterialIcons::new();
     let mut harness = Harness::builder()
         .with_size(egui::vec2(900.0, 34.0))
+        .with_pixels_per_point(pixels_per_point)
         .with_context_setup(|ctx| apply_id(ctx, ThemeId::GithubDark))
         .build_ui(move |ui| {
             show_tab_bar(
@@ -61,14 +61,25 @@ fn tab_bar_snapshot() {
                     lang,
                     icons: &mut icons,
                     light: false,
-                    sidebar_open: true,
-                    workspace_open: true,
-                    split_active: true,
+                    mode: mdview_ui::ViewMode::Split,
+                    can_view: true,
+                    can_edit: true,
+                    can_split: true,
                 },
             );
         });
     harness.run();
-    harness.snapshot("tab-bar");
+    harness.snapshot(name);
+}
+
+#[test]
+fn tab_bar_snapshot() {
+    tab_bar_snapshot_with("tab-bar", 1.0);
+}
+
+#[test]
+fn tab_bar_2x_snapshot() {
+    tab_bar_snapshot_with("tab-bar-2x", 2.0);
 }
 
 #[test]

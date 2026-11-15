@@ -49,18 +49,23 @@ and a horizontal rule.
 | Expansion survives watcher refreshes | `refresh_dir` records expanded descendants and re-applies them after rescanning | `refreshing_a_parent_keeps_nested_expansion`; E2E waits 1.4 s after `touch` and opens `final.md` |
 | Markdown/GFM | `mdview-markdown` with tables, tasks, footnotes, strikethrough, alerts, heading attributes, math | parser tests and `preview-light`/`preview-dark` snapshots |
 | Syntax-highlighted code | `mdview-syntax` (syntect/two-face), language header, copy, 19 px line height, horizontal scrolling | `media-*` and `preview-*` snapshots; E2E code block stage |
-| LaTeX | `mdview-media` RaTeX layout; inline formulas sized to the text, display formulas shown at full size | `common_formulas_render`, `one_hundred_formulas_render`; `media-light`/`media-dark` snapshots |
+| LaTeX | `mdview-media` RaTeX layout; inline and display formulas scale from the reading body size | `common_formulas_render`, `one_hundred_formulas_render`; `media-light`/`media-dark` snapshots |
 | Raster images | `mdview-media` local and cached remote images with lightbox | `media-*` snapshots; E2E local and HTTP PNG assets |
 | SVG | `craft-svg`/`resvg` rasterization, static and supported SMIL/CSS animation | `media-*` snapshots; E2E local and HTTP animated SVG assets |
 | Mermaid | native `mermaid-rs-renderer`, no browser | `mermaid.rs` diagram corpus; flowchart and sequence in `media-*` and E2E |
-| Image documents | PNG, JPEG, GIF, WebP, BMP, TIFF, and SVG open in the fitted viewer with lightbox and SVG animation | `image_documents_open_in_the_viewer_and_never_edit`; E2E opens `logo.svg` and `photo.png` |
+| Image documents | PNG, JPEG, GIF, WebP, BMP, TIFF, and SVG open in the fitted viewer with zoom, pan, fit, actual size, lightbox, and SVG animation | `image_documents_open_in_the_viewer_and_never_edit`; E2E image zoom/pan/lightbox stage |
 | Reading layout | Reading tab: Comfortable, Compact, and Full-width presets with independent body, heading, code, and table sizes | `preview-compact-light` and `preview-custom-typography` snapshots; E2E selects presets and edits body size |
 | Viewer plugins | Compile-time `ViewerPlugin`/`ViewerInstance` registry for read-only formats; image viewer built in | `image_paths_select_the_image_plugin`; E2E opens SVG/PNG documents |
 | Tab close affordance | Close button stays visible while the pointer is anywhere on the tab | tab-bar snapshot and hover interaction |
 | List alignment | Bullets, numbers, and task boxes are vertically centered on the first text line | `preview-*` snapshots |
-| Workbench layout | Explorer under the menu, activity rail full height, tabs in the editor column | E2E initial/tab screenshots; `sidebar` and `tab-bar` snapshots |
+| Workbench layout | Explorer under the menu, no activity rail, tabs in the editor column, title-bar history/search | E2E initial/search/back screenshots; `sidebar`/`tab-bar`/`header` 1×/2× snapshots |
+| View modes | View/Editor/Split segmented control; unsupported modes disabled for images and code | E2E segmented-mode stage; `tab-bar` snapshots |
+| Search | document and workspace scopes, grouped results, cancellable worker, preview highlighting | `search::tests`; E2E workspace search, activation, and back history |
+| Find overlay | floating find/replace with icon toggles, counts, and no viewport shift | E2E find overlay screenshot; editor tests |
+| Editor style | font size, line height, scroll beyond last line, indent guides, whitespace, matching gutter | `style::tests`; E2E editor settings and scroll-end tests |
+| Scroll ends | stable editor offset and sticky preview bottom with media/tables | `scroll_end.rs` tests; E2E split-end diagnostics |
 | Tables | weighted columns fill the reading width, header surface, zebra rows, separators, and clickable links inside cells | `preview-*` snapshots; E2E opens `docs/guide.md` from a table link |
-| Editor and preview sync | Rope editor, split view, block-anchor bidirectional scroll | workspace tests, split snapshots, E2E scroll stress |
+| Editor and preview sync | Rope editor, split view, block-anchor bidirectional scroll, end-aware mapping | workspace tests, split snapshots, E2E scroll stress and `scroll_end.rs` |
 | 120 Hz scrolling | block-virtualized preview, release frame-budget gate | `cargo xtask perf`; release E2E `over_8.33ms=0` |
 | Diagnostics | two rotating 512 KiB logs, 1 MiB hard cap | E2E log-size assertion and `docs/logging.md` |
 
@@ -82,5 +87,6 @@ touched, so the watcher has refreshed the tree.
 
 ## Deferred after 1.0
 
-PDF viewing, printing, plugins, AI features, hosted CI, and signed Windows/macOS artifacts
-remain outside the pre-1.0 feature gate.
+PDF viewing, printing, the public external plugin contract, AI features, and signed Windows/macOS
+artifacts remain outside the pre-1.0 feature gate. Hosted CI and the internal viewer-plugin
+registry are now part of the gate.

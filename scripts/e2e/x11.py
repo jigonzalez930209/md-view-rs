@@ -29,6 +29,14 @@ SPECIAL = {
     ";": "semicolon", "'": "apostrophe", '"': "quotedbl", "[": "bracketleft",
     "]": "bracketright", "\\": "backslash", "`": "grave",
 }
+NAMED = {
+    "left": "Left", "right": "Right", "up": "Up", "down": "Down",
+    "home": "Home", "end": "End", "pageup": "Page_Up",
+    "pagedown": "Page_Down", "delete": "Delete", "backspace": "BackSpace",
+    "insert": "Insert", "f1": "F1", "f2": "F2", "f3": "F3",
+    "f4": "F4", "f5": "F5", "f6": "F6", "f7": "F7", "f8": "F8",
+    "f9": "F9", "f10": "F10", "f11": "F11", "f12": "F12",
+}
 NEEDS_SHIFT = set('ABCDEFGHIJKLMNOPQRSTUVWXYZ_:{}"<>?~!@#$%^&*()+')
 SHIFT_MAP = {
     "_": "minus", ":": "semicolon", '"': "apostrophe", "?": "slash",
@@ -58,8 +66,7 @@ def chord(combo):
     parts = combo.lower().split("+")
     mods = [MODS[p] for p in parts[:-1]]
     key = parts[-1]
-    if key.startswith("f") and key[1:].isdigit():
-        key = key.upper()
+    key = NAMED.get(key, key)
     for mod in mods:
         press(keycode(mod), True)
     if key in ("plus", "equal"):
@@ -135,6 +142,20 @@ if __name__ == "__main__":
         XTST.XTestFakeMotionEvent(dpy, -1, x, y, 0)
         XTST.XTestFakeButtonEvent(dpy, 3, 1, 0)
         XTST.XTestFakeButtonEvent(dpy, 3, 0, 0)
+        X11.XFlush(dpy)
+        time.sleep(0.2)
+    elif command == "drag":
+        x1, y1, x2, y2 = (int(value) for value in sys.argv[2:6])
+        XTST.XTestFakeMotionEvent(dpy, -1, x1, y1, 0)
+        XTST.XTestFakeButtonEvent(dpy, 1, 1, 0)
+        X11.XFlush(dpy)
+        for step in range(1, 9):
+            xx = x1 + (x2 - x1) * step // 8
+            yy = y1 + (y2 - y1) * step // 8
+            XTST.XTestFakeMotionEvent(dpy, -1, xx, yy, 0)
+            X11.XFlush(dpy)
+            time.sleep(0.02)
+        XTST.XTestFakeButtonEvent(dpy, 1, 0, 0)
         X11.XFlush(dpy)
         time.sleep(0.2)
     elif command == "wheel":

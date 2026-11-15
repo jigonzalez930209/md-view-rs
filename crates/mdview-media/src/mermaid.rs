@@ -11,7 +11,10 @@ pub fn render_mermaid(source: &str, dark: bool, max_width: u32) -> Result<Raster
         return Err(MediaError::Empty);
     }
     let parsed = parse_mermaid(source).map_err(|error| MediaError::Mermaid(error.to_string()))?;
-    let theme = if dark { Theme::dark() } else { Theme::modern() };
+    let mut theme = if dark { Theme::dark() } else { Theme::modern() };
+    // Match the reading surface instead of the renderer's fixed grey. The exact app
+    // token is not available in this egui-free crate; these are the two base surfaces.
+    theme.background = if dark { "#1e1e1e" } else { "#ffffff" }.to_owned();
     let config = LayoutConfig::default();
     let layout = compute_layout(&parsed.graph, &theme, &config);
     let svg = render_svg(&layout, &theme, &config);

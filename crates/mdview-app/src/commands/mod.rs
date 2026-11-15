@@ -2,12 +2,13 @@
 
 use std::path::PathBuf;
 
-use craft_dialogs::{Answer, MessageResult};
-use craft_keymap::Chord;
 use eframe::egui;
 use mdview_ui::Command;
 
-use crate::app::{DialogThen, MdViewApp};
+mod dialogs;
+mod shortcuts;
+
+use crate::app::MdViewApp;
 
 impl MdViewApp {
     pub(crate) fn handle_command(&mut self, ctx: &egui::Context, command: Command) {
@@ -171,6 +172,16 @@ impl MdViewApp {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(!maximized));
             }
             Command::About => self.about_open = true,
+            Command::Back => self.navigate_history(true, ctx),
+            Command::Forward => self.navigate_history(false, ctx),
+            Command::Search => {
+                if self.search.open && self.search.scope == mdview_ui::SearchScope::Document {
+                    self.search.close();
+                } else {
+                    self.search.open(mdview_ui::SearchScope::Document);
+                }
+            }
+            Command::SearchWorkspace => self.search.open(mdview_ui::SearchScope::Workspace),
             Command::Find => {
                 self.ensure_edit_mode(ctx);
                 self.tabs.editor_mut().open_find(false);
@@ -275,6 +286,11 @@ impl MdViewApp {
                 self.prefs
                     .update(|prefs| prefs.reading.margins = margins.as_setting().to_owned());
             }
+            Command::SetEditorStyle(style) => {
+                let style = style.sanitized();
+                self.prefs.update(|prefs| prefs.editor.set_style(style));
+                self.tabs.set_style(style);
+            }
             Command::SetReadingTypography(typography) => {
                 let typography = typography.sanitized();
                 self.prefs.update(|prefs| {
@@ -321,118 +337,6 @@ impl MdViewApp {
                 });
                 self.sync_session();
             }
-        }
-    }
-
-    pub(crate) fn handle_dialog_answers(&mut self, ctx: &egui::Context) {
-        for (then, answer) in self.dialogs.take_answers() {
-            match (then, answer) {
-                (DialogThen::Open, Answer::Paths(paths)) => {
-                    for path in paths {
-                        if let Err(error) = self.open_path(&path) {
-                            self.show_error(format!("{} {error}", self.t("Could not open file.")));
-                        }
-                    }
-                    self.update_title(ctx);
-                }
-                (DialogThen::OpenFolder, Answer::Paths(paths)) => {
-                    if let Some(path) = paths.first() {
-                        self.open_workspace(path, ctx);
-                    }
-                }
-                (DialogThen::SaveAs, Answer::Paths(paths)) => {
-                    if let Some(path) = paths.first() {
-                        self.save_to(path, false, Some(ctx));
-                    }
-                }
-                (DialogThen::SaveAsClose, Answer::Paths(paths)) => {
-                    if let Some(path) = paths.first() {
-                        self.save_to(path, true, Some(ctx));
-                    }
-                }
-                (DialogThen::ReloadConflict(index), Answer::Message(MessageResult::Yes)) => {
-                    self.apply_conflict(index, crate::conflict::ConflictAction::Reload, ctx);
-                }
-                (DialogThen::KeepMineConflict(index), Answer::Message(MessageResult::Yes)) => {
-                    self.apply_conflict(index, crate::conflict::ConflictAction::KeepMine, ctx);
-                }
-                (_, Answer::Unavailable(reason)) => {
-                    self.show_error(reason);
-                }
-                _ => {}
-            }
-        }
-    }
-
-    fn consume_shortcut(&self, ctx: &egui::Context, text: &str) -> bool {
-        let Ok(chord) = Chord::parse(text) else {
-            log::warn!("invalid shortcut in application code: {text}");
-            return false;
-        };
-        ctx.input_mut(|input| input.consume_shortcut(&chord.to_egui_shortcut()))
-    }
-
-    fn ensure_edit_mode(&mut self, ctx: &egui::Context) {
-        if self.tabs.active().mode == mdview_ui::ViewMode::View {
-            self.handle_command(ctx, Command::SetMode(mdview_ui::ViewMode::Edit));
-        }
-    }
-
-    pub(crate) fn handle_shortcuts(&mut self, ctx: &egui::Context) {
-        if self.dialogs.is_open() || self.close_prompt_open {
-            return;
-        }
-        if self.consume_shortcut(ctx, "Cmd+N") {
-            self.new_document(ctx);
-        } else if self.consume_shortcut(ctx, "Cmd+Shift+O") {
-            self.ask_open_folder();
-        } else if self.consume_shortcut(ctx, "Cmd+O") {
-            self.ask_open();
-        } else if self.consume_shortcut(ctx, "Cmd+Shift+S") {
-            self.ask_save_as(false);
-        } else if self.consume_shortcut(ctx, "Cmd+S") {
-            self.request_save(false);
-        } else if self.consume_shortcut(ctx, "Cmd+W") {
-            self.close_tab(self.tabs.active_index(), ctx);
-        } else if self.consume_shortcut(ctx, "Cmd+F") {
-            self.handle_command(ctx, Command::Find);
-        } else if self.consume_shortcut(ctx, "Cmd+H") {
-            self.handle_command(ctx, Command::Replace);
-        } else if self.consume_shortcut(ctx, "Cmd+G") {
-            self.handle_command(ctx, Command::GotoLine);
-        } else if self.consume_shortcut(ctx, "Cmd+Shift+E") {
-            self.handle_command(ctx, Command::SetMode(mdview_ui::ViewMode::Split));
-        } else if self.consume_shortcut(ctx, "Cmd+E") {
-            let mode = self.tabs.active().mode;
-            let next = if mode == mdview_ui::ViewMode::Edit {
-                mdview_ui::ViewMode::View
-            } else {
-                mdview_ui::ViewMode::Edit
-            };
-            self.handle_command(ctx, Command::SetMode(next));
-        } else if self.consume_shortcut(ctx, "Cmd+Shift+P") {
-            self.handle_command(ctx, Command::CommandPalette);
-        } else if self.consume_shortcut(ctx, "Cmd+P") {
-            self.handle_command(ctx, Command::QuickOpen);
-        } else if self.consume_shortcut(ctx, "Cmd+,") {
-            self.handle_command(ctx, Command::Settings);
-        } else if self.consume_shortcut(ctx, "Cmd+=") {
-            let zoom = ctx.zoom_factor() + 0.1;
-            self.handle_command(ctx, Command::SetZoom(zoom));
-        } else if self.consume_shortcut(ctx, "Cmd+-") {
-            let zoom = ctx.zoom_factor() - 0.1;
-            self.handle_command(ctx, Command::SetZoom(zoom));
-        } else if self.consume_shortcut(ctx, "Cmd+0") {
-            self.handle_command(ctx, Command::SetZoom(1.0));
-        } else if self.consume_shortcut(ctx, "Cmd+B") {
-            self.sidebar.open = !self.sidebar.open;
-            self.sync_session();
-        } else if self.consume_shortcut(ctx, "Ctrl+Shift+Tab") {
-            self.handle_command(ctx, Command::PreviousTab);
-        } else if self.consume_shortcut(ctx, "Ctrl+Tab") {
-            self.handle_command(ctx, Command::NextTab);
-        } else if self.consume_shortcut(ctx, "Cmd+Q") {
-            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
     }
 }

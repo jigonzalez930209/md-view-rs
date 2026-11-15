@@ -2,12 +2,20 @@
 
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 /// Verify the generated artifacts against the update manifest and checksums.
 pub fn run() -> Result<(), String> {
+    let status = Command::new("cargo")
+        .args(["deny", "check"])
+        .status()
+        .map_err(|error| format!("could not run cargo deny: {error}"))?;
+    if !status.success() {
+        return Err("cargo deny check failed".to_owned());
+    }
     let version = env!("CARGO_PKG_VERSION");
     let manifest = Path::new("dist/latest.json");
     let text = fs::read_to_string(manifest)
@@ -40,7 +48,26 @@ pub fn run() -> Result<(), String> {
             checked += 1;
         }
     }
+    let lock = fs::read_to_string("Cargo.lock").map_err(|error| error.to_string())?;
+    let allowed_git = [
+        "https://github.com/storytold/craft-libs",
+        "https://github.com/storytold/egui",
+        "https://github.com/storytold/vectorcraft",
+        "https://github.com/storytold/winit",
+    ];
+    for line in lock.lines().filter(|line| line.contains("source = \"git+")) {
+        if !line.contains("?rev=") {
+            failures.push(format!("unpinned git source: {line}"));
+        }
+        if !allowed_git.iter().any(|host| line.contains(host)) {
+            failures.push(format!("unexpected git source: {line}"));
+        }
+    }
     for required in [
+        "LICENSE-MIT",
+        "LICENSE-APACHE",
+        "deny.toml",
+        ".github/workflows/ci.yml",
         "dist/SHA256SUMS",
         "dist/sbom.cdx.json",
         "packaging/linux/mdview.desktop",

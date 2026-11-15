@@ -14,22 +14,25 @@ impl MdViewApp {
         let light = self.theme == mdview_theme::ThemeMode::Light;
         let infos = self.tabs.infos(&mut self.icons, light);
         let mut action = None;
-        egui::Panel::top("tab_bar").exact_size(34.0).show(ui, |ui| {
-            action = crate::tab_bar::show_tab_bar(
-                ui,
-                &infos,
-                self.tabs.active_index(),
-                crate::tab_bar::TabBarView {
-                    translations: &self.translations,
-                    lang: self.lang,
-                    icons: &mut self.icons,
-                    light,
-                    sidebar_open: self.sidebar.should_show(self.workspace.is_some()),
-                    workspace_open: self.workspace.is_some(),
-                    split_active: self.tabs.active().mode == mdview_ui::ViewMode::Split,
-                },
-            );
-        });
+        egui::Panel::top("tab_bar")
+            .exact_size(mdview_ui::TAB_HEIGHT)
+            .show(ui, |ui| {
+                action = crate::tab_bar::show_tab_bar(
+                    ui,
+                    &infos,
+                    self.tabs.active_index(),
+                    crate::tab_bar::TabBarView {
+                        translations: &self.translations,
+                        lang: self.lang,
+                        icons: &mut self.icons,
+                        light,
+                        mode: self.tabs.active().mode,
+                        can_view: self.tabs.active().is_markdown() || self.tabs.active().is_viewer(),
+                        can_edit: !self.tabs.active().is_viewer(),
+                        can_split: self.tabs.active().is_markdown() && !self.tabs.active().is_large(),
+                    },
+                );
+            });
         match action {
             Some(TabAction::Select(index)) => {
                 self.tabs.set_active(index);
@@ -233,55 +236,41 @@ impl eframe::App for MdViewApp {
 
         let mut command = None;
         let maximized = ui.ctx().input(|input| input.viewport().maximized.unwrap_or(false));
-        egui::Panel::top("app_header").exact_size(34.0).show(ui, |ui| {
-            let document_name = self.tabs.editor().document().display_name();
-            let workspace_name = self
-                .workspace
-                .as_ref()
-                .map(|workspace| workspace.root_entry().name.clone());
-            command = mdview_ui::show_title_bar(
-                ui,
-                mdview_ui::TitleBarState {
-                    translations: &self.translations,
-                    lang: self.lang,
-                    document_name: &document_name,
-                    dirty: self.tabs.editor().document().is_dirty(),
-                    mode: self.tabs.active().mode,
-                    is_markdown: self.tabs.active().is_markdown() || self.tabs.active().viewer_name().is_some(),
-                    sidebar_open: self.sidebar.open,
-                    workspace_open: self.workspace.is_some(),
-                    workspace_name: workspace_name.as_deref(),
-                    sync_scroll: self.prefs.get().editor.sync_scroll,
-                    wrap: self.tabs.editor().status().wrap,
-                    line_numbers: self.tabs.editor().status().line_numbers,
-                    maximized,
-                },
-                &mut self.icons,
-            );
-        });
+        egui::Panel::top("app_header")
+            .exact_size(mdview_ui::TITLE_HEIGHT)
+            .show(ui, |ui| {
+                let document_name = self.tabs.editor().document().display_name();
+                let workspace_name = self
+                    .workspace
+                    .as_ref()
+                    .map(|workspace| workspace.root_entry().name.clone());
+                command = mdview_ui::show_title_bar(
+                    ui,
+                    mdview_ui::TitleBarState {
+                        translations: &self.translations,
+                        lang: self.lang,
+                        document_name: &document_name,
+                        dirty: self.tabs.editor().document().is_dirty(),
+                        mode: self.tabs.active().mode,
+                        is_markdown: self.tabs.active().is_markdown() || self.tabs.active().viewer_name().is_some(),
+                        can_view: self.tabs.active().is_markdown() || self.tabs.active().is_viewer(),
+                        can_edit: !self.tabs.active().is_viewer(),
+                        can_split: self.tabs.active().is_markdown() && !self.tabs.active().is_large(),
+                        sidebar_open: self.sidebar.open,
+                        workspace_open: self.workspace.is_some(),
+                        workspace_name: workspace_name.as_deref(),
+                        sync_scroll: self.prefs.get().editor.sync_scroll,
+                        wrap: self.tabs.editor().status().wrap,
+                        line_numbers: self.tabs.editor().status().line_numbers,
+                        maximized,
+                        can_back: self.history.can_back(),
+                        can_forward: self.history.can_forward(),
+                        search_open: self.search.open,
+                    },
+                    &mut self.icons,
+                );
+            });
         if let Some(command) = command {
-            self.handle_command(ui.ctx(), command);
-        }
-
-        let mut activity = None;
-        egui::Panel::left("activity_rail").exact_size(48.0).show(ui, |ui| {
-            activity = mdview_ui::show_activity_bar(
-                ui,
-                mdview_ui::ActivityState {
-                    translations: &self.translations,
-                    lang: self.lang,
-                    explorer_open: self.sidebar.open && self.workspace.is_some(),
-                    workspace_open: self.workspace.is_some(),
-                    active: self
-                        .sidebar
-                        .open
-                        .then_some(mdview_ui::Activity::Explorer)
-                        .filter(|_| self.workspace.is_some()),
-                },
-                &mut self.icons,
-            );
-        });
-        if let Some(command) = activity {
             self.handle_command(ui.ctx(), command);
         }
 
@@ -347,6 +336,16 @@ impl eframe::App for MdViewApp {
                             base,
                             &mut self.media,
                         ));
+                        if tab.preview.take_user_scroll() && tab.preview.is_at_end() {
+                            let metrics = tab.preview.scroll_metrics();
+                            log::debug!(
+                                "preview scroll end offset={:.1} max={:.1} last_bottom={:.1} content={:.1}",
+                                metrics.offset,
+                                metrics.max_offset,
+                                metrics.last_block_bottom,
+                                metrics.content_height
+                            );
+                        }
                     }
                     mdview_ui::ViewMode::Split => {
                         let index = self.tabs.active_index();
@@ -360,10 +359,13 @@ impl eframe::App for MdViewApp {
         }
         if let Some(output) = preview_output {
             if let Some(lightbox) = output.lightbox.clone() {
+                log::debug!("lightbox open alt={}", lightbox.alt);
                 self.lightbox = Some(crate::lightbox::LightboxState {
                     request: lightbox.request,
                     alt: lightbox.alt,
                     scale: 1.0,
+                    fit: true,
+                    pan: egui::Vec2::ZERO,
                 });
             }
             self.handle_preview_output(output, ui.ctx());
@@ -381,6 +383,7 @@ impl eframe::App for MdViewApp {
                 wrap: self.tabs.editor().status().wrap,
                 line_numbers: self.tabs.editor().status().line_numbers,
                 sync_scroll: self.prefs.get().editor.sync_scroll,
+                editor_style: self.prefs.get().editor.style(),
                 remote_images: self.prefs.get().media.remote_images,
                 private_networks: self.prefs.get().media.private_networks,
                 animate_svg: self.prefs.get().media.animate_svg,
@@ -408,6 +411,7 @@ impl eframe::App for MdViewApp {
             self.show_close_prompt(ui.ctx());
         }
         self.show_lightbox(ui.ctx());
+        self.show_search_ui(ui.ctx());
         self.show_update_dialog(ui.ctx());
         if let Some(job) = &self.pending_load {
             ui.ctx().request_repaint_after(std::time::Duration::from_millis(50));

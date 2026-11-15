@@ -1,4 +1,4 @@
-# Distribution, associations, and updates (`0.13.0`)
+# Distribution, associations, and updates (`0.14.0`)
 
 ## Local packaging pipeline
 
@@ -25,15 +25,31 @@ cargo xtask sbom           # regenerate dist/sbom.cdx.json only
 `MDVIEW_UPDATE_BASE_URL` sets the asset base URL written into `latest.json`; the default is a
 placeholder until the release host exists.
 
+## Reproducible dependency pins
+
+`Cargo.lock` is committed and release builds use `--locked`. Every `craft-*` crate uses the same
+public Git revision, and the other Git dependencies are pinned the same way:
+
+```text
+craft-libs    https://github.com/storytold/craft-libs    rev 8ebdc499a5e8f13f249178072e56ccd7b45bc5b5
+egui/eframe   https://github.com/storytold/egui          rev 6d518fc799681571963842f95b55a6b68431b15a
+vectorcraft   https://github.com/storytold/vectorcraft   rev 6b3a6b8788ebcb420d69449199cbdf323888d27e
+winit         https://github.com/storytold/winit         rev a517b3846ee8457d84ee4975110bfda6797c44dc
+```
+
+`cargo xtask release-check` runs `cargo deny check` and rejects any Git source that is not one of
+these public repositories or does not contain an explicit `?rev=`. The package staging tree ships
+both `LICENSE-MIT` and `LICENSE-APACHE`.
+
 ### Linux install
 
 ```sh
-sudo dpkg -i dist/mdview_0.13.0_amd64.deb
+sudo dpkg -i dist/mdview_0.14.0_amd64.deb
 # or
-sudo rpm -i dist/mdview-0.13.0-1.x86_64.rpm
+sudo rpm -i dist/mdview-0.14.0-1.x86_64.rpm
 # or
-chmod +x dist/MD-View-0.13.0-x86_64.AppImage
-./dist/MD-View-0.13.0-x86_64.AppImage
+chmod +x dist/MD-View-0.14.0-x86_64.AppImage
+./dist/MD-View-0.14.0-x86_64.AppImage
 ```
 
 The packages install:

@@ -97,10 +97,13 @@ impl MdViewApp {
 
         if let Some(output) = preview_output {
             if let Some(lightbox) = output.lightbox.clone() {
+                log::debug!("lightbox open alt={}", lightbox.alt);
                 self.lightbox = Some(crate::lightbox::LightboxState {
                     request: lightbox.request,
                     alt: lightbox.alt,
                     scale: 1.0,
+                    fit: true,
+                    pan: egui::Vec2::ZERO,
                 });
             }
             self.handle_preview_output(output, ui.ctx());
@@ -118,17 +121,43 @@ impl MdViewApp {
         let preview_scrolled = tab.preview.take_user_scroll();
         match choose_source(editor_scrolled, preview_scrolled, hovered) {
             Some(Pane::Editor) => {
-                let line = tab.editor.first_visible_line();
-                log::debug!(
-                    "split sync editor->preview line={line} editor_y={:.1} preview_y={:.1}",
-                    tab.editor.scroll_offset(),
-                    tab.preview.scroll_offset()
-                );
-                tab.preview.scroll_to_line(line, 0.0);
+                if tab.editor.is_at_end() {
+                    if (tab.editor.scroll_offset() - tab.editor.max_scroll_offset()).abs() <= 0.1 {
+                        log::debug!(
+                            "editor scroll end offset={:.1} max={:.1}",
+                            tab.editor.scroll_offset(),
+                            tab.editor.max_scroll_offset()
+                        );
+                    }
+                    log::debug!("split sync editor->preview end");
+                    tab.preview.scroll_to_end();
+                } else {
+                    let line = tab.editor.first_visible_line();
+                    log::debug!(
+                        "split sync editor->preview line={line} editor_y={:.1} preview_y={:.1}",
+                        tab.editor.scroll_offset(),
+                        tab.preview.scroll_offset()
+                    );
+                    tab.preview.scroll_to_line(line, 0.0);
+                }
                 ctx.request_repaint();
             }
             Some(Pane::Preview) => {
-                if let Some((line, fraction)) = tab.preview.source_map().line_at_offset(tab.preview.scroll_offset()) {
+                if tab.preview.is_at_end() {
+                    let metrics = tab.preview.scroll_metrics();
+                    log::debug!(
+                        "preview scroll end offset={:.1} max={:.1} last_bottom={:.1} content={:.1}",
+                        metrics.offset,
+                        metrics.max_offset,
+                        metrics.last_block_bottom,
+                        metrics.content_height
+                    );
+                    log::debug!("split sync preview->editor end");
+                    tab.editor.scroll_to_end();
+                    ctx.request_repaint();
+                } else if let Some((line, fraction)) =
+                    tab.preview.source_map().line_at_offset(tab.preview.scroll_offset())
+                {
                     log::debug!(
                         "split sync preview->editor line={line} fraction={fraction:.3} editor_y={:.1} preview_y={:.1}",
                         tab.editor.scroll_offset(),

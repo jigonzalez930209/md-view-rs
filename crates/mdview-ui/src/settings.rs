@@ -11,9 +11,12 @@ use crate::{Command, MaterialIcons, numeric_stepper, primary_button, secondary_b
 
 #[path = "settings_about.rs"]
 mod settings_about;
+#[path = "settings_editor.rs"]
+mod settings_editor;
 #[path = "settings_reading.rs"]
 mod settings_reading;
 use settings_about::about;
+use settings_editor::editor;
 use settings_reading::reading;
 
 /// Current values shown by the settings dialog.
@@ -37,6 +40,8 @@ pub struct SettingsView {
     pub line_numbers: bool,
     /// Split scroll synchronization.
     pub sync_scroll: bool,
+    /// Editor typography and scrolling style.
+    pub editor_style: mdview_editor::EditorStyle,
     /// Remote images.
     pub remote_images: bool,
     /// Private-network images.
@@ -130,7 +135,7 @@ pub fn show_settings(
                 );
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui
-                        .add(Button::new(RichText::new("×").size(14.0)).frame(false))
+                        .add(Button::new(RichText::new("×").size(18.0)).frame(false))
                         .on_hover_text(t("Close"))
                         .clicked()
                     {
@@ -175,7 +180,7 @@ pub fn show_settings(
                                     ui.set_width(content_width - 10.0);
                                     match tab {
                                         SettingsTab::Appearance => appearance(ui, &view, &t, &mut command, icons),
-                                        SettingsTab::Editor => editor(ui, &view, &t, &mut command),
+                                        SettingsTab::Editor => editor(ui, &view, &t, &mut command, icons),
                                         SettingsTab::Reading => reading(ui, &view, &t, &mut command, icons),
                                         SettingsTab::Files => files(ui, &view, &t, &mut command),
                                         SettingsTab::Media => media(ui, &view, &t, &mut command),
@@ -285,32 +290,6 @@ fn appearance(
     );
     if zoom_changed {
         *command = Some(Command::SetZoom(zoom));
-    }
-}
-
-fn editor(ui: &mut Ui, view: &SettingsView, t: &dyn Fn(&str) -> String, command: &mut Option<Command>) {
-    section(ui, t("Editor"), t("Editing and split-view behavior."));
-    let mut wrap = view.wrap;
-    if row_switch(ui, t("Word wrap"), t("Wrap long lines to the editor width."), &mut wrap) {
-        *command = Some(Command::ToggleWrap);
-    }
-    let mut line_numbers = view.line_numbers;
-    if row_switch(
-        ui,
-        t("Line numbers"),
-        t("Show the line-number gutter."),
-        &mut line_numbers,
-    ) {
-        *command = Some(Command::ToggleLineNumbers);
-    }
-    let mut sync = view.sync_scroll;
-    if row_switch(
-        ui,
-        t("Synchronize scrolling"),
-        t("Keep the editor and reading view on the same source line."),
-        &mut sync,
-    ) {
-        *command = Some(Command::ToggleSyncScroll);
     }
 }
 
@@ -426,12 +405,14 @@ fn tab_button(ui: &mut Ui, label: &str, selected: bool) -> bool {
         egui::Color32::TRANSPARENT
     };
     ui.painter().rect_filled(rect, egui::CornerRadius::same(5), fill);
-    if !selected {
-        ui.painter().rect_stroke(
-            rect,
-            egui::CornerRadius::same(5),
-            egui::Stroke::new(1.0, ui.visuals().widgets.inactive.bg_stroke.color),
-            egui::StrokeKind::Inside,
+    if selected {
+        ui.painter().rect_filled(
+            egui::Rect::from_min_max(
+                egui::pos2(rect.left() + 5.0, rect.bottom() - 2.0),
+                egui::pos2(rect.right() - 5.0, rect.bottom()),
+            ),
+            1.0,
+            ui.visuals().selection.stroke.color,
         );
     }
     ui.painter().text(
@@ -439,7 +420,11 @@ fn tab_button(ui: &mut Ui, label: &str, selected: bool) -> bool {
         egui::Align2::CENTER_CENTER,
         label,
         egui::FontId::proportional(12.5),
-        ui.visuals().text_color(),
+        if selected {
+            ui.visuals().selection.stroke.color
+        } else {
+            ui.visuals().text_color()
+        },
     );
     response.clicked()
 }

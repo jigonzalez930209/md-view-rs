@@ -5,17 +5,18 @@
 //! the workspace watcher or the periodic safety poll.
 
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 use eframe::egui;
 use mdview_model::{Document, Encoding, Eol};
 
 use crate::app::MdViewApp;
-use crate::conflict::{ConflictAction, DiskState, classify_disk};
+
 use crate::file_ops::{self, FileError};
 
-#[path = "document_session.rs"]
-mod document_session;
+mod conflict;
+mod session;
+mod watch;
 use crate::load_job::{LoadEvent, LoadJob};
 
 /// The comparison window state.
@@ -35,6 +36,10 @@ impl MdViewApp {
     pub(crate) fn open_path(&mut self, path: &Path) -> Result<(), FileError> {
         let started = std::time::Instant::now();
         let path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        let current = self.tabs.active().editor.document().path().map(Path::to_path_buf);
+        if current.as_deref() != Some(path.as_path()) {
+            self.record_navigation();
+        }
         if let Some(index) = self.tabs.find_path(&path) {
             self.tabs.set_active(index);
             log::info!("file focus existing path={}", path.display());
@@ -225,213 +230,5 @@ impl MdViewApp {
             }
             Err(error) => self.show_error(format!("{} {error}", self.t("Could not open file."))),
         }
-    }
-
-    /// Reload open tabs after a workspace rename or delete.
-    pub(crate) fn handle_sidebar_event(&mut self, event: &crate::sidebar::SidebarEvent, ctx: &egui::Context) {
-        match event {
-            crate::sidebar::SidebarEvent::Open(path) => {
-                if let Err(error) = self.open_path(path) {
-                    self.show_error(format!("{} {error}", self.t("Could not open file.")));
-                } else {
-                    self.update_title(ctx);
-                }
-            }
-            crate::sidebar::SidebarEvent::Renamed { from, to } => {
-                if self.tabs.rename_path(from, to)
-                    && let Some(index) = self.tabs.find_path(to)
-                    && let Some(tab) = self.tabs.tab_mut(index)
-                {
-                    tab.disk_mtime = file_ops::modified(to);
-                }
-                self.sync_session();
-            }
-            crate::sidebar::SidebarEvent::Deleted(path) => {
-                if let Some(index) = self.tabs.find_path(path)
-                    && let Some(tab) = self.tabs.tab_mut(index)
-                {
-                    tab.missing = true;
-                    tab.conflict = false;
-                    self.tabs.set_active(index);
-                }
-                self.sync_session();
-            }
-        }
-    }
-
-    /// Persist the open files, active path, workspace, and sidebar state.
-    /// Reconcile tabs with paths reported by the workspace watcher.
-    pub(crate) fn reconcile_paths(&mut self, paths: &[PathBuf], ctx: &egui::Context) {
-        if paths.is_empty() {
-            return;
-        }
-        let indexes = self
-            .tabs
-            .tabs()
-            .iter()
-            .enumerate()
-            .filter(|(_, tab)| {
-                tab.editor.document().path().is_some_and(|path| {
-                    paths
-                        .iter()
-                        .any(|changed| changed == path || path.parent() == Some(changed.as_path()))
-                })
-            })
-            .map(|(index, _)| index)
-            .collect::<Vec<_>>();
-        for index in indexes {
-            self.check_tab_disk(index, ctx);
-        }
-    }
-
-    /// Periodically check every open file for changes outside the watched workspace.
-    pub(crate) fn poll_open_files(&mut self, ctx: &egui::Context) {
-        if self.last_file_poll.elapsed() < Duration::from_millis(1_000) {
-            return;
-        }
-        self.last_file_poll = std::time::Instant::now();
-        for index in 0..self.tabs.len() {
-            self.check_tab_disk(index, ctx);
-        }
-    }
-
-    fn check_tab_disk(&mut self, index: usize, ctx: &egui::Context) {
-        let Some((path, stored_mtime, dirty)) = self.tabs.tabs().get(index).and_then(|tab| {
-            tab.editor
-                .document()
-                .path()
-                .map(|path| (path.to_path_buf(), tab.disk_mtime, tab.editor.document().is_dirty()))
-        }) else {
-            return;
-        };
-        let mtime = file_ops::modified(&path);
-        let changed = mtime != stored_mtime && mtime.is_some();
-        match classify_disk(path.exists(), changed, dirty) {
-            DiskState::Unchanged => return,
-            DiskState::Missing => {
-                if let Some(tab) = self.tabs.tab_mut(index)
-                    && !tab.missing
-                {
-                    log::info!("file is missing on disk: {}", path.display());
-                    tab.missing = true;
-                    tab.conflict = false;
-                    ctx.request_repaint();
-                }
-                return;
-            }
-            DiskState::Conflict => {
-                if let Some(tab) = self.tabs.tab_mut(index) {
-                    if !tab.conflict {
-                        log::info!("disk conflict for dirty file: {}", path.display());
-                    }
-                    tab.conflict = true;
-                    tab.missing = false;
-                }
-                ctx.request_repaint();
-                return;
-            }
-            DiskState::Reload => {
-                if let Some(tab) = self.tabs.tab_mut(index) {
-                    tab.missing = false;
-                }
-            }
-        }
-        if self.tabs.tabs().get(index).is_some_and(|tab| tab.is_viewer()) {
-            if let Some(tab) = self.tabs.tab_mut(index) {
-                tab.disk_mtime = mtime;
-            }
-            self.media.clear_cache();
-            ctx.request_repaint();
-            return;
-        }
-        if let Ok(document) = file_ops::load(&path) {
-            log::info!("reloaded externally changed clean file: {}", path.display());
-            if let Some(tab) = self.tabs.tab_mut(index) {
-                tab.editor.replace_document_preserving_position(document);
-                tab.disk_mtime = mtime;
-                tab.conflict = false;
-            }
-            self.tabs.configure(index);
-            ctx.request_repaint();
-        }
-    }
-
-    /// Ask for confirmation before a destructive conflict choice.
-    pub(crate) fn confirm_conflict(&mut self, index: usize, action: ConflictAction, ctx: &egui::Context) {
-        match action {
-            ConflictAction::Compare => self.apply_conflict(index, action, ctx),
-            ConflictAction::Reload => self.dialogs.ask_message(
-                craft_dialogs::Message {
-                    level: craft_dialogs::MessageLevel::Warning,
-                    title: self.t("Reload from disk").to_owned(),
-                    description: self
-                        .t("Discard your unsaved changes and reload the disk version?")
-                        .to_owned(),
-                    buttons: craft_dialogs::MessageButtons::YesNo,
-                },
-                crate::app::DialogThen::ReloadConflict(index),
-            ),
-            ConflictAction::KeepMine => self.dialogs.ask_message(
-                craft_dialogs::Message {
-                    level: craft_dialogs::MessageLevel::Warning,
-                    title: self.t("Keep my changes").to_owned(),
-                    description: self
-                        .t("Keep your buffer and overwrite the disk version when you save?")
-                        .to_owned(),
-                    buttons: craft_dialogs::MessageButtons::YesNo,
-                },
-                crate::app::DialogThen::KeepMineConflict(index),
-            ),
-        }
-    }
-
-    /// Apply a choice from the conflict banner after confirmation.
-    pub(crate) fn apply_conflict(&mut self, index: usize, action: ConflictAction, ctx: &egui::Context) {
-        let Some(tab) = self.tabs.tabs().get(index) else {
-            return;
-        };
-        let Some(path) = tab.editor.document().path().map(Path::to_path_buf) else {
-            return;
-        };
-        match action {
-            ConflictAction::Reload => match file_ops::load(&path) {
-                Ok(document) => {
-                    if let Some(tab) = self.tabs.tab_mut(index) {
-                        tab.editor.replace_document_preserving_position(document);
-                        tab.disk_mtime = file_ops::modified(&path);
-                        tab.conflict = false;
-                        tab.missing = false;
-                    }
-                    self.tabs.configure(index);
-                    self.tabs.set_active(index);
-                    self.sync_session();
-                    self.update_title(ctx);
-                }
-                Err(error) => {
-                    self.show_error(format!("{} {error}", self.t("Could not open file.")));
-                }
-            },
-            ConflictAction::KeepMine => {
-                if let Some(tab) = self.tabs.tab_mut(index) {
-                    tab.conflict = false;
-                    tab.disk_mtime = file_ops::modified(&path);
-                }
-                self.tabs.set_active(index);
-            }
-            ConflictAction::Compare => {
-                let mine = tab.editor.document().snapshot();
-                let disk = std::fs::read(&path)
-                    .ok()
-                    .and_then(|bytes| String::from_utf8(bytes).ok())
-                    .unwrap_or_else(|| mine.clone());
-                self.diff = Some(DiffState {
-                    index,
-                    mine,
-                    disk,
-                    open: true,
-                });
-            }
-        }
-        ctx.request_repaint();
     }
 }

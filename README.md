@@ -4,7 +4,7 @@ A native Markdown, text, and code editor for Windows, macOS, and Linux, built wi
 
 The workbench places the explorer directly under the menu bar and keeps document tabs in the editor column, with Cursor-style active tabs. Standalone image files open through the read-only viewer plugin API, and Settings → Reading provides three width presets plus independent body, heading, code, and table sizes. The pre-1.0 acceptance workspace and feature map are in
 [`examples/v1-workspace`](examples/v1-workspace) and
-[`docs/feature-matrix.md`](docs/feature-matrix.md). The project is at the `0.13.0` workbench milestone: a native shell with document tabs, a lazy folder tree, debounced filesystem watching, session restore, conflict handling, a virtualized code editor, syntax highlighting, regex find/replace, encoding detection, mixed-EOL preservation, background large-file loading, atomic saves, and English/Spanish UI. Markdown files open in a token-styled reading view with GFM tables, tasks, footnotes, alerts, safe HTML, internal links, source mapping, and Edit/Reading modes. Split view keeps the editor and preview synchronized with block anchors. The reading view embeds local and cached remote images, static and animated SVG, LaTeX math, and native Mermaid diagrams, with a zoomable lightbox. The shell uses a desktop title bar with File/Edit/View/Go/Help menus, an activity rail, animated document tabs, and a VS Code Material Icon Theme workspace tree; settings and prompts are modal dialogs. The Markdown preview is block-virtualized for large documents. Nine themes, settings tabs, command palette, workspace Quick Open, text scaling, rotating diagnostics capped at 1 MiB, and accessibility polish are in place. Local packaging produces AppImage, deb, RPM, portable tarballs, icons, SBOM, checksums, and an update manifest; signed Windows/macOS artifacts and hosted distribution remain release-operator steps described in [docs/release.md](docs/release.md).
+[`docs/feature-matrix.md`](docs/feature-matrix.md). The project is at the `0.14.0` pre-1.0 milestone: a native shell with document tabs, a lazy folder tree, debounced filesystem watching, session restore, conflict handling, a virtualized code editor, syntax highlighting, regex find/replace, encoding detection, mixed-EOL preservation, background large-file loading, atomic saves, and English/Spanish UI. Markdown files open in a token-styled reading view with GFM tables, tasks, footnotes, alerts, safe HTML, internal links, source mapping, and Edit/Reading modes. Split view keeps the editor and preview synchronized with block anchors. The reading view embeds local and cached remote images, static and animated SVG, LaTeX math, and native Mermaid diagrams, with a zoomable lightbox. The shell uses a desktop title bar with File/Edit/View/Go/Help menus, document history, document/workspace search, animated document tabs with a View/Editor/Split control, and a VS Code Material Icon Theme workspace tree; settings and prompts are modal dialogs. The Markdown preview is block-virtualized for large documents. Nine themes, settings tabs, command palette, workspace Quick Open, text scaling, rotating diagnostics capped at 1 MiB, and accessibility polish are in place. Local packaging produces AppImage, deb, RPM, portable tarballs, icons, SBOM, checksums, and an update manifest; signed Windows/macOS artifacts and hosted distribution remain release-operator steps described in [docs/release.md](docs/release.md).
 
 ## Build
 
@@ -25,18 +25,10 @@ Read [AGENT.md](AGENT.md) before changing code. It defines the English-only repo
 
 ## Status
 
-- Milestone H0: technical spikes, not part of this initial implementation.
-- Milestone H1: native shell, settings, i18n, light/dark tokens, atomic saves, native dialogs, close prompt, CLI, single-instance path forwarding.
-- Milestone H2: Rope-based virtualized editor, syntax highlighting, line numbers, auto-indent/pairs, bracket matching, regex find/replace, go-to-line, encoding detection, EOL handling, soft wrap, and large-file mode.
-- Milestone H3: document tabs, lazy workspace tree, `.gitignore` filtering, reactive watcher with polling fallback, clean-file reload, dirty-file conflict diff, missing-file state, sidebar file operations, multi-path opening, and session/recent persistence.
-- Milestone H4: spanned CommonMark/GFM parser, reading view, safe HTML, heading anchors, internal and external links, footnotes, code highlighting, per-tab Edit/Reading modes, source map, and per-mode session scroll.
-- Milestone H5: resizable horizontal/vertical split, per-file ratios, block-anchor bidirectional synchronization, echo suppression, and a scroll-sync toggle.
-- Milestone H6: local/remote images, static SVG with security limits, LaTeX, Mermaid, media cache, worker isolation, lightbox, and private-network policy.
-- Milestone H7: bounded SVG animation, play/pause, reduced motion, fuzz/hostile corpus tests, 50 MB scale coverage, and large-file preview refusal.
-- Milestone H8: nine themes, contrast gates, settings, command palette, quick open, text scaling, pseudo-locale, and centered reading layout.
-- Milestone H9: local AppImage/deb/RPM/tarball pipeline, icons, associations, SBOM, checksums, update manifest/check/download, and platform packaging sources.
-- Post-0.9 workspace refresh: icon-first header, Material Icon Theme file tree, virtualized preview, high-frequency scroll hardening, and a 120 Hz frame-budget gate.
-- Hosted CI/CD is intentionally deferred until `1.0.0`, after the local feature set is operational. Verify changes locally with the commands below.
+The project is at the `0.14.0` pre-1.0 milestone. The implementation status, evidence, and
+remaining `1.0.0` gates are maintained in [`ROADMAP.md`](ROADMAP.md); the current acceptance
+workspace is [`examples/v1-workspace`](examples/v1-workspace). Hosted CI is in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) and the local gate is `cargo xtask ci`.
 
 ```sh
 cargo fmt --all -- --check
@@ -56,7 +48,7 @@ cargo xtask perf
 cargo xtask e2e
 ```
 
-The local pipelinee writes AppImage, deb, RPM, portable tarball, icons, `SHA256SUMS`, an SBOM, and
+The local pipeline writes AppImage, deb, RPM, portable tarball, icons, `SHA256SUMS`, an SBOM, and
 an update manifest to `dist/`. Platform signing and install checks are documented in
 [`docs/release.md`](docs/release.md).
 

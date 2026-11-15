@@ -8,7 +8,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::SystemTime;
 
-use mdview_editor::Editor;
+use mdview_editor::{Editor, EditorStyle};
 use mdview_markdown::is_markdown_path;
 use mdview_model::Document;
 use mdview_render::Preview;
@@ -70,13 +70,7 @@ impl DocumentTab {
     /// The tab label: the file name and a dirty marker.
     pub fn label(&self) -> String {
         let name = self.editor.document().display_name();
-        let marker = if self.missing {
-            "!"
-        } else if self.editor.document().is_dirty() {
-            " •"
-        } else {
-            ""
-        };
+        let marker = if self.editor.document().is_dirty() { " •" } else { "" };
         format!("{name}{marker}")
     }
 
@@ -176,6 +170,7 @@ pub struct TabSet {
     light: bool,
     wrap: bool,
     line_numbers: bool,
+    style: EditorStyle,
 }
 
 impl TabSet {
@@ -190,6 +185,7 @@ impl TabSet {
             light,
             wrap,
             line_numbers,
+            style: EditorStyle::default(),
         }
     }
 
@@ -244,7 +240,7 @@ impl TabSet {
     /// Reapply the set's view settings to one tab, for example after a reload.
     pub fn configure(&mut self, index: usize) {
         if let Some(tab) = self.tabs.get_mut(index) {
-            set_editor_view(&mut tab.editor, self.wrap, self.line_numbers);
+            set_editor_view(&mut tab.editor, self.wrap, self.line_numbers, self.style);
             tab.editor.set_light(self.light);
         }
     }
@@ -377,13 +373,21 @@ impl TabSet {
         self.wrap = wrap;
         self.line_numbers = line_numbers;
         for tab in &mut self.tabs {
-            set_editor_view(&mut tab.editor, wrap, line_numbers);
+            set_editor_view(&mut tab.editor, wrap, line_numbers, self.style);
+        }
+    }
+
+    /// Update the shared editor style on every tab.
+    pub fn set_style(&mut self, style: EditorStyle) {
+        self.style = style.sanitized();
+        for tab in &mut self.tabs {
+            tab.editor.set_style(self.style);
         }
     }
 
     /// Apply the current settings to a newly opened tab.
     fn apply_view(&self, tab: &mut DocumentTab) {
-        set_editor_view(&mut tab.editor, self.wrap, self.line_numbers);
+        set_editor_view(&mut tab.editor, self.wrap, self.line_numbers, self.style);
         tab.editor.set_light(self.light);
     }
 }
@@ -393,11 +397,12 @@ fn pristine_untitled(tab: &DocumentTab) -> bool {
     document.path().is_none() && document.is_empty() && !document.is_dirty()
 }
 
-fn set_editor_view(editor: &mut Editor, wrap: bool, line_numbers: bool) {
+fn set_editor_view(editor: &mut Editor, wrap: bool, line_numbers: bool, style: EditorStyle) {
     if !editor.status().large_mode {
         editor.set_wrap(wrap);
     }
     editor.set_line_numbers(line_numbers);
+    editor.set_style(style);
 }
 
 /// Draw the tab bar and report the user's action.

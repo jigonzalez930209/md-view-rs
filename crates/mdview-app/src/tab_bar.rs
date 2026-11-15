@@ -3,6 +3,7 @@
 use eframe::egui;
 
 use crate::tabs::{TabAction, TabInfo};
+use mdview_ui::ViewMode;
 
 pub struct TabBarView<'a> {
     /// Translator.
@@ -13,12 +14,14 @@ pub struct TabBarView<'a> {
     pub icons: &'a mut mdview_ui::MaterialIcons,
     /// Light-theme icon variants.
     pub light: bool,
-    /// Explorer panel visible.
-    pub sidebar_open: bool,
-    /// Workspace folder loaded.
-    pub workspace_open: bool,
-    /// Split presentation active.
-    pub split_active: bool,
+    /// Active presentation mode.
+    pub mode: ViewMode,
+    /// Reading view is available.
+    pub can_view: bool,
+    /// Editor is available.
+    pub can_edit: bool,
+    /// Split view is available.
+    pub can_split: bool,
 }
 
 pub fn show_tab_bar(ui: &mut egui::Ui, tabs: &[TabInfo], active: usize, view: TabBarView<'_>) -> Option<TabAction> {
@@ -29,7 +32,7 @@ pub fn show_tab_bar(ui: &mut egui::Ui, tabs: &[TabInfo], active: usize, view: Ta
     // with the document, matching the VS Code/Cursor tab model.
     ui.painter().rect_filled(bar, 0.0, ui.visuals().window_fill);
 
-    let controls_width = 154.0;
+    let controls_width = 276.0;
     let tabs_rect = egui::Rect::from_min_max(
         bar.min,
         egui::pos2((bar.right() - controls_width).max(bar.left() + 80.0), bar.bottom()),
@@ -105,13 +108,6 @@ pub fn show_tab_bar(ui: &mut egui::Ui, tabs: &[TabInfo], active: usize, view: Ta
             |ui| {
                 ui.spacing_mut().item_spacing.x = 2.0;
                 ui.add_space(2.0);
-                if icon_button(ui, view.icons, "sidebar", &t("Explorer"), view.sidebar_open) {
-                    action = Some(TabAction::Command(if view.workspace_open {
-                        mdview_ui::Command::ToggleSidebar
-                    } else {
-                        mdview_ui::Command::OpenFolder
-                    }));
-                }
                 if icon_button(ui, view.icons, "history", &t("Quick Open"), false) {
                     action = Some(TabAction::Command(mdview_ui::Command::QuickOpen));
                 }
@@ -158,10 +154,8 @@ pub fn show_tab_bar(ui: &mut egui::Ui, tabs: &[TabInfo], active: usize, view: Ta
                 if icon_button(ui, view.icons, "plus", &t("New tab"), false) {
                     action = Some(TabAction::New);
                 }
-                if icon_button(ui, view.icons, "split", &t("Split view"), view.split_active) {
-                    action = Some(TabAction::Command(mdview_ui::Command::SetMode(
-                        mdview_ui::ViewMode::Split,
-                    )));
+                if let Some(mode) = mode_control(ui, view.mode, view.can_view, view.can_edit, view.can_split, &t) {
+                    action = Some(TabAction::Command(mdview_ui::Command::SetMode(mode)));
                 }
             },
         )
@@ -172,6 +166,73 @@ pub fn show_tab_bar(ui: &mut egui::Ui, tabs: &[TabInfo], active: usize, view: Ta
         // no room for controls; the tab strip still works
     }
     action
+}
+
+fn mode_control(
+    ui: &mut egui::Ui,
+    mode: ViewMode,
+    can_view: bool,
+    can_edit: bool,
+    can_split: bool,
+    t: &dyn Fn(&str) -> String,
+) -> Option<ViewMode> {
+    let options = [
+        (ViewMode::View, "View", can_view),
+        (ViewMode::Edit, "Editor", can_edit),
+        (ViewMode::Split, "Split", can_split),
+    ];
+    let width = 156.0;
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(width, 24.0), egui::Sense::hover());
+    ui.painter()
+        .rect_filled(rect, egui::CornerRadius::same(5), ui.visuals().extreme_bg_color);
+    let segment = width / 3.0;
+    let mut selected = None;
+    for (index, (candidate, label, enabled)) in options.iter().enumerate() {
+        let segment_rect = egui::Rect::from_min_size(
+            egui::pos2(rect.left() + index as f32 * segment + 1.0, rect.top() + 1.0),
+            egui::vec2(segment - 2.0, rect.height() - 2.0),
+        );
+        let response = ui.interact(
+            segment_rect,
+            ui.make_persistent_id(("mode_segment", index)),
+            egui::Sense::click(),
+        );
+        let active = *candidate == mode;
+        if active {
+            ui.painter().rect_filled(
+                segment_rect,
+                egui::CornerRadius::same(4),
+                ui.visuals().selection.bg_fill,
+            );
+        } else if response.hovered() && *enabled {
+            ui.painter().rect_filled(
+                segment_rect,
+                egui::CornerRadius::same(4),
+                ui.visuals().widgets.hovered.weak_bg_fill,
+            );
+        }
+        let color = if !*enabled {
+            ui.visuals().weak_text_color().gamma_multiply(0.45)
+        } else if active {
+            ui.visuals().selection.stroke.color
+        } else {
+            ui.visuals().text_color()
+        };
+        ui.painter().text(
+            segment_rect.center(),
+            egui::Align2::CENTER_CENTER,
+            t(label),
+            egui::FontId::proportional(11.5),
+            color,
+        );
+        if *enabled && response.clicked() && !active {
+            selected = Some(*candidate);
+        }
+        if response.hovered() {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        }
+    }
+    selected
 }
 
 #[derive(Clone, Copy)]
@@ -198,7 +259,7 @@ fn tab_button(
         )
         .rect
         .width();
-    let width = (text_width + 62.0).clamp(118.0, 212.0);
+    let width = (text_width + 58.0).clamp(96.0, 212.0);
     let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 34.0), egui::Sense::click());
     let active_t = ui
         .ctx()
@@ -223,8 +284,10 @@ fn tab_button(
             ui.visuals().widgets.hovered.weak_bg_fill.gamma_multiply(hover_t),
         );
     }
-    let icon_rect =
-        egui::Rect::from_center_size(egui::pos2(rect.left() + 16.0, rect.center().y), egui::vec2(16.0, 16.0));
+    let icon_rect = egui::Rect::from_center_size(
+        egui::pos2(rect.left() + 15.0, rect.center().y),
+        egui::vec2(mdview_ui::ICON_MEDIUM, mdview_ui::ICON_MEDIUM),
+    );
     let icon = icons
         .texture(ui.ctx(), &tab.icon, light)
         .or_else(|| icons.texture(ui.ctx(), "file", light));
@@ -244,12 +307,25 @@ fn tab_button(
         ui.visuals().weak_text_color()
     };
     ui.painter().text(
-        egui::pos2(rect.left() + 29.0, rect.center().y),
+        egui::pos2(rect.left() + 28.0, rect.center().y),
         egui::Align2::LEFT_CENTER,
         &tab.label,
         egui::FontId::proportional(12.5),
         color,
     );
+    if tab.missing {
+        let galley = ui
+            .painter()
+            .layout_no_wrap(tab.label.clone(), egui::FontId::proportional(12.5), color);
+        let strike_y = rect.center().y;
+        ui.painter().line_segment(
+            [
+                egui::pos2(rect.left() + 28.0, strike_y),
+                egui::pos2(rect.left() + 28.0 + galley.rect.width(), strike_y),
+            ],
+            egui::Stroke::new(1.0, color),
+        );
+    }
     if tab.dirty && !response.hovered() && !active {
         ui.painter().circle_filled(
             egui::pos2(rect.right() - 12.0, rect.center().y),
@@ -310,7 +386,9 @@ fn icon_button(
     active: bool,
 ) -> bool {
     let (rect, response) = ui.allocate_exact_size(egui::vec2(26.0, 26.0), egui::Sense::click());
-    let fill = if active || response.hovered() {
+    let fill = if response.is_pointer_button_down_on() {
+        ui.visuals().widgets.active.weak_bg_fill
+    } else if active || response.hovered() {
         ui.visuals().widgets.hovered.weak_bg_fill
     } else {
         egui::Color32::TRANSPARENT

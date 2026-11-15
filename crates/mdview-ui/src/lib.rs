@@ -10,23 +10,29 @@ mod header;
 mod loading;
 mod material_icons;
 mod menu;
+mod metrics;
 mod mode;
 mod palette;
 mod prompt;
+mod search;
 mod settings;
 mod status;
 mod welcome;
 
 pub use about::show_about;
 pub use close_prompt::{CloseChoice, show_close_prompt};
-pub use controls::{CONTROL_HEIGHT, compact_menu, numeric_stepper, primary_button, secondary_button, text_field};
-pub use header::{ActivityState, TitleBarState, show_activity_bar, show_title_bar};
+pub use controls::{
+    CONTROL_HEIGHT, compact_menu, menu_item, numeric_stepper, primary_button, secondary_button, text_field,
+};
+pub use header::{TitleBarState, show_title_bar};
 pub use loading::show_loading;
 pub use material_icons::MaterialIcons;
 pub use menu::{MenuState, show_menu};
+pub use metrics::{ACTION_BUTTON, ICON_LARGE, ICON_MEDIUM, ICON_SMALL, TAB_HEIGHT, TITLE_HEIGHT, TREE_ROW_HEIGHT};
 pub use mode::ViewMode;
 pub use palette::{PaletteItem, show_palette};
 pub use prompt::{ConfirmPrompt, NamePrompt, PromptAction, show_confirm_prompt, show_name_prompt};
+pub use search::{SearchAction, SearchHitView, SearchScope, SearchView, show_search};
 pub use settings::{SettingsView, show_settings};
 pub use status::show_status;
 pub use welcome::show_welcome;
@@ -114,6 +120,8 @@ pub enum Command {
     SetReadingMargins(mdview_theme::ReadingMargins),
     /// Set the per-area Markdown reading text sizes.
     SetReadingTypography(mdview_theme::ReadingTypography),
+    /// Apply a complete editor style.
+    SetEditorStyle(mdview_editor::EditorStyle),
     /// Reload the current file with another encoding.
     ReloadEncoding(Encoding),
     /// Switch the theme variant.
@@ -142,17 +150,12 @@ pub enum Command {
     ToggleMaximizeWindow,
     /// Request application exit through the normal close path.
     CloseWindow,
-}
-
-/// Which workbench panel the activity rail selected.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Activity {
-    /// The workspace explorer.
-    Explorer,
-    /// The editor find bar.
+    /// Navigate to the previous document or anchor.
+    Back,
+    /// Navigate to the next document or anchor.
+    Forward,
+    /// Open the search popover in document scope.
     Search,
-    /// The command palette.
-    Palette,
-    /// The settings dialog.
-    Settings,
+    /// Open the search popover in workspace scope.
+    SearchWorkspace,
 }

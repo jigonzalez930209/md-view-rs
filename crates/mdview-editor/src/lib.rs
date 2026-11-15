@@ -8,8 +8,10 @@ mod controls;
 mod find;
 mod goto;
 mod input;
+mod paint;
 mod render;
 mod scroll;
+mod style;
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -19,6 +21,7 @@ use mdview_syntax::Highlighter;
 
 pub use find::{FindState, SearchOptions};
 pub use goto::GotoState;
+pub use style::{EditorStyle, WhitespaceMode};
 
 /// The visible editor status for the shell's status bar.
 #[derive(Clone, Debug)]
@@ -52,6 +55,7 @@ pub struct Editor {
     pub(crate) anchor: usize,
     pub(crate) wrap: bool,
     pub(crate) line_numbers: bool,
+    pub(crate) style: EditorStyle,
     pub(crate) light: bool,
     pub(crate) large_mode: bool,
     pub(crate) highlighter: Arc<Highlighter>,
@@ -75,6 +79,8 @@ pub struct Editor {
     pub(crate) scroll_y: f32,
     pub(crate) restore_scroll: Option<f32>,
     pub(crate) pending_line: Option<(usize, f32)>,
+    pub(crate) pending_end: bool,
+    pub(crate) last_max_offset: f32,
     pub(crate) last_row_height: f32,
     pub(crate) last_columns: usize,
     pub(crate) user_scrolled: bool,
@@ -95,6 +101,7 @@ impl Editor {
             anchor: 0,
             wrap: false,
             line_numbers: true,
+            style: EditorStyle::default(),
             light: true,
             large_mode,
             highlighter: Highlighter::shared(),
@@ -118,6 +125,8 @@ impl Editor {
             scroll_y: 0.0,
             restore_scroll: None,
             pending_line: None,
+            pending_end: false,
+            last_max_offset: 0.0,
             last_row_height: 17.0,
             last_columns: 0,
             user_scrolled: false,
@@ -214,6 +223,20 @@ impl Editor {
     /// Enable or disable line numbers.
     pub fn set_line_numbers(&mut self, line_numbers: bool) {
         self.line_numbers = line_numbers;
+    }
+
+    /// Replace the visual and scrolling style.
+    pub fn set_style(&mut self, style: EditorStyle) {
+        let style = style.sanitized();
+        if self.style != style {
+            self.style = style;
+            self.layout_revision = None;
+        }
+    }
+
+    /// The active editor style.
+    pub fn style(&self) -> EditorStyle {
+        self.style
     }
 
     /// Toggle line numbers.

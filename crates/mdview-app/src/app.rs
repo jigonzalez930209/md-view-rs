@@ -66,6 +66,8 @@ pub struct MdViewApp {
     pub(crate) perf: crate::perf::FrameMetrics,
     pub(crate) frame_started: Instant,
     pub(crate) lightbox: Option<crate::lightbox::LightboxState>,
+    pub(crate) history: crate::history::HistoryState,
+    pub(crate) search: crate::search::SearchState,
 }
 
 impl MdViewApp {
@@ -108,11 +110,12 @@ impl MdViewApp {
             Dialogs::new(Arc::new(move || ctx.request_repaint()))
         };
 
-        let tabs = TabSet::new(
+        let mut tabs = TabSet::new(
             theme == ThemeMode::Light,
             snapshot.editor.wrap,
             snapshot.editor.line_numbers,
         );
+        tabs.set_style(snapshot.editor.style());
         let sidebar = Sidebar::new(
             snapshot.session.sidebar_width,
             snapshot.session.show_hidden,
@@ -153,6 +156,8 @@ impl MdViewApp {
             perf: crate::perf::FrameMetrics::default(),
             frame_started: Instant::now(),
             lightbox: None,
+            history: crate::history::HistoryState::default(),
+            search: crate::search::SearchState::default(),
         };
 
         mdview_theme::apply_theme(&cc.egui_ctx, theme_id, follow_system);

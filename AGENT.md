@@ -30,7 +30,6 @@ The project is a Cargo workspace, edition 2024, resolver 3.
 │   └── mdview-app/
 ├── xtask/
 ├── docs/
-├── tests/
 └── AGENT.md
 ```
 
@@ -164,11 +163,12 @@ docs(roadmap): translate the roadmap to English
 
 ## 6. CI/CD policy
 
-Do not add, enable, or run hosted CI/CD before `1.0.0`.
+Hosted CI is part of the pre-1.0 release gate. The workflow in `.github/workflows/ci.yml` runs the
+local gate on Linux and compiles the application on macOS and Windows.
 
-- Verify every change locally with `cargo fmt`, strict Clippy, `cargo test --workspace`, `cargo xtask check-file-length`, and a release build.
+- Verify every change locally with `cargo fmt`, strict Clippy, `cargo test --workspace`, `cargo deny check`, `cargo xtask check-file-length`, and a release build. `cargo xtask ci` runs that sequence.
 - Keep packaging scripts in `xtask` so they can run on the developer machine.
-- Hosted CI/CD, signing, notarization, store publishing, and automated release promotion are part of the `1.0.0` release gate. They are not part of the feature-development loop.
+- Signing, notarization, store publishing, and automated release promotion remain part of the `1.0.0` release gate.
 - Do not push tags or trigger release workflows before the local feature set is operational.
 
 ## 7. Pull requests

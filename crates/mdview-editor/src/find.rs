@@ -1,6 +1,6 @@
 //! Find and replace.
 
-use egui::{Key, Ui};
+use egui::Key;
 use regex::RegexBuilder;
 
 use crate::Editor;
@@ -51,90 +51,164 @@ impl FindState {
 }
 
 impl Editor {
-    /// Draw the find/replace bar above the editor.
-    pub(crate) fn show_find_bar(&mut self, ui: &mut Ui) {
+    /// Draw the floating find/replace overlay inside the editor pane.
+    pub(crate) fn show_find_overlay(&mut self, ui: &mut egui::Ui, anchor: egui::Rect) {
         if !self.find.open {
             return;
         }
-        if ui.input(|input| input.key_pressed(Key::Escape)) {
-            self.find.open = false;
-            return;
-        }
+        let mut close = false;
         let mut changed = false;
-        ui.horizontal(|ui| {
-            let query = crate::controls::text_field(ui, &mut self.find.query, "Find", 220.0);
-            if self.find.focus_query {
-                query.request_focus();
-                self.find.focus_query = false;
-            }
-            if query.changed() {
-                changed = true;
-            }
-            if query.has_focus() && ui.input(|input| input.key_pressed(Key::Enter) || input.key_pressed(Key::F3)) {
-                if ui.input(|input| input.modifiers.shift) {
-                    self.find_previous();
-                } else {
-                    self.find_next();
-                }
-            }
-
-            if ui
-                .add(egui::Checkbox::new(&mut self.find.options.case_sensitive, "Aa"))
-                .changed()
-            {
-                changed = true;
-            }
-            if ui
-                .add(egui::Checkbox::new(&mut self.find.options.whole_word, "Word"))
-                .changed()
-            {
-                changed = true;
-            }
-            if ui
-                .add(egui::Checkbox::new(&mut self.find.options.regex, ".*"))
-                .changed()
-            {
-                changed = true;
-            }
-
-            if ui.button("Previous").clicked() {
-                self.find_previous();
-            }
-            if ui.button("Next").clicked() {
-                self.find_next();
-            }
-            let count = self.find.matches.len();
-            ui.label(format!("{count} matches"));
-            if ui.button("Close").clicked() {
-                self.find.open = false;
-            }
-        });
-
-        if self.find.replace {
-            ui.horizontal(|ui| {
-                let replacement = crate::controls::text_field(ui, &mut self.find.replacement, "Replace with", 260.0);
-                if self.find.focus_replace {
-                    replacement.request_focus();
-                    self.find.focus_replace = false;
-                }
-                if replacement.changed() {
-                    changed = true;
-                }
-                if ui.button("Replace").clicked() {
-                    self.replace_current();
-                }
-                if ui.button("Replace All").clicked() {
-                    self.replace_all();
-                }
+        let anchor = if anchor == egui::Rect::NOTHING {
+            ui.max_rect()
+        } else {
+            anchor
+        };
+        let width = (anchor.width() - 16.0).clamp(300.0, 396.0);
+        let position = egui::pos2(
+            (anchor.right() - width - 8.0).max(anchor.left() + 8.0),
+            anchor.top() + 6.0,
+        );
+        egui::Area::new(egui::Id::unique(("mdview_find_overlay", self.identity)))
+            .order(egui::Order::Foreground)
+            .fixed_pos(position)
+            .show(ui.ctx(), |ui| {
+                egui::Frame::new()
+                    .fill(ui.visuals().window_fill)
+                    .stroke(egui::Stroke::new(1.0, ui.visuals().window_stroke.color))
+                    .corner_radius(7)
+                    .shadow(egui::epaint::Shadow {
+                        offset: [0, 5],
+                        blur: 14,
+                        spread: 0,
+                        color: egui::Color32::from_black_alpha(42),
+                    })
+                    .inner_margin(egui::Margin::same(8))
+                    .show(ui, |ui| {
+                        ui.set_width(width - 18.0);
+                        ui.horizontal(|ui| {
+                            if ui
+                                .add(
+                                    egui::Button::new(egui::RichText::new(if self.find.replace { "v" } else { ">" }))
+                                        .frame(false),
+                                )
+                                .on_hover_text("Toggle replace")
+                                .clicked()
+                            {
+                                self.find.replace = !self.find.replace;
+                            }
+                            let query = crate::controls::text_field(
+                                ui,
+                                &mut self.find.query,
+                                "Find",
+                                (width - 218.0).max(120.0),
+                            );
+                            if self.find.focus_query {
+                                query.request_focus();
+                                self.find.focus_query = false;
+                            }
+                            if query.changed() {
+                                changed = true;
+                            }
+                            if query.has_focus()
+                                && ui.input(|input| input.key_pressed(Key::Enter) || input.key_pressed(Key::F3))
+                            {
+                                if ui.input(|input| input.modifiers.shift) {
+                                    self.find_previous();
+                                } else {
+                                    self.find_next();
+                                }
+                            }
+                            if toggle_chip(ui, "Aa", self.find.options.case_sensitive)
+                                .on_hover_text("Match case")
+                                .clicked()
+                            {
+                                self.find.options.case_sensitive = !self.find.options.case_sensitive;
+                                changed = true;
+                            }
+                            if toggle_chip(ui, "ab", self.find.options.whole_word)
+                                .on_hover_text("Whole word")
+                                .clicked()
+                            {
+                                self.find.options.whole_word = !self.find.options.whole_word;
+                                changed = true;
+                            }
+                            if toggle_chip(ui, ".*", self.find.options.regex)
+                                .on_hover_text("Use regular expression")
+                                .clicked()
+                            {
+                                self.find.options.regex = !self.find.options.regex;
+                                changed = true;
+                            }
+                            let (current, total) = self.match_position();
+                            ui.label(
+                                egui::RichText::new(if total == 0 {
+                                    "No results".to_owned()
+                                } else if total == 1 {
+                                    "1 result".to_owned()
+                                } else if current == 0 {
+                                    format!("{total} results")
+                                } else {
+                                    format!("{current} of {total}")
+                                })
+                                .small()
+                                .weak(),
+                            );
+                            if small_icon_button(ui, "<", "Previous match").clicked() {
+                                self.find_previous();
+                            }
+                            if small_icon_button(ui, ">", "Next match").clicked() {
+                                self.find_next();
+                            }
+                            if small_icon_button(ui, "×", "Close").clicked() {
+                                close = true;
+                            }
+                        });
+                        if self.find.replace {
+                            ui.add_space(3.0);
+                            ui.horizontal(|ui| {
+                                let replacement =
+                                    crate::controls::text_field(ui, &mut self.find.replacement, "Replace with", 230.0);
+                                if self.find.focus_replace {
+                                    replacement.request_focus();
+                                    self.find.focus_replace = false;
+                                }
+                                if replacement.changed() {
+                                    changed = true;
+                                }
+                                if small_text_button(ui, "Replace").clicked() {
+                                    self.replace_current();
+                                }
+                                if small_text_button(ui, "All").clicked() {
+                                    self.replace_all();
+                                }
+                            });
+                        }
+                    });
             });
+        if ui.input(|input| input.key_pressed(Key::Escape)) {
+            close = true;
         }
-
         if changed {
             self.recompute_matches();
         }
-        if ui.input(|input| input.key_pressed(Key::Escape)) {
+        if close {
             self.find.open = false;
         }
+    }
+
+    fn match_position(&self) -> (usize, usize) {
+        let total = self.find.matches.len();
+        if total == 0 {
+            return (0, 0);
+        }
+        let selection = self.selection();
+        let current = self
+            .find
+            .matches
+            .iter()
+            .position(|(start, end)| *start == selection.0 && *end == selection.1)
+            .map_or(0, |index| index + 1);
+        (current, total)
     }
 
     /// Recompute matches from the current query and document.
@@ -235,6 +309,55 @@ impl Editor {
         self.document.replace_ranges(&self.find.matches, &self.find.replacement);
         self.recompute_matches();
     }
+}
+
+fn toggle_chip(ui: &mut egui::Ui, label: &str, active: bool) -> egui::Response {
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(23.0, 21.0), egui::Sense::click());
+    let fill = if active {
+        ui.visuals().selection.bg_fill
+    } else if response.hovered() {
+        ui.visuals().widgets.hovered.weak_bg_fill
+    } else {
+        egui::Color32::TRANSPARENT
+    };
+    ui.painter().rect_filled(rect, egui::CornerRadius::same(4), fill);
+    ui.painter().text(
+        rect.center(),
+        egui::Align2::CENTER_CENTER,
+        label,
+        egui::FontId::monospace(10.5),
+        if active {
+            ui.visuals().selection.stroke.color
+        } else {
+            ui.visuals().text_color()
+        },
+    );
+    response.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+fn small_icon_button(ui: &mut egui::Ui, label: &str, tooltip: &str) -> egui::Response {
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::click());
+    if response.hovered() {
+        ui.painter().rect_filled(
+            rect,
+            egui::CornerRadius::same(4),
+            ui.visuals().widgets.hovered.weak_bg_fill,
+        );
+    }
+    ui.painter().text(
+        rect.center(),
+        egui::Align2::CENTER_CENTER,
+        label,
+        egui::FontId::proportional(14.0),
+        ui.visuals().text_color(),
+    );
+    response
+        .on_hover_text(tooltip)
+        .on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+fn small_text_button(ui: &mut egui::Ui, label: &str) -> egui::Response {
+    ui.add(egui::Button::new(egui::RichText::new(label).size(11.5)).min_size(egui::vec2(54.0, 24.0)))
 }
 
 #[cfg(test)]

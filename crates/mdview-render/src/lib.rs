@@ -4,19 +4,21 @@
 //! [`mdview_theme`], and exposes a block source map for scroll synchronization. It performs no I/O:
 //! media and link resolution belong to the application layer.
 //!
-//! ```
+//! ```text
 //! use mdview_render::Preview;
-//!
 //! let mut preview = Preview::default();
 //! preview.set_width(680.0);
 //! assert_eq!(preview.width(), 680.0);
 //! ```
+//!
+//! Not a doctest: linking the media stack is expensive.
 
 #![deny(missing_docs)]
 
 mod blocks;
 mod inline;
 mod layout;
+mod media;
 mod source_map;
 
 use layout::{estimate_height, hash};
@@ -26,123 +28,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use egui::{Ui, scroll_area::ScrollAreaOutput};
-use mdview_markdown::{LinkKind, MarkdownDocument, parse};
-use mdview_media::{MediaKind, MediaRequest};
+use mdview_markdown::{MarkdownDocument, parse};
 use mdview_syntax::Highlighter;
 use mdview_theme::Theme;
 
+pub use media::{
+    AnimationStatus, LinkActivation, MediaContext, MediaLightbox, MediaProvider, MediaState, PreviewOutput,
+};
 pub use source_map::{BlockAnchor, PreviewAnchor, SourceMap, validate_map};
-
-/// A link the user activated in the preview.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LinkActivation {
-    /// Destination exactly as written in Markdown.
-    pub destination: String,
-    /// Classification produced by the parser.
-    pub kind: LinkKind,
-}
-
-/// The state of one media item requested by the preview.
-#[derive(Clone)]
-pub enum MediaState {
-    /// The item is being loaded.
-    Loading,
-    /// The item is ready as a texture.
-    Ready(egui::TextureHandle),
-    /// The item could not be produced.
-    Error(String),
-}
-
-/// The playback state of an animated item, shown as a badge.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum AnimationStatus {
-    /// Not animated.
-    None,
-    /// Playing.
-    Playing,
-    /// Paused by the user, reduced motion, or visibility.
-    Paused,
-    /// The animation uses unsupported features; the first frame is shown.
-    Unsupported,
-}
-
-/// A media resolver supplied by the application.
-pub trait MediaProvider {
-    /// Resolve one media request. The application may return `Loading` and complete later.
-    fn resolve(&mut self, ctx: &egui::Context, request: &MediaRequest) -> MediaState;
-
-    /// Report whether a resolved item is visible in the viewport.
-    fn mark_visible(&mut self, _key: &str, _visible: bool) {}
-
-    /// The animation badge state for a cache key.
-    fn animation_status(&mut self, _key: &str) -> AnimationStatus {
-        AnimationStatus::None
-    }
-}
-
-/// Per-paint media inputs.
-pub struct MediaContext<'a> {
-    /// Directory of the current document for relative paths.
-    pub base: Option<PathBuf>,
-    /// Application resolver.
-    pub provider: &'a mut dyn MediaProvider,
-}
-
-impl MediaContext<'_> {
-    /// Build a request with the preview's limits.
-    pub fn request(
-        &self,
-        ctx: &egui::Context,
-        kind: MediaKind,
-        source: &str,
-        max_width: f32,
-        dark: bool,
-    ) -> MediaRequest {
-        let pixels_per_point = ctx.pixels_per_point().max(1.0);
-        let mut request = MediaRequest::new(kind, source);
-        request.base.clone_from(&self.base);
-        request.max_width = (max_width * pixels_per_point).clamp(32.0, 4096.0) as u32;
-        request.max_height = 4096;
-        request.dark = dark;
-        request
-    }
-
-    /// Resolve a media item with the preview's limits.
-    pub fn load(
-        &mut self,
-        ctx: &egui::Context,
-        kind: MediaKind,
-        source: &str,
-        max_width: f32,
-        dark: bool,
-    ) -> MediaState {
-        let request = self.request(ctx, kind, source, max_width, dark);
-        self.provider.resolve(ctx, &request)
-    }
-}
-
-/// A request to open the image lightbox.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MediaLightbox {
-    /// The resolved request for the image.
-    pub request: MediaRequest,
-    /// Alternative text shown in the window title and placeholder.
-    pub alt: String,
-}
-
-/// What the preview reported during one paint.
-#[derive(Clone, Debug, Default)]
-pub struct PreviewOutput {
-    /// A link the user clicked.
-    pub link: Option<LinkActivation>,
-    /// An in-document anchor requested from a footnote or backlink.
-    pub anchor: Option<String>,
-    /// Whether the user copied a code block.
-    pub copied: bool,
-    /// An image the user asked to inspect.
-    pub lightbox: Option<MediaLightbox>,
-    pub(crate) anchors_screen: Vec<(String, f32)>,
-}
 
 struct Cached {
     key: u64,
@@ -155,6 +48,21 @@ struct BlockScreen {
     end_line: usize,
     top: f32,
     height: f32,
+}
+
+/// Scroll diagnostics reported by the last preview paint.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct PreviewScrollMetrics {
+    /// Current vertical offset.
+    pub offset: f32,
+    /// Largest valid offset.
+    pub max_offset: f32,
+    /// Viewport height.
+    pub viewport_height: f32,
+    /// Total content height.
+    pub content_height: f32,
+    /// Bottom of the last top-level block.
+    pub last_block_bottom: f32,
 }
 
 /// The Markdown preview widget and its scroll/cache state.
@@ -170,9 +78,12 @@ pub struct Preview {
     width: f32,
     margins: mdview_theme::ReadingMargins,
     typography: mdview_theme::ReadingTypography,
+    search_query: Option<String>,
     user_scrolled: bool,
     viewport: egui::Rect,
     heights: std::collections::HashMap<usize, f32>,
+    content_height: f32,
+    max_offset: f32,
     layout_width: f32,
     painted_blocks: usize,
     last_frame_time: std::time::Duration,
@@ -192,9 +103,12 @@ impl Default for Preview {
             width: 760.0,
             margins: mdview_theme::ReadingMargins::Comfortable,
             typography: mdview_theme::ReadingTypography::default(),
+            search_query: None,
             user_scrolled: false,
             viewport: egui::Rect::NOTHING,
             heights: std::collections::HashMap::new(),
+            content_height: 0.0,
+            max_offset: 0.0,
             layout_width: 0.0,
             painted_blocks: 0,
             last_frame_time: std::time::Duration::ZERO,
@@ -213,9 +127,44 @@ impl Preview {
         self.scroll
     }
 
+    /// The largest valid scroll offset from the last paint.
+    pub fn max_scroll_offset(&self) -> f32 {
+        self.max_offset
+    }
+
+    /// Diagnostics for E2E assertions and the status bar.
+    pub fn scroll_metrics(&self) -> PreviewScrollMetrics {
+        PreviewScrollMetrics {
+            offset: self.scroll,
+            max_offset: self.max_offset,
+            viewport_height: self.viewport.height(),
+            content_height: self.content_height,
+            last_block_bottom: self
+                .source_map
+                .blocks
+                .last()
+                .map(|block| block.top + block.height)
+                .unwrap_or(0.0),
+        }
+    }
+
     /// Request a scroll offset on the next paint.
     pub fn set_scroll_offset(&mut self, offset: f32) {
         self.pending_scroll = Some(offset.max(0.0));
+    }
+
+    /// Scroll to the maximum offset on the next paint.
+    pub fn scroll_to_end(&mut self) {
+        self.pending_scroll = Some(if self.max_offset > 0.0 {
+            self.max_offset
+        } else {
+            f32::MAX
+        });
+    }
+
+    /// Whether the preview is at the end of its scrollable range.
+    pub fn is_at_end(&self) -> bool {
+        self.max_offset > 0.0 && self.scroll >= self.max_offset - 2.0
     }
 
     /// Whether the user scrolled this frame, consuming the flag.
@@ -296,6 +245,14 @@ impl Preview {
         self.width
     }
 
+    /// Highlight a literal query in the reading view.
+    pub fn set_search_query(&mut self, query: Option<String>) {
+        let query = query.filter(|query| !query.trim().is_empty());
+        if self.search_query != query {
+            self.search_query = query;
+        }
+    }
+
     /// Paint the preview and report link and copy interactions.
     pub fn show(&mut self, ui: &mut Ui, source: &str, theme: &Theme, light: bool) -> PreviewOutput {
         let started = std::time::Instant::now();
@@ -351,6 +308,7 @@ impl Preview {
         let mut output = PreviewOutput::default();
         let mut block_screens: Vec<BlockScreen> = Vec::new();
         let mut media = media;
+        let search_query = self.search_query.clone();
         let mut heights = std::mem::take(&mut self.heights);
         let (top_gap, bottom_gap, block_gap, cap) = match self.margins {
             mdview_theme::ReadingMargins::Comfortable => (8.0, 12.0, 6.0, self.width),
@@ -358,6 +316,10 @@ impl Preview {
             mdview_theme::ReadingMargins::Full => (2.0, 4.0, 3.0, f32::INFINITY),
         };
 
+        let anchor_before = self.anchor();
+        let old_content_height = self.content_height;
+        let old_max_offset = self.max_offset;
+        let was_at_end = old_max_offset > 0.0 && self.scroll >= old_max_offset - 32.0;
         let mut area = egui::ScrollArea::vertical()
             .id_salt("mdview-markdown-preview")
             .animated(false)
@@ -398,11 +360,12 @@ impl Preview {
                             highlighter: &self.highlighter,
                             output: &mut output,
                             typography: self.typography,
+                            search: search_query.as_deref(),
                         };
                         let overscan = 320.0;
                         let mut top = 0.0_f32;
                         for block in &cached.document.blocks {
-                            let estimated = estimate_height(&block.kind);
+                            let estimated = estimate_height(&block.kind, width, self.typography);
                             let height = heights.get(&block.id).copied().unwrap_or(estimated);
                             let visible = top + height >= viewport.min.y - overscan && top <= viewport.max.y + overscan;
                             if visible {
@@ -465,6 +428,9 @@ impl Preview {
             });
         }
         self.source_map = SourceMap::from_anchors(mapped, content_height + bottom_gap);
+        let max_offset = (area_output.content_size.y - area_output.inner_rect.height()).max(0.0);
+        self.content_height = self.source_map.content_height;
+        self.max_offset = max_offset;
 
         let mut anchor_map = BTreeMap::new();
         for (anchor, y) in &output.anchors_screen {
@@ -477,6 +443,23 @@ impl Preview {
         self.scroll = scroll;
         self.viewport = area_output.inner_rect;
 
+        // If the reader was at the end when an image, diagram, or table finished
+        // measuring, stay pinned to the new end instead of stopping short.
+        if !programmatic
+            && ((self.scroll >= max_offset - 32.0 && self.scroll < max_offset - 0.5)
+                || (was_at_end && max_offset > old_max_offset + 0.5))
+        {
+            self.pending_scroll = Some(max_offset);
+            ui.ctx().request_repaint();
+        } else if !programmatic
+            && (self.source_map.content_height - old_content_height).abs() > 0.5
+            && let Some(anchor) = anchor_before
+            && let Some(offset) = anchor.offset(&self.source_map)
+            && (offset - self.scroll).abs() > 0.5
+        {
+            self.pending_scroll = Some(offset);
+            ui.ctx().request_repaint();
+        }
         if let Some((line, fraction)) = self.pending_line.take()
             && let Some(offset) = self.source_map.offset_for_line(line, fraction)
         {

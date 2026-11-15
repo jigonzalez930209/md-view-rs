@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::process::ExitCode;
 
+mod ci;
 mod icons;
 mod package;
 mod release;
@@ -17,6 +18,7 @@ fn main() -> ExitCode {
     let command = args.first().map(String::as_str);
     match command {
         Some("check-file-length") => check_file_length(),
+        Some("ci") => ci::run(),
         Some("package") => match package::run(args.iter().any(|arg| arg == "--no-build")) {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) => {
@@ -85,6 +87,7 @@ fn main() -> ExitCode {
             println!("Usage: cargo xtask <command>");
             println!();
             println!("Commands:");
+            println!("  ci                 Run fmt, clippy, tests, deny, file length, and release build");
             println!("  check-file-length  Fail when a hand-written Rust file exceeds 500 lines");
             println!("  icons              Generate PNG, ICO, and ICNS assets from assets/icon.svg");
             println!("  e2e                Run the full Xvfb UI, rendering, and logging test");

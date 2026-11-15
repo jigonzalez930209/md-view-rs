@@ -20,6 +20,8 @@ pub struct ViewerContext<'a> {
     pub media: &'a mut MediaRuntime,
     /// Whether the active theme is dark.
     pub dark: bool,
+    /// Whether the shared lightbox is already open.
+    pub lightbox_open: bool,
 }
 
 /// What a viewer wants the application to do after painting.
@@ -104,14 +106,18 @@ impl crate::app::MdViewApp {
                 &mut ViewerContext {
                     media: &mut self.media,
                     dark,
+                    lightbox_open: self.lightbox.is_some(),
                 },
             )
         };
         if let Some(lightbox) = output.lightbox {
+            log::debug!("lightbox open alt={}", lightbox.alt);
             self.lightbox = Some(crate::lightbox::LightboxState {
                 request: lightbox.request,
                 alt: lightbox.alt,
                 scale: 1.0,
+                fit: true,
+                pan: egui::Vec2::ZERO,
             });
         }
     }

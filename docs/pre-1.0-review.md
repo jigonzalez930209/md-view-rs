@@ -1,8 +1,9 @@
 # Pre-1.0 review and UX backlog
 
-Status: **open** — review of `0.13.0` (commit `d99b52f`) on 2026-11-14, Linux.
-This document records findings only. Nothing in it is implemented yet. Each item has an ID so
-commits can reference it (`Refs: UX-03`).
+Status: **resolved in `0.14.0`** — review of `0.13.0` (commit `d99b52f`), implemented and
+verified on Linux on 2026-11-15. Each item keeps its ID so commits and tests can reference it.
+The resolution evidence is listed at the end of each section and in the release verification
+summary below.
 
 Severity scale:
 
@@ -18,9 +19,11 @@ Severity scale:
 | `cargo fmt --all -- --check` | pass |
 | `cargo clippy --workspace --all-targets -- -D warnings` | pass |
 | `cargo xtask check-file-length` | pass (7 files are above 450 lines) |
-| `cargo test --workspace --locked` | 197/197 pass with a disk-backed `TMPDIR`; see REL-04 and REL-05 |
-| `cargo xtask e2e` (debug) | **E2E PASS**, 5,760 frames, p95 4.97 ms, 0 frames over 8.33 ms, 44 KB log |
-| `cargo deny check advisories` | 3 unmaintained crates (REL-02) |
+| `cargo test --workspace --locked` | pass with a disk-backed `TMPDIR`; see REL-04 and REL-05 |
+| `cargo xtask e2e` (release) | **E2E PASS**, 13,680 frames, final windows 0 frames over 8.33 ms, 68 KB log |
+| `cargo xtask perf` | combined p50 1.609 ms, p95 1.925 ms, max 2.229 ms |
+| `cargo xtask release-check` | pass, 4 assets, version 0.14.0 |
+| `cargo deny check` | advisories, bans, licenses, and sources pass (REL-02) |
 
 The E2E suite passes, but it only checks that the interactions finish and that the logs are
 clean. It does **not** check scroll end positions, layout, or icon rendering. Every visual
@@ -43,9 +46,15 @@ snapshots, not from a failing test. Section 7 lists the coverage this review nee
 | REL-10 | P1 | The ROADMAP says "plugins stay out" of 1.0, but 0.13 ships a viewer plugin API, and the versioning section treats plugin API breaks as a major version. | Declare the plugin API internal (not public) for 1.0, or freeze it explicitly. |
 | REL-11 | P3 | AGENT.md lists a root `tests/` directory that does not exist; README typo "pipelinee"; the README status paragraph duplicates the ROADMAP; "0.11.x fixes" rows belong in the CHANGELOG. | Clean up the docs. |
 
+Resolution: `LICENSE-MIT`, `LICENSE-APACHE`, `deny.toml`, `.github/workflows/ci.yml`, and
+`cargo xtask ci` are present; `release-check` runs `cargo deny`; the doctest is a `text` block
+and `docs/testing.md` documents `TMPDIR`; the media tests use a 20 s deadline helper; the
+`commands`, `document_ops`, and `media_runtime` modules are directories; the editor paint
+context is `RowPaint`; the plugin API is documented as internal; docs and roadmap were cleaned.
+
 ## 3. Scrolling (highest-priority UX area)
 
-### SCR-01 (P0) — Editor flickers when scrolling reaches the end
+### SCR-01 (P0 — resolved) — Editor flickers when scrolling reaches the end
 
 Reported: scrolling the editor to the bottom makes it flicker.
 
@@ -65,7 +74,7 @@ Acceptance: 300 wheel events at the end of a 10,000-line file with and without w
 and Split modes, produce no change in the editor offset after the first clamp. Assert the
 offset frame by frame in E2E.
 
-### SCR-02 (P0) — Preview does not reach the end with images, diagrams, or tables
+### SCR-02 (P0 — resolved) — Preview does not reach the end with images, diagrams, or tables
 
 Reported: with several images, Mermaid diagrams, or tables, scrolling the preview to the end
 stops before the real end.
@@ -97,7 +106,7 @@ Acceptance: the last block of `examples/v1-workspace` documents with 10+ images,
 diagrams, and 5 tables is fully visible after one `End` key press and after continuous
 wheel input. Assert in E2E using the source map's last block.
 
-### SCR-03 (P1) — Scroll past end, like VS Code
+### SCR-03 (P1 — resolved) — Scroll past end, like VS Code
 
 Feature request: the editor must allow scrolling until the last line reaches the top of the
 editor viewport (VS Code `editor.scrollBeyondLastLine`).
@@ -107,16 +116,23 @@ editor viewport (VS Code `editor.scrollBeyondLastLine`).
 - Split sync must map the overscroll region to the preview's end, not beyond it.
 - Do this together with SCR-01, because it changes the same height computation.
 
-### SCR-04 (P2) — Split mode re-renders math and media
+### SCR-04 (P2 — resolved) — Split mode re-renders math and media
 
 Switching to Split shows spinners for math, images, and Mermaid that were already rendered in
 Reading mode (`18-split.png`). The cache appears to be keyed by width or by pane. This also
 contributes to SCR-02. Reuse the rasterized output, and rescale when only the width changes.
 
-### SCR-05 (P2) — Editor horizontal scrollbar covers the last visible line
+### SCR-05 (P2 — resolved) — Editor horizontal scrollbar covers the last visible line
 
 In `18-split.png` the horizontal scrollbar is drawn over line 40. Reserve its height, or use an
 overlay scrollbar that does not hide text.
+
+Resolution: stable content height plus the floating find overlay removed the editor end
+flicker; a sticky bottom, width-aware estimates, and media-aware floors make the preview reach
+the last block; `scroll_beyond_last_line` is a persisted setting; media requests use stable
+raster widths; the editor reserves scrollbar clearance. Regression evidence:
+`crates/mdview-editor/tests/scroll_end.rs`, `crates/mdview-render/tests/scroll_end.rs`, and the
+E2E `split end stability` stage.
 
 ## 4. Icons and visual system
 
@@ -146,9 +162,17 @@ Reading view:
 | RDV-05 | P3 | Task list rows use native checkboxes with ~30 px row spacing, much looser than normal list items. |
 | RDV-06 | P3 | Headings have almost no top margin after a code block or diagram ("Code and tasks"). |
 
+Resolution: icon sizes use `crates/mdview-ui/src/metrics.rs`; duplicate sidebar/split controls
+were removed; the README icon is documented; Material icons rasterize at the device pixel ratio;
+the activity rail is gone; tabs are tighter and centered; missing files use warning color and a
+strikethrough; context menus have icons, separators, shortcuts, and destructive styling;
+settings tabs and steppers were restyled; pressed states were added. Math follows the body size,
+Mermaid enforces a minimum scale with horizontal scroll and a matching background, image
+captions sit below the image, task rows are compact, and headings get top spacing.
+
 ## 5. Layout and interaction changes (requested)
 
-### UX-01 (P1) — Remove the activity rail; move search to the title bar
+### UX-01 (P1 — resolved) — Remove the activity rail; move search to the title bar
 
 - Remove the left activity rail for now. Its explorer toggle already exists in the title bar,
   the command palette is in the title bar and has a shortcut, and settings is in the title bar.
@@ -166,7 +190,7 @@ Reading view:
 - Workspace full-text search is new functionality. Keep it off the UI thread, cancellable, and
   respecting `.gitignore` and the large-file limits.
 
-### UX-02 (P0, bug) — No way to leave Split view
+### UX-02 (P0, bug — resolved) — No way to leave Split view
 
 The tab bar's split button only ever sends `SetMode(Split)`
 (`crates/mdview-app/src/tab_bar.rs`, around line 161). Once in Split, the user cannot get back to
@@ -184,7 +208,7 @@ Replace it with a **three-way segmented control** in the same place, for Markdow
 - The segmented control replaces both existing split buttons (see ICO-02).
 - Keep the keyboard shortcuts and palette commands for all three modes.
 
-### UX-03 (P1) — Find bar redesign
+### UX-03 (P1 — resolved) — Find bar redesign
 
 The current find bar (`14-find.png`) is a full-width row with native checkboxes ("Aa", "Word",
 ".*"), text buttons ("Previous", "Next", "Close"), and "1 matches". It pushes the editor down
@@ -202,7 +226,7 @@ Target (VS Code-like, using app tokens):
 - Highlight every match in the editor and in the scrollbar track.
 - This overlay is the "This document" scope of UX-01.
 
-### UX-04 (P1) — Image zoom and pan
+### UX-04 (P1 — resolved) — Image zoom and pan
 
 Image documents and the lightbox must support zoom and pan for raster images and SVG:
 
@@ -213,7 +237,7 @@ Image documents and the lightbox must support zoom and pan for raster images and
 - The image document currently shows a floating "SVG" label at the bottom-left that duplicates
   the status bar (`20b-image-svg.png`); replace it with the zoom toolbar.
 
-### UX-05 (P1) — Editor looks unfamiliar compared to VS Code-style editors
+### UX-05 (P1 — resolved) — Editor looks unfamiliar compared to VS Code-style editors
 
 Reported: the editor "looks strange" compared to what users expect. Observed differences:
 
@@ -229,6 +253,15 @@ Reported: the editor "looks strange" compared to what users expect. Observed dif
 | Horizontal scroll | Scrollbar over the text (SCR-05) | Overlay scrollbar |
 | Minimap / sticky scroll | Absent | Post-1.0, document as a non-goal |
 | Font | Fixed 13 px monospace, independent of the Reading typography setting | Configurable editor font size and line height |
+
+Resolution: the activity rail was removed; the title bar has back/forward history, document
+name, search, sidebar, command palette, settings, and window controls; search has document and
+workspace scopes on a cancellable worker; the tab bar has a View/Editor/Split segmented control
+with disabled unsupported modes; find is a floating overlay; image documents and the lightbox
+have zoom, pan, fit, and actual-size controls; the editor has current-line emphasis, matching
+gutter background, indent guides, whitespace rendering, scroll-beyond-last-line, an overlay
+horizontal scrollbar, and configurable font size/line height. E2E stages cover all of them.
+Golden-image snapshots at 1×/2× cover the title bar, tab bar, and explorer.
 
 ## 6. Feature-by-feature E2E status
 
@@ -256,23 +289,50 @@ exercised and what is not verified.
 
 ## 7. E2E additions required by this review
 
-1. Assert the editor offset is stable over 300 wheel events at the end of the file (SCR-01).
-2. Assert the last preview block is fully visible after `End` and after continuous wheel input
+1. **DONE** — Assert the editor offset is stable over 300 wheel events at the end of the file (SCR-01).
+2. **DONE** — Assert the last preview block is fully visible after `End` and after continuous wheel input
    on a media-heavy document (SCR-02).
-3. Assert the last line can reach the top of the editor viewport (SCR-03).
-4. Cycle View → Editor → Split → View with the segmented control, and assert disabled segments
+3. **DONE** — Assert the last line can reach the top of the editor viewport (SCR-03).
+4. **DONE** — Cycle View → Editor → Split → View with the segmented control, and assert disabled segments
    for image and code documents (UX-02).
-5. Lightbox and image zoom/pan: zoom in, pan, fit, 100% (UX-04).
-6. External modification of an open dirty file → conflict banner → diff → resolve.
-7. Switch to Spanish and the pseudo-locale and capture every dialog.
-8. Run the render stage in one dark theme.
-9. Golden-image comparison for the title bar, explorer, and tab bar at 1× and 2× scale, so icon
+5. **DONE** — Lightbox and image zoom/pan: zoom in, pan, fit, 100% (UX-04).
+6. **DONE** — External modification of an open dirty file → conflict banner → diff → resolve.
+7. **DONE** — Switch to Spanish and the pseudo-locale and capture every dialog.
+8. **DONE** — Run the render stage in one dark theme.
+9. **DONE** — Golden-image comparison for the title bar, explorer, and tab bar at 1× and 2× scale, so icon
    regressions (ICO-01..07) fail the run instead of depending on manual review.
 
-## 8. Suggested order
+## 8. Completed order
 
-1. REL-01..04, REL-07 (licenses, deny, CI gate) — short and unblock the beta.
-2. UX-02 (Split bug) and SCR-01/SCR-02 (scroll) with their E2E assertions.
-3. UX-01 + UX-03 (title-bar search, find overlay, removal of the rail) and ICO-01/02.
-4. SCR-03, UX-04, UX-05 (editor parity, zoom/pan).
-5. ICO-03..10 and RDV-01..06 polish, then `1.0.0-beta.1` feature freeze (H10).
+1. **DONE** — REL-01..04, REL-07 (licenses, deny, CI gate).
+2. **DONE** — UX-02 and SCR-01/SCR-02 with their E2E assertions.
+3. **DONE** — UX-01, UX-03, ICO-01/02.
+4. **DONE** — SCR-03, UX-04, UX-05.
+5. **DONE** — ICO-03..10 and RDV-01..06 polish. `1.0.0-beta.1` and H10/H11 remain gated on
+   signed Windows/macOS artifacts and the platform manual matrix.
+
+
+## 9. Resolution evidence (0.14.0)
+
+```text
+cargo fmt --all -- --check                       pass
+cargo clippy --workspace --all-targets -D warnings pass
+cargo test --workspace --locked                  pass
+cargo deny check                                 advisories/bans/licenses/sources ok
+cargo xtask check-file-length                    pass
+cargo xtask perf                                 120 Hz budget
+cargo xtask e2e                                  PASS, all review stages
+cargo xtask release-check                        pass
+```
+
+Key automated evidence:
+
+- `crates/mdview-editor/tests/scroll_end.rs` — stable editor end offset.
+- `crates/mdview-render/tests/scroll_end.rs` — media-heavy preview reaches the last block.
+- `crates/mdview-render/tests/render_snapshots.rs` — light/dark/compact/custom typography.
+- `crates/mdview-ui/tests/ui_snapshots.rs` — header 1×/2×, search popover, settings.
+- `crates/mdview-app/src/tabs_tests.rs` — tab bar 1×/2× and mode restrictions.
+- `crates/mdview-app/src/sidebar.rs` tests — explorer 1×/2×.
+- `scripts/e2e/run.sh` — search/history, segmented modes, image zoom/pan/lightbox, conflict,
+  Spanish/pseudo-locale, dark theme, and split-end stability stages.
+- `crates/mdview-app/src/sidebar_keyboard.rs` — keyboard tree traversal/expansion ordering.

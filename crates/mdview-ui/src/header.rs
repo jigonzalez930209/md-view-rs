@@ -1,15 +1,15 @@
-//! The desktop workbench title bar and activity rail.
+//! The desktop workbench title bar.
 //!
 //! The title bar follows the compact desktop convention used by Ubuntu: a product mark, the
-//! application menus, centered document title, workbench toggles, and window controls. The
-//! activity rail below it switches the primary panels. Every action is also available from the
-//! menu bar or a keyboard shortcut.
+//! application menus, document history, centered document title, search, workbench toggles, and
+//! window controls. Every action is also available from the menu bar or a keyboard shortcut.
 
 use egui::{Align, Align2, Color32, FontId, Image, Layout, Rect, Sense, Ui, UiBuilder, Vec2};
 use mdview_i18n::Translations;
 use mdview_model::Encoding;
 
-use crate::{Activity, Command, MaterialIcons, ViewMode};
+use crate::metrics::{ACTION_BUTTON, ICON_LARGE, ICON_MEDIUM, ICON_SMALL, WINDOW_BUTTON_HEIGHT, WINDOW_BUTTON_WIDTH};
+use crate::{Command, MaterialIcons, ViewMode};
 
 #[path = "header_menus.rs"]
 mod header_menus;
@@ -29,6 +29,12 @@ pub struct TitleBarState<'a> {
     pub mode: ViewMode,
     /// Markdown files can use reading and split modes.
     pub is_markdown: bool,
+    /// Reading view is available.
+    pub can_view: bool,
+    /// Editor is available.
+    pub can_edit: bool,
+    /// Split view is available.
+    pub can_split: bool,
     /// Sidebar visibility.
     pub sidebar_open: bool,
     /// Whether a workspace folder is loaded.
@@ -43,6 +49,12 @@ pub struct TitleBarState<'a> {
     pub line_numbers: bool,
     /// Whether the window is maximized.
     pub maximized: bool,
+    /// Whether document history can navigate back.
+    pub can_back: bool,
+    /// Whether document history can navigate forward.
+    pub can_forward: bool,
+    /// Whether the search popover is open.
+    pub search_open: bool,
 }
 
 /// Draw the title bar and return the selected command.
@@ -64,7 +76,7 @@ pub fn show_title_bar(ui: &mut Ui, state: TitleBarState<'_>, icons: &mut Materia
                 ui.spacing_mut().item_spacing = Vec2::new(2.0, 0.0);
                 ui.add_space(8.0);
                 if let Some(texture) = icons.ui_texture(ui.ctx(), "logo") {
-                    ui.add(Image::new(&texture).fit_to_exact_size(Vec2::new(19.0, 19.0)));
+                    ui.add(Image::new(&texture).fit_to_exact_size(Vec2::splat(ICON_LARGE)));
                 }
                 ui.add_space(6.0);
                 menu_button(ui, &t("File"), |ui| file_menu(ui, &t, &mut command));
@@ -72,6 +84,13 @@ pub fn show_title_bar(ui: &mut Ui, state: TitleBarState<'_>, icons: &mut Materia
                 menu_button(ui, &t("View"), |ui| view_menu(ui, &t, &state, &mut command));
                 menu_button(ui, &t("Go"), |ui| go_menu(ui, &t, &mut command));
                 menu_button(ui, &t("Help"), |ui| help_menu(ui, &t, &mut command));
+                ui.add_space(6.0);
+                if icon_button(ui, icons, "back", &t("Back"), false, !state.can_back) {
+                    command = Some(Command::Back);
+                }
+                if icon_button(ui, icons, "forward", &t("Forward"), false, !state.can_forward) {
+                    command = Some(Command::Forward);
+                }
             },
         )
         .response
@@ -103,16 +122,16 @@ pub fn show_title_bar(ui: &mut Ui, state: TitleBarState<'_>, icons: &mut Materia
                 ui.add_space(6.0);
                 ui.separator();
                 ui.add_space(4.0);
-                if icon_button(ui, icons, "settings", &t("Settings"), false) {
+                if icon_button(ui, icons, "settings", &t("Settings"), false, true) {
                     command = Some(Command::Settings);
                 }
-                if icon_button(ui, icons, "command", &t("Command Palette"), false) {
+                if icon_button(ui, icons, "command", &t("Command Palette"), false, true) {
                     command = Some(Command::CommandPalette);
                 }
-                if icon_button(ui, icons, "split", &t("Split view"), state.mode == ViewMode::Split) {
-                    command = Some(Command::SetMode(ViewMode::Split));
+                if icon_button(ui, icons, "search", &t("Search"), state.search_open, true) {
+                    command = Some(Command::Search);
                 }
-                if state.workspace_open && icon_button(ui, icons, "sidebar", &t("Explorer"), state.sidebar_open) {
+                if state.workspace_open && icon_button(ui, icons, "sidebar", &t("Explorer"), state.sidebar_open, true) {
                     command = Some(Command::ToggleSidebar);
                 }
                 ui.add_space(2.0);
@@ -122,10 +141,12 @@ pub fn show_title_bar(ui: &mut Ui, state: TitleBarState<'_>, icons: &mut Materia
         .rect
         .left();
 
-    let drag = Rect::from_min_max(
-        egui::pos2(left + 8.0, bar.top()),
-        egui::pos2((right - 8.0).max(left + 8.0), bar.bottom()),
-    );
+    // Only the center of the title bar is a drag surface. Earlier versions covered the whole
+    // bar, which stole clicks from the history and workbench buttons.
+    let center = bar.center().x;
+    let drag_left = (center - 70.0).max(bar.left() + 8.0);
+    let drag_right = (center + 70.0).min(bar.right() - 8.0).max(drag_left);
+    let drag = Rect::from_min_max(egui::pos2(drag_left, bar.top()), egui::pos2(drag_right, bar.bottom()));
     let response = ui.interact(drag, ui.scope_id().with("title_bar_drag"), Sense::click_and_drag());
     if response.drag_started() {
         ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
@@ -161,83 +182,6 @@ pub fn show_title_bar(ui: &mut Ui, state: TitleBarState<'_>, icons: &mut Materia
             ui.visuals().weak_text_color(),
         );
     }
-
-    command
-}
-
-/// Inputs for the activity rail.
-pub struct ActivityState<'a> {
-    /// Translator.
-    pub translations: &'a Translations,
-    /// Active language.
-    pub lang: craft_i18n::Lang,
-    /// Explorer panel visible.
-    pub explorer_open: bool,
-    /// A workspace folder is loaded.
-    pub workspace_open: bool,
-    /// The current activity, if any.
-    pub active: Option<Activity>,
-}
-
-/// Draw the vertical activity rail. Returns the selected command.
-pub fn show_activity_bar(ui: &mut Ui, state: ActivityState<'_>, icons: &mut MaterialIcons) -> Option<Command> {
-    let t = |source: &str| state.translations.t(state.lang, source);
-    let mut command = None;
-    let rect = ui.max_rect();
-    ui.painter().rect_filled(rect, 0.0, ui.visuals().window_fill);
-
-    let top = Rect::from_min_max(rect.min, egui::pos2(rect.right(), rect.top() + 112.0));
-    ui.scope_builder(
-        UiBuilder::new().max_rect(top).layout(Layout::top_down(Align::Center)),
-        |ui| {
-            ui.add_space(6.0);
-            if activity_button(
-                ui,
-                icons,
-                "files",
-                t("Explorer"),
-                state.active == Some(Activity::Explorer) || state.explorer_open,
-            ) {
-                command = Some(if state.workspace_open {
-                    Command::ToggleSidebar
-                } else {
-                    Command::OpenFolder
-                });
-            }
-            if activity_button(ui, icons, "search", t("Find"), state.active == Some(Activity::Search)) {
-                command = Some(Command::Find);
-            }
-            if activity_button(
-                ui,
-                icons,
-                "command",
-                t("Command Palette"),
-                state.active == Some(Activity::Palette),
-            ) {
-                command = Some(Command::CommandPalette);
-            }
-        },
-    );
-
-    let bottom_min = egui::pos2(rect.left(), (rect.bottom() - 44.0).max(rect.top()));
-    let bottom = Rect::from_min_max(bottom_min, rect.max);
-    ui.scope_builder(
-        UiBuilder::new()
-            .max_rect(bottom)
-            .layout(Layout::top_down(Align::Center)),
-        |ui| {
-            ui.add_space(2.0);
-            if activity_button(
-                ui,
-                icons,
-                "settings",
-                t("Settings"),
-                state.active == Some(Activity::Settings),
-            ) {
-                command = Some(Command::Settings);
-            }
-        },
-    );
 
     command
 }
@@ -317,7 +261,7 @@ fn window_button(
     kind: WindowButton,
     tooltip: String,
 ) -> egui::Response {
-    let (rect, response) = ui.allocate_exact_size(Vec2::new(44.0, 32.0), Sense::click());
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(WINDOW_BUTTON_WIDTH, WINDOW_BUTTON_HEIGHT), Sense::click());
     let hovered = response.hovered();
     let fill = if hovered {
         match kind {
@@ -334,11 +278,7 @@ fn window_button(
         } else {
             ui.visuals().text_color()
         };
-        let size = if matches!(kind, WindowButton::Close) {
-            13.0
-        } else {
-            12.0
-        };
+        let size = ICON_SMALL;
         let icon_rect = Rect::from_center_size(rect.center(), Vec2::splat(size));
         ui.put(
             icon_rect,
@@ -348,40 +288,25 @@ fn window_button(
     response.on_hover_text(tooltip)
 }
 
-fn activity_button(ui: &mut Ui, icons: &mut MaterialIcons, icon: &str, tooltip: String, active: bool) -> bool {
-    let (rect, response) = ui.allocate_exact_size(Vec2::new(38.0, 38.0), Sense::click());
-    if active {
-        ui.painter().rect_filled(
-            egui::Rect::from_min_size(egui::pos2(rect.left() - 6.0, rect.top() + 7.0), Vec2::new(2.0, 22.0)),
-            1.0,
-            ui.visuals().selection.bg_fill,
-        );
-    } else if response.hovered() {
-        ui.painter().rect_filled(
-            rect.shrink(3.0),
-            egui::CornerRadius::same(5),
-            ui.visuals().widgets.hovered.weak_bg_fill,
-        );
+fn icon_button(ui: &mut Ui, icons: &mut MaterialIcons, icon: &str, tooltip: &str, active: bool, enabled: bool) -> bool {
+    let (rect, response) = ui.allocate_exact_size(Vec2::splat(ACTION_BUTTON), Sense::click());
+    if !enabled {
+        ui.painter()
+            .rect_filled(rect, egui::CornerRadius::same(5), Color32::TRANSPARENT);
+        if let Some(texture) = icons.ui_texture(ui.ctx(), icon) {
+            ui.put(
+                rect.shrink(6.0),
+                Image::new(&texture)
+                    .fit_to_exact_size(Vec2::splat(ICON_MEDIUM))
+                    .tint(ui.visuals().weak_text_color().gamma_multiply(0.45)),
+            );
+        }
+        return false;
     }
-    if let Some(texture) = icons.ui_texture(ui.ctx(), icon) {
-        let color = if active {
-            ui.visuals().text_color()
-        } else {
-            ui.visuals().weak_text_color()
-        };
-        let icon_rect = Rect::from_center_size(rect.center(), Vec2::splat(24.0));
-        ui.put(
-            icon_rect,
-            Image::new(&texture).fit_to_exact_size(Vec2::splat(24.0)).tint(color),
-        );
-    }
-    response.on_hover_text(tooltip).clicked()
-}
-
-fn icon_button(ui: &mut Ui, icons: &mut MaterialIcons, icon: &str, tooltip: &str, active: bool) -> bool {
-    let (rect, response) = ui.allocate_exact_size(Vec2::new(28.0, 28.0), Sense::click());
     let visuals = ui.visuals();
-    let fill = if active || response.hovered() {
+    let fill = if response.is_pointer_button_down_on() {
+        visuals.widgets.active.weak_bg_fill
+    } else if active || response.hovered() {
         visuals.widgets.hovered.weak_bg_fill
     } else {
         Color32::TRANSPARENT
@@ -398,10 +323,11 @@ fn icon_button(ui: &mut Ui, icons: &mut MaterialIcons, icon: &str, tooltip: &str
         );
     }
     if let Some(texture) = icons.ui_texture(ui.ctx(), icon) {
-        let color = visuals.text_color();
         ui.put(
-            rect.shrink(4.0),
-            Image::new(&texture).fit_to_exact_size(Vec2::splat(18.0)).tint(color),
+            rect.shrink(6.0),
+            Image::new(&texture)
+                .fit_to_exact_size(Vec2::splat(ICON_MEDIUM))
+                .tint(visuals.text_color()),
         );
     }
     response.on_hover_text(tooltip).clicked()

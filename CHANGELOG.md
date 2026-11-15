@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.14.0 — Pre-1.0 review resolution
+
+- Removed the activity rail and moved the workbench controls into the title bar: back/forward
+  history, document/workspace search, sidebar, palette, settings, and window controls.
+- Added a floating document/workspace search popover on a cancellable worker, highlighting
+  matches in the reading view and activating results at the source line.
+- Added the View/Editor/Split segmented control with disabled modes for images and code files,
+  replacing the duplicate sidebar and split toggle buttons.
+- Redesigned find/replace as a floating overlay with icon toggles, match counts, and a
+  collapsible replace row.
+- Stabilized editor and preview scroll ends: fixed-height content independent of transient
+  scrollbars, sticky bottom, width/media-aware estimates, and scroll-beyond-last-line.
+- Added editor typography controls (font size, line height), indent guides, whitespace rendering,
+  current-line emphasis, matching gutter background, and overlay scrollbar clearance.
+- Added image zoom, pan, fit, actual-size, and a toolbar; the lightbox gained the same controls.
+- Added icon-size tokens, device-pixel-ratio Material icons, context-menu icons and destructive
+  styling, tab alignment, missing-file styling, and settings-dialog polish.
+- Scaled math to the reading typography, enforced a legible Mermaid minimum with horizontal
+  scroll and a matching background, moved image captions below images, and tightened task rows.
+- Added licenses, `deny.toml`, `cargo xtask ci`, hosted CI, release-check dependency pin checks,
+  a disk-backed test note, and split `commands`, `document_ops`, and `media_runtime` into
+  responsibility-based submodules.
+- Added scroll-end, media-heavy preview, history, search, editor-style, 1x/2x golden-image,
+  Spanish/pseudo-locale, dark-theme, lightbox, conflict, and segmented-mode coverage.
+
+
 ## 0.13.0 — Reading typography, aligned lists, and viewer plugins
 
 - Added a **Reading** settings tab with three width presets (Comfortable, Compact, Full width)

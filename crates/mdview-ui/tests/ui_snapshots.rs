@@ -6,8 +6,8 @@ use egui_kittest::Harness;
 use mdview_i18n::{LanguagePreference, Translations};
 use mdview_theme::{ThemeId, apply_id};
 use mdview_ui::{
-    ActivityState, ConfirmPrompt, NamePrompt, PaletteItem, SettingsView, TitleBarState, show_activity_bar,
-    show_confirm_prompt, show_name_prompt, show_palette, show_settings, show_title_bar,
+    ConfirmPrompt, NamePrompt, PaletteItem, SettingsView, TitleBarState, show_confirm_prompt, show_name_prompt,
+    show_palette, show_settings, show_title_bar,
 };
 
 fn translations() -> (Translations, craft_i18n::Lang) {
@@ -41,6 +41,7 @@ fn settings_snapshot() {
                     wrap: false,
                     line_numbers: true,
                     sync_scroll: true,
+                    editor_style: mdview_editor::EditorStyle::default(),
                     remote_images: true,
                     private_networks: false,
                     animate_svg: true,
@@ -82,12 +83,12 @@ fn palette_snapshot() {
     harness.snapshot("palette");
 }
 
-#[test]
-fn title_bar_snapshot() {
+fn title_bar_snapshot_with(name: &str, pixels_per_point: f32) {
     let (translations, lang) = translations();
     let mut icons = mdview_ui::MaterialIcons::new();
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1000.0, 34.0))
+        .with_pixels_per_point(pixels_per_point)
         .with_context_setup(|ctx| apply_id(ctx, ThemeId::GithubDark))
         .build_ui(move |ui| {
             show_title_bar(
@@ -99,6 +100,9 @@ fn title_bar_snapshot() {
                     dirty: true,
                     mode: mdview_ui::ViewMode::Split,
                     is_markdown: true,
+                    can_view: true,
+                    can_edit: true,
+                    can_split: true,
                     sidebar_open: true,
                     workspace_open: true,
                     workspace_name: Some("xtalforge"),
@@ -106,36 +110,64 @@ fn title_bar_snapshot() {
                     wrap: false,
                     line_numbers: true,
                     maximized: false,
+                    can_back: true,
+                    can_forward: false,
+                    search_open: false,
                 },
                 &mut icons,
             );
         });
     harness.run();
-    harness.snapshot("header");
+    harness.snapshot(name);
 }
 
 #[test]
-fn activity_bar_snapshot() {
+fn title_bar_snapshot() {
+    title_bar_snapshot_with("header", 1.0);
+}
+
+#[test]
+fn title_bar_2x_snapshot() {
+    title_bar_snapshot_with("header-2x", 2.0);
+}
+
+#[test]
+fn search_popover_snapshot() {
     let (translations, lang) = translations();
-    let mut icons = mdview_ui::MaterialIcons::new();
+    let hits = vec![
+        mdview_ui::SearchHitView {
+            title: "showcase.md:12".to_owned(),
+            detail: "Continue to level1/level2/level3/level4/level5/showcase.md.".to_owned(),
+            group: Some("showcase.md".to_owned()),
+        },
+        mdview_ui::SearchHitView {
+            title: "README.md:4".to_owned(),
+            detail: "The full render matrix lives in showcase.md.".to_owned(),
+            group: Some("README.md".to_owned()),
+        },
+    ];
+    let mut query = "showcase".to_owned();
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(48.0, 300.0))
+        .with_size(egui::vec2(1000.0, 700.0))
         .with_context_setup(|ctx| apply_id(ctx, ThemeId::GithubDark))
         .build_ui(move |ui| {
-            show_activity_bar(
-                ui,
-                ActivityState {
+            mdview_ui::show_search(
+                ui.ctx(),
+                mdview_ui::SearchView {
                     translations: &translations,
                     lang,
-                    explorer_open: true,
-                    workspace_open: true,
-                    active: Some(mdview_ui::Activity::Explorer),
+                    scope: mdview_ui::SearchScope::Workspace,
+                    query: &mut query,
+                    focus: false,
+                    hits: &hits,
+                    selected: 0,
+                    running: false,
+                    error: None,
                 },
-                &mut icons,
             );
         });
     harness.run();
-    harness.snapshot("activity");
+    harness.snapshot("search-popover");
 }
 
 #[test]

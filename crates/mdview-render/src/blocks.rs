@@ -21,6 +21,7 @@ pub(crate) struct BlockCtx<'a> {
     pub highlighter: &'a Highlighter,
     pub output: &'a mut PreviewOutput,
     pub typography: mdview_theme::ReadingTypography,
+    pub search: Option<&'a str>,
 }
 
 pub(crate) fn heading_size(level: u8, base: f32) -> f32 {
@@ -41,9 +42,23 @@ pub(crate) fn show_blocks(
     ctx: &mut BlockCtx<'_>,
     media: &mut Option<&mut MediaContext<'_>>,
 ) {
-    for block in blocks {
+    show_blocks_spacing(ui, blocks, ctx, media, 6.0);
+}
+
+pub(crate) fn show_blocks_spacing(
+    ui: &mut Ui,
+    blocks: &[Block],
+    ctx: &mut BlockCtx<'_>,
+    media: &mut Option<&mut MediaContext<'_>>,
+    gap: f32,
+) {
+    for (index, block) in blocks.iter().enumerate() {
+        // Headings need breathing room before them, especially after a code block or diagram.
+        if index > 0 && matches!(block.kind, BlockKind::Heading { .. }) {
+            ui.add_space(5.0);
+        }
         show_block(ui, block, ctx, media);
-        ui.add_space(6.0);
+        ui.add_space(gap);
     }
 }
 
@@ -62,19 +77,23 @@ pub(crate) fn show_block(
                 ctx.output,
                 media.as_mut().map(|context| &mut **context),
                 ctx.typography.body,
+                ctx.search,
             );
         }
         BlockKind::Heading { level, anchor, inlines } => {
             let text = text_of(inlines);
-            ui.add(
-                Label::new(
-                    RichText::new(text)
-                        .size(heading_size(*level, ctx.typography.headings))
-                        .strong()
-                        .color(ctx.theme.text),
-                )
-                .selectable(true),
-            );
+            let size = heading_size(*level, ctx.typography.headings);
+            if let Some(query) = ctx.search {
+                for (run, matched) in crate::inline::highlight_runs(&text, query) {
+                    let mut rich = RichText::new(run).size(size).strong().color(ctx.theme.text);
+                    if matched {
+                        rich = rich.background_color(ctx.theme.selection);
+                    }
+                    ui.add(Label::new(rich).selectable(true));
+                }
+            } else {
+                ui.add(Label::new(RichText::new(text).size(size).strong().color(ctx.theme.text)).selectable(true));
+            }
             let _ = anchor;
         }
         BlockKind::Code { language, text, math } => {
@@ -216,7 +235,11 @@ fn show_list(
             let content_width = (list_width - marker_width - 14.0).max(80.0);
             ui.allocate_ui_with_layout(egui::vec2(content_width, 0.0), Layout::top_down(Align::Min), |ui| {
                 ui.set_width(content_width);
-                show_blocks(ui, &item.blocks, ctx, media);
+                if item.task.is_some() {
+                    show_blocks_spacing(ui, &item.blocks, ctx, media, 2.0);
+                } else {
+                    show_blocks(ui, &item.blocks, ctx, media);
+                }
             });
         });
     }
@@ -257,7 +280,10 @@ fn show_media_block(
         return false;
     };
     let width = ui.available_width().max(64.0);
-    let request = media_context.request(ui.ctx(), kind, source, width, ctx.theme.is_dark());
+    // Vector media are rasterized once at a stable width. Split resizing then rescales
+    // the existing texture instead of re-rendering diagrams and formulas.
+    let request_width = if kind == MediaKind::Mermaid { 1_200.0 } else { width };
+    let request = media_context.request(ui.ctx(), kind, source, request_width, ctx.theme.is_dark());
     match media_context.provider.resolve(ui.ctx(), &request) {
         MediaState::Loading => {
             ui.horizontal(|ui| {
@@ -268,14 +294,22 @@ fn show_media_block(
         }
         MediaState::Ready(texture) => {
             let points = texture.size_vec2() / ui.ctx().pixels_per_point().max(1.0);
-            let scale = (width / points.x).min(1.0);
-            let response = ui
-                .add(
-                    egui::Image::new(&texture)
-                        .fit_to_exact_size(points * scale)
-                        .sense(egui::Sense::click()),
-                )
-                .on_hover_cursor(egui::CursorIcon::ZoomIn);
+            // Keep diagram labels legible; below this scale the reader gets a horizontal
+            // scroll area instead of a tiny, unreadable raster.
+            let scale = (width / points.x).clamp(0.72, 1.0);
+            let size = points * scale;
+            let response = egui::ScrollArea::horizontal()
+                .id_salt(("media-block", kind.label(), source.len(), source.as_ptr()))
+                .auto_shrink([false, true])
+                .show(ui, |ui| {
+                    ui.add(
+                        egui::Image::new(&texture)
+                            .fit_to_exact_size(size)
+                            .sense(egui::Sense::click()),
+                    )
+                    .on_hover_cursor(egui::CursorIcon::ZoomIn)
+                })
+                .inner;
             if response.clicked() {
                 ctx.output.lightbox = Some(MediaLightbox {
                     request,

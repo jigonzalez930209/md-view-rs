@@ -182,6 +182,16 @@ pub struct EditorSettings {
     pub line_numbers: bool,
     /// Synchronize editor and preview scrolling in split view.
     pub sync_scroll: bool,
+    /// Editor monospace font size in points.
+    pub font_size: f32,
+    /// Editor line-height multiplier.
+    pub line_height: f32,
+    /// Allow the last line to reach the top of the viewport.
+    pub scroll_beyond_last_line: bool,
+    /// Draw indentation guides.
+    pub indent_guides: bool,
+    /// `none`, `selection`, or `all`.
+    pub render_whitespace: String,
 }
 
 impl Default for EditorSettings {
@@ -190,7 +200,36 @@ impl Default for EditorSettings {
             wrap: false,
             line_numbers: true,
             sync_scroll: true,
+            font_size: 13.0,
+            line_height: 1.45,
+            scroll_beyond_last_line: true,
+            indent_guides: true,
+            render_whitespace: "selection".to_owned(),
         }
+    }
+}
+
+impl EditorSettings {
+    /// The editor style used by every tab.
+    pub fn style(&self) -> mdview_editor::EditorStyle {
+        mdview_editor::EditorStyle {
+            font_size: self.font_size,
+            line_height: self.line_height,
+            scroll_beyond_last_line: self.scroll_beyond_last_line,
+            indent_guides: self.indent_guides,
+            whitespace: mdview_editor::WhitespaceMode::from_setting(&self.render_whitespace),
+        }
+        .sanitized()
+    }
+
+    /// Store a style returned by the settings dialog.
+    pub fn set_style(&mut self, style: mdview_editor::EditorStyle) {
+        let style = style.sanitized();
+        self.font_size = style.font_size;
+        self.line_height = style.line_height;
+        self.scroll_beyond_last_line = style.scroll_beyond_last_line;
+        self.indent_guides = style.indent_guides;
+        self.render_whitespace = style.whitespace.as_setting().to_owned();
     }
 }
 

@@ -49,7 +49,7 @@ impl MdViewApp {
                 }
                 items
             } else {
-                let entries: [(&str, mdview_ui::Command); 18] = [
+                let entries: Vec<(&str, mdview_ui::Command)> = vec![
                     ("New", mdview_ui::Command::New),
                     ("Open…", mdview_ui::Command::Open),
                     ("Open Folder…", mdview_ui::Command::OpenFolder),
@@ -68,6 +68,32 @@ impl MdViewApp {
                     ("Workspace sidebar", mdview_ui::Command::ToggleSidebar),
                     ("About MD View", mdview_ui::Command::About),
                     ("Quit", mdview_ui::Command::Quit),
+                    ("Back", mdview_ui::Command::Back),
+                    ("Forward", mdview_ui::Command::Forward),
+                    ("Search", mdview_ui::Command::Search),
+                    ("Search in Workspace…", mdview_ui::Command::SearchWorkspace),
+                    ("Close Other Tabs", mdview_ui::Command::CloseOtherTabs),
+                    ("Close Saved Tabs", mdview_ui::Command::CloseSavedTabs),
+                    ("Next Tab", mdview_ui::Command::NextTab),
+                    ("Previous Tab", mdview_ui::Command::PreviousTab),
+                    ("Check for Updates…", mdview_ui::Command::CheckUpdates),
+                    ("Open Logs", mdview_ui::Command::OpenLogs),
+                    (
+                        "Language: Follow system",
+                        mdview_ui::Command::SetLanguage(mdview_i18n::LanguagePreference::Auto),
+                    ),
+                    (
+                        "Language: English",
+                        mdview_ui::Command::SetLanguage(mdview_i18n::LanguagePreference::English),
+                    ),
+                    (
+                        "Language: Spanish",
+                        mdview_ui::Command::SetLanguage(mdview_i18n::LanguagePreference::Spanish),
+                    ),
+                    (
+                        "Language: Pseudo-locale",
+                        mdview_ui::Command::SetLanguage(mdview_i18n::LanguagePreference::Pseudo),
+                    ),
                 ];
                 entries
                     .into_iter()

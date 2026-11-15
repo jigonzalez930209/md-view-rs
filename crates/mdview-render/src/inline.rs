@@ -174,13 +174,14 @@ pub(crate) fn show_inlines(
     output: &mut PreviewOutput,
     mut media: Option<&mut MediaContext<'_>>,
     size: f32,
+    search: Option<&str>,
 ) {
     let segments = segments(inlines);
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
         for segment in &segments {
             let next = media.as_deref_mut();
-            show_segment(ui, segment, theme, output, next, size);
+            show_segment(ui, segment, theme, output, next, size, search);
         }
     });
 }
@@ -192,16 +193,58 @@ fn show_segment(
     output: &mut PreviewOutput,
     media: Option<&mut MediaContext<'_>>,
     size: f32,
+    search: Option<&str>,
 ) {
     if segment.math {
-        show_math(ui, segment, theme, media);
+        show_math(ui, segment, theme, media, size);
         return;
     }
     if segment.image {
         show_image(ui, segment, theme, output, media);
         return;
     }
-    let mut text = RichText::new(&segment.text).size(size).color(theme.text);
+    if let Some(footnote) = &segment.footnote {
+        let text = RichText::new(&segment.text)
+            .color(theme.link)
+            .size((size - 3.0).max(9.0))
+            .strong();
+        let response = ui.add(Label::new(text).sense(Sense::click())).on_hover_text("Footnote");
+        if response.clicked() {
+            output.anchor = Some(format!("fn-{footnote}"));
+        }
+        return;
+    }
+    let runs = search
+        .map(|query| highlight_runs(&segment.text, query))
+        .unwrap_or_else(|| vec![(segment.text.clone(), false)]);
+    for (run, matched) in runs {
+        let mut text = styled_text(&run, segment, theme, size);
+        if matched {
+            text = text.background_color(theme.selection);
+        }
+        if segment.link.is_some() {
+            let mut response = ui
+                .add(Label::new(text).sense(Sense::click()))
+                .on_hover_cursor(egui::CursorIcon::PointingHand);
+            if let Some(target) = &segment.link {
+                response = response.on_hover_text(&target.destination);
+            }
+            if response.clicked()
+                && let Some(target) = &segment.link
+            {
+                output.link = Some(LinkActivation {
+                    destination: target.destination.clone(),
+                    kind: target.kind,
+                });
+            }
+        } else {
+            ui.add(Label::new(text));
+        }
+    }
+}
+
+fn styled_text(text: &str, segment: &Segment, theme: &Theme, size: f32) -> RichText {
+    let mut text = RichText::new(text).size(size).color(theme.text);
     if segment.strong {
         text = text.strong();
     }
@@ -211,7 +254,7 @@ fn show_segment(
     if segment.strike {
         text = text.strikethrough();
     }
-    if segment.monospace {
+    if segment.monospace || segment.keyboard {
         text = text
             .monospace()
             .size((size - 2.0).max(9.0))
@@ -221,47 +264,46 @@ fn show_segment(
     if segment.mark {
         text = text.background_color(theme.selection);
     }
-    if segment.keyboard {
-        text = text
-            .monospace()
-            .background_color(theme.table_header)
-            .size((size - 2.0).max(9.0));
-    }
-    if segment.subscript {
+    if segment.subscript || segment.superscript {
         text = text.size((size - 2.0).max(9.0));
-    }
-    if segment.superscript {
-        text = text.size((size - 2.0).max(9.0));
-    }
-    if let Some(footnote) = &segment.footnote {
-        text = text.color(theme.link).size(11.0).strong();
-        let response = ui.add(Label::new(text).sense(Sense::click())).on_hover_text("Footnote");
-        if response.clicked() {
-            output.anchor = Some(format!("fn-{footnote}"));
-        }
-        return;
     }
     if segment.link.is_some() {
         text = text.color(theme.link).underline();
     }
-    if segment.link.is_some() || segment.image {
-        let mut response = ui
-            .add(Label::new(text).sense(Sense::click()))
-            .on_hover_cursor(egui::CursorIcon::PointingHand);
-        if let Some(target) = &segment.link {
-            response = response.on_hover_text(&target.destination);
-        }
-        if response.clicked()
-            && let Some(target) = &segment.link
-        {
-            output.link = Some(LinkActivation {
-                destination: target.destination.clone(),
-                kind: target.kind,
-            });
-        }
-    } else {
-        ui.add(Label::new(text));
+    text
+}
+
+/// Split text into plain and query-matching runs, case-insensitively.
+pub(crate) fn highlight_runs(text: &str, query: &str) -> Vec<(String, bool)> {
+    let query = query.trim();
+    if query.is_empty() || text.is_empty() {
+        return vec![(text.to_owned(), false)];
     }
+    let lower = text.to_lowercase();
+    let needle = query.to_lowercase();
+    let mut runs = Vec::new();
+    let mut start = 0usize;
+    while start < text.len() {
+        let Some(relative) = lower[start..].find(&needle) else {
+            break;
+        };
+        let hit = start + relative;
+        if !text.is_char_boundary(hit) || !text.is_char_boundary(hit + needle.len()) {
+            break;
+        }
+        if hit > start {
+            runs.push((text[start..hit].to_owned(), false));
+        }
+        runs.push((text[hit..hit + needle.len()].to_owned(), true));
+        start = hit + needle.len();
+    }
+    if start < text.len() {
+        runs.push((text[start..].to_owned(), false));
+    }
+    if runs.is_empty() {
+        runs.push((text.to_owned(), false));
+    }
+    runs
 }
 
 fn show_image(
@@ -280,11 +322,13 @@ fn show_image(
         ui.label(RichText::new(&alt).italics().color(theme.text_muted));
         return;
     };
+    // A stable raster width lets the same texture survive a split resize; the displayed
+    // size is still derived from the pane width.
     let request = media_context.request(
         ui.ctx(),
         MediaKind::Image,
         &target.destination,
-        max_width,
+        1_600.0,
         theme.is_dark(),
     );
     let key = request.cache_key();
@@ -298,22 +342,27 @@ fn show_image(
             let points = texture.size_vec2() / ui.ctx().pixels_per_point().max(1.0);
             let scale = (max_width / points.x).min(1.0);
             let response = ui
-                .add(
-                    egui::Image::new(&texture)
-                        .fit_to_exact_size(points * scale)
-                        .sense(Sense::click()),
-                )
-                .on_hover_text(if alt.is_empty() {
-                    target.destination.clone()
-                } else {
-                    alt.clone()
-                });
+                .vertical(|ui| {
+                    let response = ui
+                        .add(
+                            egui::Image::new(&texture)
+                                .fit_to_exact_size(points * scale)
+                                .sense(Sense::click()),
+                        )
+                        .on_hover_text(if alt.is_empty() {
+                            target.destination.clone()
+                        } else {
+                            alt.clone()
+                        });
+                    if let Some(label) = animation_label(status) {
+                        ui.label(RichText::new(label).small().color(theme.text_muted));
+                    }
+                    response
+                })
+                .inner;
             media_context
                 .provider
                 .mark_visible(&key, ui.is_rect_visible(response.rect));
-            if let Some(label) = animation_label(status) {
-                ui.label(RichText::new(label).small().color(theme.text_muted));
-            }
             if response.clicked() {
                 output.lightbox = Some(MediaLightbox {
                     request: request.clone(),
@@ -345,29 +394,30 @@ fn animation_label(status: AnimationStatus) -> Option<&'static str> {
     }
 }
 
-fn show_math(ui: &mut Ui, segment: &Segment, theme: &Theme, media: Option<&mut MediaContext<'_>>) {
+fn show_math(ui: &mut Ui, segment: &Segment, theme: &Theme, media: Option<&mut MediaContext<'_>>, body_size: f32) {
     let Some(media_context) = media else {
         ui.label(RichText::new(&segment.text).italics().color(theme.accent));
         return;
     };
     let max_width = ui.available_width().clamp(32.0, 720.0);
-    match media_context.load(ui.ctx(), MediaKind::Math, &segment.text, max_width, theme.is_dark()) {
+    // Render the formula once at a generous resolution. Display scaling then follows the
+    // reading typography, so split-width changes do not rasterize the same formula again.
+    let request_width = 1024.0;
+    match media_context.load(ui.ctx(), MediaKind::Math, &segment.text, request_width, theme.is_dark()) {
         MediaState::Loading => {
             ui.spinner();
         }
         MediaState::Ready(texture) => {
             let points = texture.size_vec2() / ui.ctx().pixels_per_point().max(1.0);
-            // RaTeX lays formulas out at 40 px. Simple inline formulas should not grow the
-            // line for every exponent; fractions, integrals, and sums need the extra height
-            // to stay legible. Display formulas are centered and keep their full size.
-            let max_height = if segment.display_math {
-                120.0
-            } else if points.y > 90.0 {
-                42.0
+            // RaTeX lays formulas out at 40 px. Scale inline formulas to the body size and
+            // display formulas to a heading-sized block; fractions and integrals keep their
+            // vertical detail because the aspect ratio is preserved.
+            let target_height = if segment.display_math {
+                (body_size * 2.6).max(32.0)
             } else {
-                24.0
+                (body_size * 1.25).max(15.0)
             };
-            let scale = (max_width / points.x).min(max_height / points.y).min(1.0);
+            let scale = (max_width / points.x).min(target_height / points.y).min(1.0);
             let size = points * scale;
             if segment.display_math {
                 let free = (ui.available_width() - size.x).max(0.0);

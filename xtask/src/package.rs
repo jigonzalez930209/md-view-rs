@@ -77,6 +77,8 @@ fn install_tree(stage: &Path, binary: &Path) -> Result<(), String> {
     )
     .map_err(|error| error.to_string())?;
     fs::copy("README.md", doc.join("README.md")).map_err(|error| error.to_string())?;
+    fs::copy("LICENSE-MIT", doc.join("LICENSE-MIT")).map_err(|error| error.to_string())?;
+    fs::copy("LICENSE-APACHE", doc.join("LICENSE-APACHE")).map_err(|error| error.to_string())?;
     fs::copy("docs/media.md", doc.join("media.md")).map_err(|error| error.to_string())?;
     Ok(())
 }

@@ -4,6 +4,11 @@ MD View keeps Markdown and text in the editor. Files that need a dedicated prese
 read-only viewer plugin. The image viewer is the first built-in plugin; the same API is the
 extension point for PDF, video, notebooks, 3D models, or diagrams.
 
+**Compatibility:** for `1.0`, this is an internal compile-time API inside `mdview-app`, not a
+public Rust ABI or a stable plugin contract. External plugins are Post-1.0. The traits may change
+while the registry is prepared; a public plugin API would require its own versioning and signing
+policy.
+
 ## Contracts
 
 The application API lives in `crates/mdview-app/src/viewers/mod.rs`:
@@ -71,3 +76,4 @@ impl ViewerPlugin for PdfPlugin {
 - Never execute scripts, external resources, or embedded HTML.
 - Report loading, empty, and error states with an actionable message.
 - Keep plugin IDs and names stable; they are used in diagnostics and the status bar.
+- Treat the API as internal until the public plugin contract is explicitly frozen after `1.0`.

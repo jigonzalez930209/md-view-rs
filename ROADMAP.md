@@ -34,14 +34,12 @@
 | H8 | DONE (Linux; screen-reader/platform checks deferred) | Nine theme variants, contrast tests, settings, command palette, quick open, scaling, pseudo-locale, centered reading layout, and UI snapshots. |
 | H9 | DONE (Linux local artifacts; Windows/macOS signing deferred) | AppImage, deb, RPM, tarball, icons, associations, SBOM, SHA-256SUMS, update manifest/check/download, WiX/macOS/Flatpak sources, and `release-check`. |
 | Post-0.9 UI | DONE (Linux) | Icon header, Material Icon Theme tree, block-virtualized preview, header/sidebar/virtualization snapshots, 120-event scroll stress, and 120 Hz frame-budget gate. |
-| 0.13.0 reading and viewers | DONE (Linux) | Six-tab settings with three reading-width presets and independent body/heading/code/table sizes, aligned list markers, persistent tab close affordance, thin scrollbars, non-animated split sync, and a read-only viewer plugin registry with the image plugin. |
-| 0.13.0 workbench | DONE (Linux) | Explorer under the menu with editor-only tabs, Cursor-style tab surfaces, standalone PNG/JPEG/GIF/WebP/BMP/TIFF/SVG image documents, compact reading margins, and larger Material icons. |
-| 0.11.3 fixes | DONE (Linux) | Direct, bounded tab-wheel scrolling without inertia; LaTeX inline/display sizing and centering; clickable links inside table cells with E2E coverage. |
-| 0.11.2 fixes | DONE (Linux) | Nested folders stay expanded after every watcher refresh, the five-level pre-1.0 acceptance workspace and feature matrix exist, code blocks match editor conventions, inline code chips are visible, and LaTeX display sizing is readable. |
-| 0.11.1 fixes | DONE (Linux) | Weighted full-width tables, tight-list inline grouping, aligned task checkboxes, 21 px tree rows with normal cursor, and wheel-scrollable tabs. |
+| 0.14.0 pre-1.0 review | DONE (Linux) | All findings in the pre-1.0 review resolved: licenses/deny/CI, scroll ends, segmented modes, title-bar history/search, find overlay, editor parity, image zoom/pan, icon/reading polish, and the required E2E/golden-image coverage. Evidence: `docs/pre-1.0-review.md`. |
+| 0.13.0 reading and viewers | DONE (Linux) | Six-tab settings with three reading-width presets and independent body/heading/code/table sizes, aligned list markers, persistent tab close affordance, thin scrollbars, non-animated split sync, and a read-only viewer plugin registry with the image plugin; the API is internal for `1.0`. |
+| 0.12.0 workbench | DONE (Linux) | Explorer under the menu with editor-only tabs, Cursor-style tab surfaces, standalone PNG/JPEG/GIF/WebP/BMP/TIFF/SVG image documents, compact reading margins, and larger Material icons. |
 | 0.11 workbench | DONE (Linux) | VS Code-like title/menu/tab/activity layout, settings modal tabs, compact context menus, centered fields, numeric steppers, workspace Quick Open, 1 MiB rotating logs, and `cargo xtask e2e`. |
-| Pre-1.0 review | OPEN | Release, scrolling, icon, and UX findings with IDs, severities, and required E2E additions in [`docs/pre-1.0-review.md`](docs/pre-1.0-review.md). P0 items block `1.0.0-beta.1`. |
-| H10–H11 | NOT STARTED | Blocked by the P0 items in the pre-1.0 review. |
+| Pre-1.0 review | DONE (Linux) | All release, scrolling, icon, and UX findings are resolved and verified in [`docs/pre-1.0-review.md`](docs/pre-1.0-review.md). |
+| H10–H11 | NOT STARTED | Blocked by signed Windows/macOS artifacts and the final platform manual matrix, not by the pre-1.0 code review. |
 
 ---
 

@@ -46,7 +46,15 @@ pub(super) fn show_table(
                 .enumerate()
                 .map(|(column, cell)| {
                     let width = widths.get(column).copied().unwrap_or(64.0) - 12.0;
-                    layout_table_cell(ui, cell, width.max(24.0), ctx.theme, row == 0, ctx.typography.tables)
+                    layout_table_cell(
+                        ui,
+                        cell,
+                        width.max(24.0),
+                        ctx.theme,
+                        row == 0,
+                        ctx.typography.tables,
+                        ctx.search,
+                    )
                 })
                 .collect()
         })
@@ -147,6 +155,7 @@ fn layout_table_cell(
     theme: &mdview_theme::Theme,
     header: bool,
     size: f32,
+    search: Option<&str>,
 ) -> LaidCell {
     let mut job = egui::text::LayoutJob::default();
     job.wrap.max_width = width;
@@ -163,31 +172,38 @@ fn layout_table_cell(
             egui::FontId::proportional(size)
         };
         let color = if segment.link.is_some() { theme.link } else { theme.text };
-        job.append(
-            &segment.text,
-            0.0,
-            egui::TextFormat {
-                font_id: font,
-                color,
-                background: if segment.monospace {
-                    theme.table_header
-                } else {
-                    egui::Color32::TRANSPARENT
+        let runs = search
+            .map(|query| crate::inline::highlight_runs(&segment.text, query))
+            .unwrap_or_else(|| vec![(segment.text.clone(), false)]);
+        for (run, matched) in runs {
+            job.append(
+                &run,
+                0.0,
+                egui::TextFormat {
+                    font_id: font.clone(),
+                    color,
+                    background: if matched {
+                        theme.selection
+                    } else if segment.monospace {
+                        theme.table_header
+                    } else {
+                        egui::Color32::TRANSPARENT
+                    },
+                    italics: segment.emphasis,
+                    underline: if segment.link.is_some() {
+                        egui::Stroke::new(1.0, theme.link)
+                    } else {
+                        egui::Stroke::NONE
+                    },
+                    strikethrough: if segment.strike {
+                        egui::Stroke::new(1.0, theme.text)
+                    } else {
+                        egui::Stroke::NONE
+                    },
+                    ..Default::default()
                 },
-                italics: segment.emphasis,
-                underline: if segment.link.is_some() {
-                    egui::Stroke::new(1.0, theme.link)
-                } else {
-                    egui::Stroke::NONE
-                },
-                strikethrough: if segment.strike {
-                    egui::Stroke::new(1.0, theme.text)
-                } else {
-                    egui::Stroke::NONE
-                },
-                ..Default::default()
-            },
-        );
+            );
+        }
         if let Some(target) = &segment.link {
             links.push(CellLink {
                 start,
