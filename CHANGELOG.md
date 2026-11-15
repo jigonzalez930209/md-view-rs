@@ -20,6 +20,13 @@
 - Formulas scale by font size instead of being squeezed into a fixed box, so fractions,
   integrals, and matrices keep their full size. The scale is calibrated to GitHub's MathJax
   output. Inline math uses TeX text style.
+- Compared the repository's own README and docs with GitHub's render and fixed what
+  differed: tight list items starting with code, emphasis, or a link no longer split or
+  lose their style; linked code keeps its chip; lines wrap like a browser (trailing spaces
+  hang, code breaks after hyphens and keeps glued punctuation); wide tables use the
+  browser's automatic column layout with centered headers and vertically centered cells;
+  headings keep inline code; HTML tables render as grids. All four documents now break
+  every line where GitHub does.
 - Rendered raw HTML the way GitHub's sanitizer does instead of showing the source:
   comments and scripts disappear; `align` centers or right-aligns paragraphs and headings;
   `<img>` honors `width`/`height`; `<a>`, `<b>`, `<i>`, `<code>`, `<br>`, `<hr>`, `<ul>`

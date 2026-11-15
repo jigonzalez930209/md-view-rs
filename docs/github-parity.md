@@ -90,3 +90,26 @@ as a vector arrow because the bundled fonts have no arrow glyphs.
 Fenced code uses GitHub's Primer "prettylights" palette (`crates/mdview-syntax/src/github_theme.rs`),
 light and dark. Sampled from the parity render: `def`/`return` #cf222e, function names
 #6639ba, strings #0a3069, interpolation braces #953800 — the same colors as GitHub.
+
+## Real documents
+
+Hand-written fixtures can miss cases, so the repository's own documents are compared
+too. `render_external` in `crates/mdview-render/tests/github_parity.rs` renders any file
+at GitHub's scale (`MDVIEW_PARITY_DOC=README.md MDVIEW_PARITY_OUT=out.png cargo test -p
+mdview-render --test github_parity render_external -- --ignored`); the reference is the
+GitHub Markdown API render of the same file in a 522 px `github-markdown-css` column.
+
+| Document | Ink bands (GitHub / preview) | Top offset range | Largest height difference |
+|---|---|---|---|
+| `README.md` | 70 / 70 | -1 to +11 px | 2 px |
+| `docs/markdown.md` | 52 / 52 | -11 to +2 px | 11 px (a 1058 px table) |
+| `docs/media.md` | 79 / 79 | 0 to +10 px | 6 px |
+| `docs/themes.md` | 73 / 73 | 0 to +13 px | 4 px |
+
+Same band counts mean every line breaks where GitHub breaks it. The comparison found and
+fixed: tight list items that start with code, emphasis, or a link were split or lost
+their style; linked code lost its chip; egui counted a line's trailing space when
+wrapping; code did not break after hyphens or keep glued punctuation; tables did not
+follow the browser's automatic column layout, header centering, or vertical centering;
+and headings dropped inline code. The remaining offsets are sub-pixel accumulations
+(egui rounds each text row to whole pixels) of under 0.2 px per line.

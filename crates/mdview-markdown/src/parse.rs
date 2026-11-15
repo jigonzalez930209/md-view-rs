@@ -340,6 +340,26 @@ impl<'a> EventParser<'a> {
                     let span = self.span(range);
                     self.push_block(&mut blocks, span, BlockKind::Rule);
                 }
+                // Tight list items emit inline events without a Paragraph wrapper; any
+                // inline event (text, code, emphasis, links, math, inline HTML) starts
+                // the item's paragraph so styles and following text stay together.
+                Event::Text(_)
+                | Event::Code(_)
+                | Event::InlineMath(_)
+                | Event::InlineHtml(_)
+                | Event::FootnoteReference(_)
+                | Event::Start(
+                    Tag::Emphasis | Tag::Strong | Tag::Strikethrough | Tag::Link { .. } | Tag::Image { .. },
+                ) if matches!(end, BlockEnd::Item) => {
+                    let (inlines, end_range) = self.parse_inlines(InlineEnd::Item);
+                    if !inlines.is_empty() {
+                        self.push_block(
+                            &mut blocks,
+                            self.span(range.start..end_range.end),
+                            BlockKind::Paragraph(inlines),
+                        );
+                    }
+                }
                 Event::Start(_) => {
                     // An unsupported container (for example a definition list). Consume it and
                     // keep its rendered text as a plain paragraph so content is never lost.
@@ -359,24 +379,12 @@ impl<'a> EventParser<'a> {
                     }
                 }
                 Event::Text(text) => {
-                    if matches!(end, BlockEnd::Item) {
-                        // Tight list items emit inline events without a Paragraph wrapper.
-                        let (inlines, end_range) = self.parse_inlines(InlineEnd::Item);
-                        if !inlines.is_empty() {
-                            self.push_block(
-                                &mut blocks,
-                                self.span(range.start..end_range.end),
-                                BlockKind::Paragraph(inlines),
-                            );
-                        }
-                    } else {
-                        self.cursor += 1;
-                        self.push_block(
-                            &mut blocks,
-                            self.span(range),
-                            BlockKind::Paragraph(vec![Inline::Text(text.into_string())]),
-                        );
-                    }
+                    self.cursor += 1;
+                    self.push_block(
+                        &mut blocks,
+                        self.span(range),
+                        BlockKind::Paragraph(vec![Inline::Text(text.into_string())]),
+                    );
                 }
                 Event::Code(text) => {
                     self.cursor += 1;

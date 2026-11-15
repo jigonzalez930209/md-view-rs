@@ -45,27 +45,20 @@ pub(super) fn show_table(
             .collect()
     };
 
-    // Tables are as wide as their content (`width: max-content`) up to the column.
+    // Tables are as wide as their content (`width: max-content`) up to the column;
+    // wider content follows the browser's automatic table layout (`distribute`).
     let natural = layout_rows(&|_| f32::INFINITY);
-    let mut widths = vec![pad_x * 2.0 + 8.0; columns];
+    let mut max_widths = vec![pad_x * 2.0 + 8.0; columns];
     for row in &natural {
         for (column, cell) in row.iter().enumerate() {
-            widths[column] = widths[column].max(cell.galley.rect.width().ceil() + pad_x * 2.0);
+            max_widths[column] = max_widths[column].max(cell.galley.rect.width().ceil() + pad_x * 2.0);
         }
     }
-    let total: f32 = widths.iter().sum();
+    let min_widths = min_content_widths(ui, &all_rows, columns, size, pad_x);
+    let total: f32 = max_widths.iter().sum();
+    let mut widths = max_widths.clone();
     let galleys = if total > available {
-        let minimum = pad_x * 2.0 + size * 3.0;
-        let flexible: f32 = widths
-            .iter()
-            .map(|width| (width - minimum).max(0.0))
-            .sum::<f32>()
-            .max(1.0);
-        let excess = total - available;
-        for width in &mut widths {
-            let share = (*width - minimum).max(0.0) / flexible;
-            *width = (*width - excess * share).max(minimum);
-        }
+        widths = distribute(&min_widths, &max_widths, available);
         let wrap = widths.clone();
         layout_rows(&move |column| (wrap.get(column).copied().unwrap_or(64.0) - pad_x * 2.0).max(16.0))
     } else {
@@ -96,14 +89,21 @@ pub(super) fn show_table(
             let width = widths.get(column).copied().unwrap_or(64.0);
             let inner = width - pad_x * 2.0;
             let left = x + pad_x;
+            // Header cells without an alignment are centered, like a browser's `th`;
+            // every cell is vertically centered (`vertical-align: middle`).
+            let alignment = match alignments.get(column).copied().unwrap_or_default() {
+                Alignment::None if row == 0 => Alignment::Center,
+                alignment => alignment,
+            };
+            let content = heights[row] - 1.0 - pad_y * 2.0;
             let origin = egui::pos2(
-                match alignments.get(column).copied().unwrap_or_default() {
+                match alignment {
                     Alignment::Right => left + inner - cell.galley.rect.width(),
                     Alignment::Center => left + (inner - cell.galley.rect.width()) / 2.0,
                     Alignment::Left | Alignment::None => left,
                 }
                 .max(left),
-                row_rect.top() + 1.0 + pad_y,
+                row_rect.top() + 1.0 + pad_y + ((content - cell.galley.rect.height()) * 0.5).max(0.0).round(),
             );
             for &(start, end) in &cell.code {
                 let from = cell.galley.pos_from_cursor(egui::text::CCursor::new(start));
@@ -113,7 +113,7 @@ pub(super) fn show_table(
                         origin + from.left_top().to_vec2(),
                         origin + to.right_bottom().to_vec2(),
                     )
-                    .expand2(egui::vec2((size * 0.25).round(), 1.0));
+                    .expand2(egui::vec2((size * 0.85 * 0.4).round(), (size * 0.2 * 0.8).round()));
                     painter.rect_filled(chip, 6.0, ctx.theme.table_header);
                 }
             }
@@ -157,6 +157,52 @@ pub(super) fn show_table(
     painter.rect_stroke(rect, 0.0, border, egui::StrokeKind::Inside);
 }
 
+/// Widest unbreakable word per column plus padding (CSS min-content).
+fn min_content_widths(ui: &Ui, rows: &[Vec<Vec<Inline>>], columns: usize, size: f32, pad_x: f32) -> Vec<f32> {
+    let mut widths = vec![pad_x * 2.0 + 8.0; columns];
+    for (row_index, row) in rows.iter().enumerate() {
+        for (column, cell) in row.iter().enumerate().take(columns) {
+            let face = if row_index == 0 {
+                mdview_theme::ReadingFace::SemiBold
+            } else {
+                mdview_theme::ReadingFace::Regular
+            };
+            for word in text_of_cell(cell).split_whitespace() {
+                let width = ui
+                    .painter()
+                    .layout_no_wrap(word.to_owned(), face.font(size), Color32::WHITE)
+                    .size()
+                    .x;
+                widths[column] = widths[column].max(width.ceil() + pad_x * 2.0);
+            }
+        }
+    }
+    widths
+}
+
+fn text_of_cell(cell: &[Inline]) -> String {
+    mdview_markdown::plain_text(cell)
+}
+
+/// Column widths for a table wider than `available`, like Chrome's automatic table
+/// layout: every column gets its min-content width, and the remaining space is shared
+/// in proportion to how much wider each column would like to be (max - min).
+/// Measured against GitHub: a 156 px first column there, 155 px here.
+pub(super) fn distribute(min: &[f32], max: &[f32], available: f32) -> Vec<f32> {
+    let minimum: f32 = min.iter().sum();
+    let flexible: f32 = max
+        .iter()
+        .zip(min)
+        .map(|(max, min)| (max - min).max(0.0))
+        .sum::<f32>()
+        .max(1.0);
+    let spare = (available - minimum).max(0.0);
+    max.iter()
+        .zip(min)
+        .map(|(max, min)| min + (max - min).max(0.0) * spare / flexible)
+        .collect()
+}
+
 struct CellLink {
     /// Character offsets in the laid-out cell, not byte offsets.
     start: usize,
@@ -184,6 +230,10 @@ fn layout_table_cell(
     let mut chars = 0usize;
     let mut links = Vec::new();
     let mut code = Vec::new();
+    // GitHub pads inline code by 0.4em on each side; the pad is layout space
+    // (`leading_space`) so neighbors keep their distance from the chip.
+    let code_pad = (size * 0.85 * 0.4).round();
+    let mut pending_pad = 0.0;
     for segment in crate::inline::segments(inlines) {
         let start = chars;
         chars += segment.text.chars().count();
@@ -203,10 +253,12 @@ fn layout_table_cell(
         let runs = search
             .map(|query| crate::highlight::highlight_runs(&segment.text, query))
             .unwrap_or_else(|| vec![(segment.text.clone(), false)]);
+        let mut leading = pending_pad + if segment.monospace { code_pad } else { 0.0 };
+        pending_pad = if segment.monospace { code_pad } else { 0.0 };
         for (run, matched) in runs {
             job.append(
                 &run,
-                0.0,
+                std::mem::take(&mut leading),
                 egui::TextFormat {
                     font_id: font.clone(),
                     color,
@@ -241,5 +293,18 @@ fn layout_table_cell(
         galley: ui.painter().layout_job(job),
         links,
         code,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::distribute;
+
+    #[test]
+    fn wide_tables_split_like_browser_auto_layout() {
+        let widths = distribute(&[120.0, 100.0], &[260.0, 780.0], 520.0);
+        assert!((widths[0] - 171.2).abs() < 0.1, "{widths:?}");
+        assert!((widths[1] - 348.8).abs() < 0.1, "{widths:?}");
+        assert!((widths.iter().sum::<f32>() - 520.0).abs() < 0.01);
     }
 }

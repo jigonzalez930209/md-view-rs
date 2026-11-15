@@ -27,6 +27,7 @@ pub(super) fn show_details(
         align: Align::Min,
         details: 1,
         inlines: vec![Inline::Text("Details".to_owned())],
+        table: None,
     };
     let summary_line = lines
         .iter()
@@ -123,6 +124,11 @@ fn show_lines(
                 });
             }
             LineKind::Paragraph | LineKind::Heading(_) => paragraph(ui, line, ctx, media),
+            LineKind::Table => {
+                if let Some(table) = &line.table {
+                    super::table::show_table(ui, &table.alignments, &table.head, &table.rows, ctx, media);
+                }
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
 //! Inline Markdown flattening and painting.
 
 use egui::{Label, RichText, Sense, Ui};
-use mdview_markdown::{Inline, LinkKind, plain_text};
+use mdview_markdown::{Inline, LinkKind};
 use mdview_theme::Theme;
 
 use crate::{LinkActivation, MediaContext, PreviewOutput};
@@ -207,7 +207,20 @@ pub(crate) fn show_inlines(
     style: &InlineStyle<'_>,
     search: Option<&str>,
 ) -> Option<f32> {
-    let segments = segments(inlines);
+    let mut segments = segments(inlines);
+    // egui measures each word with its trailing space; the extra row width below
+    // compensates. The final word gets a trailing space too, so it is measured the
+    // same way instead of fitting into the tolerance (browsers would wrap it).
+    if let Some(last) = segments.last_mut()
+        && !last.math
+        && !last.image
+        && !last.monospace
+        && !last.keyboard
+        && last.footnote.is_none()
+        && !last.text.ends_with(char::is_whitespace)
+    {
+        last.text.push(' ');
+    }
     // GitHub's Markdown body uses a 1.5 line height. epaint centers glyphs inside the
     // line box, so the row center is also the visual center of the text.
     let body_row = line_height(style.typography);
@@ -225,7 +238,19 @@ pub(crate) fn show_inlines(
         // Same sizing as `horizontal_wrapped`, with the chosen cross alignment. A row
         // with images starts at the tallest image's height, so text placed before an
         // image is already bottom-aligned with it (egui does not re-place items).
-        let width = ui.available_size_before_wrap().x;
+        // egui counts a line's trailing space when deciding whether a word fits;
+        // browsers let that space hang past the edge. One extra space of width
+        // lets the same words share a line as on GitHub without any ink overflow.
+        let space = ui
+            .painter()
+            .layout_no_wrap(
+                " ".to_owned(),
+                mdview_theme::ReadingFace::Regular.font(style.typography.body),
+                theme.text,
+            )
+            .size()
+            .x;
+        let width = ui.available_size_before_wrap().x + space;
         let descent = body_row - math::text_baseline(ui, style.typography);
         let image_row = segments
             .iter()
@@ -243,9 +268,33 @@ pub(crate) fn show_inlines(
         let initial = egui::vec2(width, image_row);
         ui.allocate_ui_with_layout(initial, layout, |ui| {
             let mut first = None;
-            for segment in &segments {
+            for (index, segment) in segments.iter().enumerate() {
                 let next = media.as_deref_mut();
-                let rect = show_segment(ui, segment, theme, output, next, style, search);
+                // Browsers cannot break between inline code and text glued to it (a
+                // following comma or period); that text must fit with the chip.
+                let glue = match segments.get(index + 1) {
+                    Some(following) if (segment.monospace || segment.keyboard) && !following.monospace => {
+                        let prefix: String = following
+                            .text
+                            .chars()
+                            .take_while(|character| !character.is_whitespace())
+                            .collect();
+                        if prefix.is_empty() {
+                            0.0
+                        } else {
+                            ui.painter()
+                                .layout_no_wrap(
+                                    prefix,
+                                    mdview_theme::ReadingFace::Regular.font(style.typography.body),
+                                    theme.text,
+                                )
+                                .size()
+                                .x
+                        }
+                    }
+                    _ => 0.0,
+                };
+                let rect = show_segment(ui, segment, theme, output, next, style, (search, glue));
                 if first.is_none()
                     && let Some(rect) = rect
                 {
@@ -278,7 +327,7 @@ fn show_segment(
     output: &mut PreviewOutput,
     media: Option<&mut MediaContext<'_>>,
     style: &InlineStyle<'_>,
-    search: Option<&str>,
+    (search, glue): (Option<&str>, f32),
 ) -> Option<egui::Rect> {
     let typography = style.typography;
     let media_sizes = style.media_sizes;
@@ -334,10 +383,26 @@ fn show_segment(
         if matched {
             text = text.background_color(theme.selection);
         }
+        let chip_text = |part: &str| {
+            let mut part_text = styled_text(part, segment, theme, size, typography.code).line_height(Some(row));
+            if matched {
+                part_text = part_text.background_color(theme.selection);
+            }
+            part_text
+        };
         if segment.link.is_some() {
-            let mut response = ui
-                .add(Label::new(text).sense(Sense::click()))
-                .on_hover_cursor(egui::CursorIcon::PointingHand);
+            let mut response = if code {
+                // Linked code keeps GitHub's chip, in the link color.
+                let rect = code::show_code_chip(ui, &chip_text, &run, theme, (size, glue), typography);
+                ui.interact(
+                    rect,
+                    ui.make_persistent_id(("mdview-code-link", &run, rect.min.x as i32, rect.min.y as i32)),
+                    Sense::click(),
+                )
+            } else {
+                ui.add(Label::new(text).sense(Sense::click()))
+            }
+            .on_hover_cursor(egui::CursorIcon::PointingHand);
             if let Some(target) = &segment.link {
                 response = response.on_hover_text(&target.destination);
             }
@@ -360,7 +425,7 @@ fn show_segment(
             let rect = code::show_kbd(ui, &run, theme, size, typography);
             first.get_or_insert(rect);
         } else if code {
-            let rect = code::show_code_chip(ui, text, &run, theme, size, typography);
+            let rect = code::show_code_chip(ui, &chip_text, &run, theme, (size, glue), typography);
             first.get_or_insert(rect);
         } else if ui.layout().vertical_align() == egui::Align::Max && !matched {
             // Rows with images are bottom-aligned. A wrapping label would center its
@@ -405,9 +470,4 @@ fn styled_text(text: &str, segment: &Segment, theme: &Theme, size: f32, code: f3
         text = text.color(theme.link);
     }
     text
-}
-
-/// Plain text of an inline sequence, used by tooltips and snapshots.
-pub(crate) fn text_of(inlines: &[Inline]) -> String {
-    plain_text(inlines)
 }

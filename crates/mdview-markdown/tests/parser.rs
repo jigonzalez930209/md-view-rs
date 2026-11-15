@@ -59,6 +59,23 @@ fn loose_lists_keep_task_markers_and_looseness() {
 }
 
 #[test]
+fn tight_items_starting_with_inline_markup_stay_one_paragraph() {
+    let source = "- `code` and text\n- **bold** and text\n- [link](x.md) and text\n";
+    let document = parse(source);
+    let BlockKind::List { items, .. } = &document.blocks[0].kind else {
+        panic!("expected a list");
+    };
+    for item in items {
+        assert_eq!(item.blocks.len(), 1, "{:?}", item.blocks);
+        let BlockKind::Paragraph(inlines) = &item.blocks[0].kind else {
+            panic!("expected a paragraph");
+        };
+        assert!(inlines.len() >= 2, "{inlines:?}");
+        assert!(!matches!(inlines[0], Inline::Text(_)), "{inlines:?}");
+    }
+}
+
+#[test]
 fn tables_parse_cells_and_alignment() {
     let source = "| left | center | right |\n|:-----|:------:|------:|\n| 1 | 2 | 3 |\n";
     let document = parse(source);

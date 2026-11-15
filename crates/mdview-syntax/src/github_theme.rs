@@ -98,7 +98,8 @@ pub(crate) fn github_theme(light: bool) -> Theme {
             FontStyle::empty(),
         ),
         (
-            "variable.other, variable.parameter, meta.function-call.arguments",
+            "variable.other, variable.parameter, meta.function-call.arguments, variable.function, \
+             keyword.operator, punctuation.separator",
             palette.text,
             FontStyle::empty(),
         ),

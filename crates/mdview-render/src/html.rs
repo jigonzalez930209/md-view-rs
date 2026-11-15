@@ -6,9 +6,13 @@
 //! and turns it into lines of [`Inline`] nodes so the normal paragraph, heading, and
 //! image painters draw it. Nothing is executed and unknown tags are ignored.
 
-use mdview_markdown::{Inline, classify};
+use mdview_markdown::{Alignment, Inline, classify};
 
+mod table;
 mod tokens;
+
+use table::TableBuilder;
+pub(crate) use table::TableData;
 
 use tokens::{Tag, Token, tokenize};
 
@@ -25,6 +29,8 @@ pub(crate) enum LineKind {
     Summary,
     /// A horizontal rule.
     Rule,
+    /// An HTML `<table>`, drawn with the Markdown table renderer.
+    Table,
 }
 
 /// One block-level line of HTML content.
@@ -35,6 +41,8 @@ pub(crate) struct HtmlLine {
     /// Nesting depth of `<details>` that contains the line (0 = top level).
     pub details: usize,
     pub inlines: Vec<Inline>,
+    /// Cells when `kind` is [`LineKind::Table`].
+    pub table: Option<TableData>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -86,9 +94,79 @@ struct Builder {
     current: HtmlLine,
     aligns: Vec<(String, egui::Align)>,
     details: usize,
+    table: Option<TableBuilder>,
 }
 
 impl Builder {
+    /// Add inline content to the open table cell, or to the current line.
+    fn push(&mut self, inline: Inline) {
+        match self.table.as_mut().and_then(|table| table.cell.as_mut()) {
+            Some(cell) => cell.push(inline),
+            None => self.current.inlines.push(inline),
+        }
+    }
+
+    /// Handle table structure tags; returns `false` for other tags.
+    fn table_tag(&mut self, tag: &Tag<'_>) -> bool {
+        match (tag.name.as_str(), tag.closing) {
+            ("table", false) => {
+                self.flush();
+                self.table = Some(TableBuilder::default());
+            }
+            ("table", true) => {
+                if let Some(table) = self.table.take() {
+                    self.flush();
+                    self.lines.push(HtmlLine {
+                        kind: LineKind::Table,
+                        align: self.align(),
+                        details: self.details,
+                        inlines: Vec::new(),
+                        table: Some(table.finish()),
+                    });
+                }
+            }
+            (_, _) if self.table.is_none() => return false,
+            ("tr", false) => {
+                if let Some(table) = self.table.as_mut() {
+                    table.finish_row();
+                }
+            }
+            ("tr", true) => {
+                if let Some(table) = self.table.as_mut() {
+                    table.finish_row();
+                }
+            }
+            ("td" | "th", false) => {
+                if let Some(table) = self.table.as_mut() {
+                    table.finish_cell();
+                    table.row_is_head |= tag.name == "th";
+                    let column = table.row.len();
+                    let alignment = match tag.attribute("align").map(str::to_ascii_lowercase).as_deref() {
+                        Some("center") => Alignment::Center,
+                        Some("right") => Alignment::Right,
+                        Some("left") => Alignment::Left,
+                        _ => Alignment::None,
+                    };
+                    if table.data.alignments.len() <= column {
+                        table.data.alignments.resize(column + 1, Alignment::None);
+                    }
+                    if alignment != Alignment::None {
+                        table.data.alignments[column] = alignment;
+                    }
+                    table.cell = Some(Vec::new());
+                }
+            }
+            ("td" | "th", true) => {
+                if let Some(table) = self.table.as_mut() {
+                    table.finish_cell();
+                }
+            }
+            ("thead" | "tbody" | "tfoot", _) => {}
+            _ => return false,
+        }
+        true
+    }
+
     fn align(&self) -> egui::Align {
         self.aligns.last().map_or(egui::Align::Min, |(_, align)| *align)
     }
@@ -106,6 +184,7 @@ impl Builder {
                 align: self.align(),
                 details: self.details,
                 inlines: Vec::new(),
+                table: None,
             };
             let mut line = std::mem::replace(&mut self.current, next);
             trim_edges(&mut line.inlines);
@@ -143,9 +222,11 @@ pub(crate) fn to_lines(html: &str) -> Vec<HtmlLine> {
             align: egui::Align::Min,
             details: 0,
             inlines: Vec::new(),
+            table: None,
         },
         aligns: Vec::new(),
         details: 0,
+        table: None,
     };
     let mut style = Style::default();
     let mut suppress = 0usize;
@@ -168,10 +249,13 @@ pub(crate) fn to_lines(html: &str) -> Vec<HtmlLine> {
                     if collapsed.is_empty() && !text.is_empty() {
                         value.push(' ');
                     }
-                    builder.current.inlines.push(styled(value, &style));
+                    builder.push(styled(value, &style));
                 }
             }
             Token::Tag(tag) => {
+                if suppress == 0 && builder.table_tag(&tag) {
+                    continue;
+                }
                 let name = tag.name.as_str();
                 match (name, tag.closing) {
                     ("script" | "style" | "iframe" | "object" | "embed" | "noscript", closing) => {
@@ -187,7 +271,7 @@ pub(crate) fn to_lines(html: &str) -> Vec<HtmlLine> {
                     ("code" | "kbd" | "samp" | "tt", closing) => style.code = !closing,
                     ("a", false) => style.link = tag.attribute("href").map(str::to_owned),
                     ("a", true) => style.link = None,
-                    ("br", _) => builder.current.inlines.push(Inline::HardBreak),
+                    ("br", _) => builder.push(Inline::HardBreak),
                     ("img", false) if suppress == 0 => {
                         if let Some(source) = tag.attribute("src") {
                             let image = Inline::Image {
@@ -207,7 +291,7 @@ pub(crate) fn to_lines(html: &str) -> Vec<HtmlLine> {
                                 },
                                 None => image,
                             };
-                            builder.current.inlines.push(image);
+                            builder.push(image);
                         }
                     }
                     ("hr", _) => {
@@ -244,7 +328,6 @@ pub(crate) fn to_lines(html: &str) -> Vec<HtmlLine> {
                         builder.flush();
                     }
                     ("summary", false) => builder.start(LineKind::Summary),
-                    ("td" | "th", false) => builder.current.inlines.push(Inline::Text(" ".to_owned())),
                     (
                         "p" | "div" | "center" | "section" | "picture" | "figure" | "tr" | "li" | "summary" | "h1"
                         | "h2" | "h3" | "h4" | "h5" | "h6" | "ul" | "ol" | "table",
@@ -345,6 +428,20 @@ mod tests {
         assert!(ends_without_margin("<div align=\"right\">Text</div>"));
         assert!(!ends_without_margin("<p align=\"center\">Text</p>"));
         assert!(!ends_without_margin("<h3>Title</h3>"));
+    }
+
+    #[test]
+    fn html_tables_become_grids() {
+        let lines = to_lines(
+            "<table><tr><th>Name</th><th align=\"right\">Value</th></tr><tr><td><b>a</b></td><td>1</td></tr></table>",
+        );
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].kind, LineKind::Table);
+        let table = lines[0].table.as_ref().expect("table");
+        assert_eq!(table.alignments, vec![Alignment::None, Alignment::Right]);
+        assert_eq!(table.head[0], vec![Inline::Text("Name".to_owned())]);
+        assert_eq!(table.rows.len(), 1);
+        assert!(matches!(table.rows[0][0][0], Inline::Strong(_)));
     }
 
     #[test]

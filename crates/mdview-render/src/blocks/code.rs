@@ -121,7 +121,8 @@ fn show_media_block(
 /// line height, and a copy button that appears on hover.
 fn show_plain_code(ui: &mut Ui, language: Option<&str>, text: &str, math: bool, ctx: &mut BlockCtx<'_>) {
     let code_size = ctx.typography.code;
-    let line_height = (code_size * 1.45).round();
+    // GitHub: line-height 1.45 without rounding, so long blocks keep the same pitch.
+    let line_height = code_size * 1.45;
     // GitHub: 16 px padding at a 16 px body.
     let padding = ctx.typography.body.round();
     let frame = egui::Frame::new()

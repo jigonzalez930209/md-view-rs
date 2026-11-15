@@ -19,7 +19,7 @@ use mdview_syntax::Highlighter;
 use mdview_theme::Theme;
 
 use crate::PreviewOutput;
-use crate::inline::{show_inlines, text_of};
+use crate::inline::show_inlines;
 use crate::{MediaContext, MediaLightbox, MediaState};
 
 /// Shared painting state.
@@ -197,7 +197,6 @@ pub(super) fn show_heading_aligned(
     ctx: &mut BlockCtx<'_>,
     align: Align,
 ) {
-    let text = text_of(inlines);
     let size = heading_size(level, ctx.typography.headings);
     let body = ctx.typography.body;
     let color = if level >= 6 {
@@ -207,31 +206,60 @@ pub(super) fn show_heading_aligned(
     };
     ui.add_space((body * 0.5).round());
     let line = (size * 1.25).round();
-    let runs = match ctx.search {
-        Some(query) => crate::highlight::highlight_runs(&text, query),
-        None => vec![(text, false)],
-    };
+    // Inline styles survive in headings, as on GitHub: code is an 85% monospace
+    // chip, links take the link color, and emphasis uses the italic face.
     let mut job = egui::text::LayoutJob::default();
-    for (run, matched) in runs {
-        job.append(
-            &run,
-            0.0,
-            TextFormat {
-                font_id: mdview_theme::ReadingFace::SemiBold.font(size),
-                color,
-                line_height: Some(line),
-                background: if matched {
-                    ctx.theme.selection
-                } else {
-                    Color32::TRANSPARENT
+    for segment in crate::inline::segments(inlines) {
+        let font_id = if segment.monospace || segment.keyboard {
+            FontId::monospace((size * 0.85).round())
+        } else if segment.strong {
+            mdview_theme::ReadingFace::from_style(true, segment.emphasis).font(size)
+        } else if segment.emphasis {
+            mdview_theme::ReadingFace::Italic.font(size)
+        } else {
+            mdview_theme::ReadingFace::SemiBold.font(size)
+        };
+        let runs = match ctx.search {
+            Some(query) => crate::highlight::highlight_runs(&segment.text, query),
+            None => vec![(segment.text.clone(), false)],
+        };
+        for (run, matched) in runs {
+            job.append(
+                &run,
+                0.0,
+                TextFormat {
+                    font_id: font_id.clone(),
+                    color: if segment.link.is_some() { ctx.theme.link } else { color },
+                    // Code keeps its glyph-height box so its chip does not fill the line.
+                    line_height: (!(segment.monospace || segment.keyboard)).then_some(line),
+                    background: if matched {
+                        ctx.theme.selection
+                    } else if segment.monospace || segment.keyboard {
+                        ctx.theme.table_header
+                    } else {
+                        Color32::TRANSPARENT
+                    },
+                    strikethrough: if segment.strike {
+                        egui::Stroke::new(1.0, color)
+                    } else {
+                        egui::Stroke::NONE
+                    },
+                    ..Default::default()
                 },
-                ..Default::default()
-            },
-        );
+            );
+        }
     }
     ui.with_layout(Layout::top_down(align), |ui| {
         ui.add(Label::new(job).selectable(true));
     });
+    // As in paragraphs, inline code's own baseline-aligned line box makes the
+    // heading line taller on GitHub (measured: 7 px at a 32 px h1).
+    if crate::inline::segments(inlines)
+        .iter()
+        .any(|segment| segment.monospace || segment.keyboard)
+    {
+        ui.add_space((size * 0.22).round());
+    }
     if level <= 2 {
         ui.add_space((size * 0.3).round());
         let (rule, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), egui::Sense::hover());

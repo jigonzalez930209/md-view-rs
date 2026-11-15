@@ -11,12 +11,13 @@ pub(super) fn code_size(body: f32, code: f32) -> f32 {
 /// Paint one inline code run as a GitHub chip and return the label rectangle.
 pub(super) fn show_code_chip(
     ui: &mut Ui,
-    text: RichText,
+    make: &dyn Fn(&str) -> RichText,
     run: &str,
     theme: &Theme,
-    size: f32,
+    (size, glue): (f32, f32),
     typography: mdview_theme::ReadingTypography,
 ) -> egui::Rect {
+    let text = make(run);
     // GitHub pads inline code by 0.2em x 0.4em on a 6 px rounded chip. The chip
     // is painted behind the label so it never splits from the text on wrap.
     let pad = egui::vec2((size * 0.3).round(), (size * 0.2).round());
@@ -29,11 +30,54 @@ pub(super) fn show_code_chip(
     });
     // A chip that does not fit the rest of the row moves to the next row whole.
     // Code longer than a full row wraps with a per-row background instead.
-    let needed = width + pad.x * 2.0;
-    let remaining = ui.max_rect().right() - ui.cursor().min.x;
-    let wraps = needed > ui.max_rect().width();
-    if !wraps && needed > remaining {
-        ui.end_row();
+    let chip_width = width + pad.x * 2.0;
+    let needed = chip_width + glue;
+    // The paragraph row is one space wider than the column for egui's trailing-space
+    // measurement; chips have no trailing space, so they use the real column edge.
+    let tolerance = ui
+        .painter()
+        .layout_no_wrap(
+            " ".to_owned(),
+            mdview_theme::ReadingFace::Regular.font(size),
+            theme.text,
+        )
+        .size()
+        .x;
+    let remaining = ui.max_rect().right() - tolerance - ui.cursor().min.x;
+    let wraps = chip_width > ui.max_rect().width() - tolerance;
+    if needed > remaining {
+        // Browsers may break code after a hyphen: keep the longest hyphen-ended
+        // prefix that fits on this row, then continue on the next one. This also
+        // applies to code longer than a whole row.
+        let fits = |prefix: &str| {
+            ui.fonts_mut(|fonts| {
+                fonts
+                    .layout_no_wrap(prefix.to_owned(), font.clone(), theme.text)
+                    .size()
+                    .x
+            }) + pad.x * 2.0
+                <= remaining
+        };
+        let split = run
+            .char_indices()
+            .filter(|(_, character)| *character == '-')
+            .map(|(index, _)| index + 1)
+            .rev()
+            .find(|end| *end < run.len() && fits(&run[..*end]));
+        if let Some(end) = split {
+            let rect = show_code_chip(ui, make, &run[..end], theme, (size, 0.0), typography);
+            ui.end_row();
+            show_code_chip(ui, make, &run[end..], theme, (size, glue), typography);
+            return rect;
+        }
+        let at_row_start = ui.cursor().min.x <= ui.max_rect().left() + 0.5;
+        if !wraps {
+            ui.end_row();
+        } else if !at_row_start {
+            // Too long for any row: start a fresh row and try the hyphen breaks there.
+            ui.end_row();
+            return show_code_chip(ui, make, run, theme, (size, glue), typography);
+        }
     }
     let text = if wraps {
         text.background_color(theme.table_header)
@@ -54,7 +98,11 @@ pub(super) fn show_code_chip(
         let glyphs = egui::Rect::from_center_size(rect.center(), egui::vec2(rect.width(), glyph_height));
         ui.painter().set(
             chip,
-            egui::epaint::RectShape::filled(glyphs.expand2(egui::vec2(pad.x, pad.y * 0.5)), 6.0, theme.table_header),
+            egui::epaint::RectShape::filled(
+                glyphs.expand2(egui::vec2(pad.x, (pad.y * 0.8).round())),
+                6.0,
+                theme.table_header,
+            ),
         );
     }
     rect
