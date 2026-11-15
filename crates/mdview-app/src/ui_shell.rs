@@ -309,7 +309,18 @@ impl eframe::App for MdViewApp {
                 }
                 match self.tabs.active().mode {
                     mdview_ui::ViewMode::Edit => {
-                        self.tabs.editor_mut().show(ui);
+                        let editor = self.tabs.editor_mut();
+                        editor.show(ui);
+                        editor.take_user_scroll();
+                        if editor.is_at_end() && editor.scrolling_recently(std::time::Duration::from_millis(350)) {
+                            log::debug!(
+                                "editor scroll end mode=edit wrap={} offset={:.1} max={:.1} clearance={:.1}",
+                                editor.status().wrap,
+                                editor.scroll_offset(),
+                                editor.max_scroll_offset(),
+                                editor.bottom_clearance()
+                            );
+                        }
                     }
                     mdview_ui::ViewMode::View => {
                         let theme = mdview_theme::Theme::for_id(self.effective_theme);
@@ -336,6 +347,25 @@ impl eframe::App for MdViewApp {
                             base,
                             &mut self.media,
                         ));
+                        let end_key = !self.search.open
+                            && !self.settings_open
+                            && !self.palette_open
+                            && !self.dialogs.is_open()
+                            && ui.ctx().input(|input| input.key_pressed(egui::Key::End));
+                        if end_key {
+                            tab.preview.scroll_to_end();
+                            ui.ctx().request_repaint();
+                        }
+                        if tab.preview.take_end_request() {
+                            let metrics = tab.preview.scroll_metrics();
+                            log::debug!(
+                                "preview end via End offset={:.1} max={:.1} last_bottom={:.1} content={:.1}",
+                                metrics.offset,
+                                metrics.max_offset,
+                                metrics.last_block_bottom,
+                                metrics.content_height
+                            );
+                        }
                         if tab.preview.take_user_scroll() && tab.preview.is_at_end() {
                             let metrics = tab.preview.scroll_metrics();
                             log::debug!(

@@ -79,6 +79,7 @@ pub struct Preview {
     margins: mdview_theme::ReadingMargins,
     typography: mdview_theme::ReadingTypography,
     search_query: Option<String>,
+    end_requested: bool,
     user_scrolled: bool,
     viewport: egui::Rect,
     heights: std::collections::HashMap<usize, f32>,
@@ -104,6 +105,7 @@ impl Default for Preview {
             margins: mdview_theme::ReadingMargins::Comfortable,
             typography: mdview_theme::ReadingTypography::default(),
             search_query: None,
+            end_requested: false,
             user_scrolled: false,
             viewport: egui::Rect::NOTHING,
             heights: std::collections::HashMap::new(),
@@ -155,11 +157,22 @@ impl Preview {
 
     /// Scroll to the maximum offset on the next paint.
     pub fn scroll_to_end(&mut self) {
+        self.end_requested = true;
         self.pending_scroll = Some(if self.max_offset > 0.0 {
             self.max_offset
         } else {
             f32::MAX
         });
+    }
+
+    /// Consume a completed end request from `End` or split synchronization.
+    pub fn take_end_request(&mut self) -> bool {
+        if self.end_requested && self.is_at_end() {
+            self.end_requested = false;
+            true
+        } else {
+            false
+        }
     }
 
     /// Whether the preview is at the end of its scrollable range.

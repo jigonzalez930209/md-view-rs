@@ -21,7 +21,7 @@ use mdview_syntax::Highlighter;
 
 pub use find::{FindState, SearchOptions};
 pub use goto::GotoState;
-pub use style::{EditorStyle, WhitespaceMode};
+pub use style::{BOTTOM_CLEARANCE, EditorStyle, WhitespaceMode};
 
 /// The visible editor status for the shell's status bar.
 #[derive(Clone, Debug)]
@@ -81,6 +81,8 @@ pub struct Editor {
     pub(crate) pending_line: Option<(usize, f32)>,
     pub(crate) pending_end: bool,
     pub(crate) last_max_offset: f32,
+    pub(crate) last_bottom_clearance: f32,
+    pub(crate) last_scroll_at: Instant,
     pub(crate) last_row_height: f32,
     pub(crate) last_columns: usize,
     pub(crate) user_scrolled: bool,
@@ -127,6 +129,8 @@ impl Editor {
             pending_line: None,
             pending_end: false,
             last_max_offset: 0.0,
+            last_bottom_clearance: BOTTOM_CLEARANCE,
+            last_scroll_at: Instant::now(),
             last_row_height: 17.0,
             last_columns: 0,
             user_scrolled: false,

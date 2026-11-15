@@ -119,6 +119,15 @@ impl MdViewApp {
         };
         let editor_scrolled = tab.editor.take_user_scroll();
         let preview_scrolled = tab.preview.take_user_scroll();
+        if tab.editor.is_at_end() && tab.editor.scrolling_recently(std::time::Duration::from_millis(350)) {
+            log::debug!(
+                "editor scroll end mode=split wrap={} offset={:.1} max={:.1} clearance={:.1}",
+                tab.editor.status().wrap,
+                tab.editor.scroll_offset(),
+                tab.editor.max_scroll_offset(),
+                tab.editor.bottom_clearance()
+            );
+        }
         match choose_source(editor_scrolled, preview_scrolled, hovered) {
             Some(Pane::Editor) => {
                 if tab.editor.is_at_end() {

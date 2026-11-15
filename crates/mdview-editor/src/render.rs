@@ -54,7 +54,7 @@ impl Editor {
         } else {
             0.0
         };
-        let content_height = total_rows as f32 * row_height + 10.0 + overscroll;
+        let content_height = total_rows as f32 * row_height + crate::BOTTOM_CLEARANCE + overscroll;
 
         let mut response = None;
         let mut geometry = None;
@@ -274,9 +274,11 @@ impl Editor {
         let new_scroll = output.state.clamped_offset().y;
         if !programmatic && (new_scroll - self.scroll_y).abs() > 0.5 {
             self.user_scrolled = true;
+            self.last_scroll_at = std::time::Instant::now();
         }
         self.scroll_y = new_scroll;
         self.last_max_offset = (content_height - output.inner_rect.height()).max(0.0);
+        self.last_bottom_clearance = crate::BOTTOM_CLEARANCE;
         self.last_row_height = row_height;
         self.last_columns = columns;
         self.viewport_rect = output.inner_rect;

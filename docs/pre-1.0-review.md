@@ -20,8 +20,8 @@ Severity scale:
 | `cargo clippy --workspace --all-targets -- -D warnings` | pass |
 | `cargo xtask check-file-length` | pass (7 files are above 450 lines) |
 | `cargo test --workspace --locked` | pass with a disk-backed `TMPDIR`; see REL-04 and REL-05 |
-| `cargo xtask e2e` (release) | **E2E PASS**, 13,680 frames, final windows 0 frames over 8.33 ms, 68 KB log |
-| `cargo xtask perf` | combined p50 1.609 ms, p95 1.925 ms, max 2.229 ms |
+| `cargo xtask e2e` (release) | **E2E PASS**, 23,040 frames, final windows 0 frames over 8.33 ms, 227 KB log |
+| `cargo xtask perf` | combined p50 1.542 ms, p95 2.221 ms, max 2.709 ms |
 | `cargo xtask release-check` | pass, 4 assets, version 0.14.0 |
 | `cargo deny check` | advisories, bans, licenses, and sources pass (REL-02) |
 
@@ -335,4 +335,25 @@ Key automated evidence:
 - `crates/mdview-app/src/sidebar.rs` tests — explorer 1×/2×.
 - `scripts/e2e/run.sh` — search/history, segmented modes, image zoom/pan/lightbox, conflict,
   Spanish/pseudo-locale, dark theme, and split-end stability stages.
+- `scripts/e2e/run.sh` scroll-end matrix — 300 wheel events in Edit and Split, each with word
+  wrap off and on; asserts the last two editor offsets differ by ≤0.1 px and the scrollbar
+  clearance is at least 6 px.
+- `scripts/e2e/run.sh` End-key stage — one `End` press scrolls the reading view to its maximum;
+  the logged `preview end via End` metrics assert `offset == max` and
+  `last_bottom <= content`.
+- Image viewer evidence — the zoom stage logs successive `image reraster scale=2.50/3.00/3.50`
+  lines when SVG crosses half-step raster buckets.
+- Explorer context menu — the menu is positioned at `row.left(), row.bottom() + 1`; the E2E
+  records `explorer context menu ... y=...` below the row and captures `08b-context-menu.png`.
 - `crates/mdview-app/src/sidebar_keyboard.rs` — keyboard tree traversal/expansion ordering.
+
+### Acceptance mapping
+
+| Criterion | Evidence |
+|---|---|
+| SCR-01, 300 wheel events in Edit and Split, wrap off/on | Release E2E scroll-end matrix; log tags `mode=edit/split wrap=false/true`; last two offsets equal within 0.1 px |
+| SCR-01, horizontal scrollbar clearance | Every matrix log includes `clearance=10.0`; `scroll_end_is_stable` asserts `bottom_clearance >= 6 px` |
+| SCR-02, one End key reaches the final preview block | Release E2E End stage; `preview end via End offset=2645.2 max=2645.2 last_bottom=3231.2 content=3243.2` |
+| SCR-05, scrollbar clears the last line | `crates/mdview-editor/tests/scroll_end.rs` with scroll-beyond disabled; E2E `clearance=10.0` |
+| ICO-08, menu no longer covers the row label | `egui::Popup::context_menu` anchored at `row.left(), row.bottom() + 1`; `08b-context-menu.png` |
+| UX-04, SVG re-rasterized at zoom | Image E2E logs `image reraster scale=2.50`, `3.00`, `3.50` while zooming |

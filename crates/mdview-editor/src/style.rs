@@ -1,5 +1,8 @@
 //! Editor typography, whitespace, and scrolling style.
 
+/// Space kept below the last row so an overlay scrollbar never hides text.
+pub const BOTTOM_CLEARANCE: f32 = 10.0;
+
 /// How whitespace is made visible in the editor.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum WhitespaceMode {

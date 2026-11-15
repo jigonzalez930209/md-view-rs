@@ -94,6 +94,47 @@ expand_folder() {
   done
   fail "folder $rel did not toggle"
 }
+set_mode() {
+  local mode=$1
+  key ctrl+shift+p
+  type_text "$mode"
+  key Enter
+  sleep 0.5
+}
+set_wrap() {
+  local desired=$1 current attempt
+  for attempt in 1 2 3 4; do
+    current=$(cfg wrap)
+    [[ -z "$current" ]] && current=false
+    [[ "$current" == "$desired" ]] && return 0
+    set_mode "Word wrap"
+  done
+  fail "word wrap did not reach '$desired'"
+}
+assert_end_stable() {
+  python3 - "$LOGS/mdview.log" "$1" "$2" <<'PY' || fail "editor end offsets are unstable for $1 wrap=$2"
+import re
+import sys
+text = open(sys.argv[1], encoding="utf-8").read()
+mode, wrap = sys.argv[2], sys.argv[3]
+values = [
+    tuple(map(float, match))
+    for match in re.findall(
+        rf"editor scroll end mode={re.escape(mode)} wrap={re.escape(wrap)} offset=([0-9.]+) max=([0-9.]+) clearance=([0-9.]+)",
+        text,
+    )
+]
+if len(values) < 2:
+    raise SystemExit(f"only {len(values)} end diagnostics for {mode} wrap={wrap}")
+recent = values[-3:]
+offsets = [offset for offset, _, _ in recent[-2:]]
+clearances = [clearance for _, _, clearance in recent]
+if max(offsets) - min(offsets) > 0.1:
+    raise SystemExit(f"unstable offsets: {recent}")
+if min(clearances) < 6.0:
+    raise SystemExit(f"scrollbar clearance below 6 px: {recent}")
+PY
+}
 
 expect_zoom() {
   local expected=$1 actual
@@ -355,6 +396,7 @@ expand_folder notes 120 153
 shot "08-explorer-expanded"
 rclick 120 153
 shot "08b-context-menu"
+log_has "explorer context menu path="
 key Escape
 click 115 177
 wait_title "one.md"
@@ -568,6 +610,65 @@ log_has "command SetMode\(View\)"
 log_has "command SetMode\(Edit\)"
 log_has "command SetMode\(Split\)"
 
+echo "== scroll-end matrix: Edit/Split × unwrapped/wrapped =="
+set_wrap false
+set_mode "Edit mode"
+click 640 400
+key ctrl+Home
+sleep 0.4
+x wheel 640 400 300
+sleep 1.4
+assert_end_stable edit false
+set_wrap true
+click 640 400
+key ctrl+Home
+sleep 0.4
+x wheel 640 400 300
+sleep 1.4
+assert_end_stable edit true
+set_mode "Split view"
+set_wrap false
+click 320 400
+key ctrl+Home
+sleep 0.4
+x wheel 320 400 300
+sleep 1.4
+assert_end_stable split false
+set_wrap true
+click 320 400
+key ctrl+Home
+sleep 0.4
+x wheel 320 400 300
+sleep 1.4
+assert_end_stable split true
+set_wrap false
+
+echo "== End key reaches the final preview block =="
+set_mode "Reading view"
+key End
+sleep 1.2
+log_has "preview end via End"
+shot "35-end-key"
+python3 - "$LOGS/mdview.log" <<'PY' || fail "End key did not reach the preview end"
+import re
+import sys
+text = open(sys.argv[1], encoding="utf-8").read()
+matches = [
+    tuple(map(float, match))
+    for match in re.findall(
+        r"preview end via End offset=([0-9.]+) max=([0-9.]+) last_bottom=([0-9.]+) content=([0-9.]+)",
+        text,
+    )
+]
+if not matches:
+    raise SystemExit("no End diagnostic")
+offset, maximum, bottom, content = matches[-1]
+if offset < maximum - 2:
+    raise SystemExit(f"End stopped at {offset} of {maximum}")
+if bottom > content + 1:
+    raise SystemExit(f"last block {bottom} exceeds content {content}")
+PY
+
 echo "== image viewer, zoom, pan, and lightbox =="
 key ctrl+p
 type_text "logo.svg"
@@ -577,9 +678,10 @@ shot "20b-image-svg"
 x drag 490 360 560 410
 sleep 0.5
 log_has "image pan="
-x wheel 490 360 3
-sleep 0.5
+x wheelup 490 360 10
+sleep 1.5
 log_has "image zoom"
+log_has "image reraster"
 click 490 360
 sleep 0.8
 log_has "lightbox open"
@@ -604,26 +706,7 @@ sleep 0.6
 x wheel 700 400 300
 sleep 2
 log_has "preview scroll end"
-log_has "editor scroll end"
 shot "30-split-end"
-python3 - "$LOGS/mdview.log" <<'PY' || fail "scroll end diagnostics invalid"
-import re
-import sys
-text = open(sys.argv[1], encoding="utf-8").read()
-editors = [tuple(map(float, m)) for m in re.findall(r"editor scroll end offset=([0-9.]+) max=([0-9.]+)", text)]
-previews = [tuple(map(float, m)) for m in re.findall(r"preview scroll end offset=([0-9.]+) max=([0-9.]+) last_bottom=([0-9.]+) content=([0-9.]+)", text)]
-if len(editors) < 3:
-    raise SystemExit(f"only {len(editors)} editor end diagnostics")
-if len({round(offset, 1) for offset, _ in editors[-3:]}) != 1:
-    raise SystemExit(f"editor end offsets are unstable: {editors[-3:]}")
-if len(previews) < 1:
-    raise SystemExit("no preview end diagnostic")
-offset, maximum, bottom, content = previews[-1]
-if offset < maximum - 2:
-    raise SystemExit(f"preview stopped at {offset} of {maximum}")
-if bottom > content + 1:
-    raise SystemExit(f"last block {bottom} exceeds content {content}")
-PY
 
 echo "== external conflict and reload =="
 key ctrl+shift+p

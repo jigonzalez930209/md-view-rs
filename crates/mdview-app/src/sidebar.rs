@@ -151,7 +151,6 @@ impl Sidebar {
             });
             ui.add_space(2.0);
         }
-
         let focus_id = ui.scope_id().with("tree_focus");
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             ui.add_space(2.0);
@@ -313,31 +312,40 @@ impl Sidebar {
             if response.clicked() {
                 ctx.actions.push(Action::Toggle(entry.path.clone()));
             }
-            response.context_menu(|ui| {
-                compact_menu(ui);
-                ui.set_min_width(196.0);
-                if menu_item(ui, ctx.icons, "file-plus", &t("New file"), None, false) {
-                    ctx.actions.push(Action::NewFile(entry.path.clone()));
-                    ui.close();
-                }
-                if menu_item(ui, ctx.icons, "folder-plus", &t("New folder"), None, false) {
-                    ctx.actions.push(Action::NewFolder(entry.path.clone()));
-                    ui.close();
-                }
-                if menu_item(ui, ctx.icons, "eye", &t("Reveal"), None, false) {
-                    ctx.actions.push(Action::Reveal(entry.path.clone()));
-                    ui.close();
-                }
-                ui.separator();
-                if menu_item(ui, ctx.icons, "edit", &t("Rename…"), Some("F2"), false) {
-                    ctx.actions.push(Action::Rename(entry.path.clone()));
-                    ui.close();
-                }
-                if menu_item(ui, ctx.icons, "close", &t("Delete…"), None, true) {
-                    ctx.actions.push(Action::Delete(entry.path.clone()));
-                    ui.close();
-                }
-            });
+            if response.secondary_clicked() {
+                log::debug!(
+                    "explorer context menu path={} y={:.1}",
+                    entry.path.display(),
+                    response.rect.bottom() + 1.0
+                );
+            }
+            egui::Popup::context_menu(&response)
+                .at_position(egui::pos2(response.rect.left(), response.rect.bottom() + 1.0))
+                .show(|ui| {
+                    compact_menu(ui);
+                    ui.set_min_width(196.0);
+                    if menu_item(ui, ctx.icons, "file-plus", &t("New file"), None, false) {
+                        ctx.actions.push(Action::NewFile(entry.path.clone()));
+                        ui.close();
+                    }
+                    if menu_item(ui, ctx.icons, "folder-plus", &t("New folder"), None, false) {
+                        ctx.actions.push(Action::NewFolder(entry.path.clone()));
+                        ui.close();
+                    }
+                    if menu_item(ui, ctx.icons, "eye", &t("Reveal"), None, false) {
+                        ctx.actions.push(Action::Reveal(entry.path.clone()));
+                        ui.close();
+                    }
+                    ui.separator();
+                    if menu_item(ui, ctx.icons, "edit", &t("Rename…"), Some("F2"), false) {
+                        ctx.actions.push(Action::Rename(entry.path.clone()));
+                        ui.close();
+                    }
+                    if menu_item(ui, ctx.icons, "close", &t("Delete…"), None, true) {
+                        ctx.actions.push(Action::Delete(entry.path.clone()));
+                        ui.close();
+                    }
+                });
             if entry.expanded
                 && let Some(children) = &entry.children
             {
@@ -349,27 +357,36 @@ impl Sidebar {
             ctx.actions.push(Action::Open(entry.path.clone()));
         }
         if !entry.is_dir {
-            response.context_menu(|ui| {
-                compact_menu(ui);
-                ui.set_min_width(196.0);
-                if menu_item(ui, ctx.icons, "eye", &t("Open"), Some("Enter"), false) {
-                    ctx.actions.push(Action::Open(entry.path.clone()));
-                    ui.close();
-                }
-                if menu_item(ui, ctx.icons, "history", &t("Reveal"), None, false) {
-                    ctx.actions.push(Action::Reveal(entry.path.clone()));
-                    ui.close();
-                }
-                ui.separator();
-                if menu_item(ui, ctx.icons, "edit", &t("Rename…"), Some("F2"), false) {
-                    ctx.actions.push(Action::Rename(entry.path.clone()));
-                    ui.close();
-                }
-                if menu_item(ui, ctx.icons, "close", &t("Delete…"), None, true) {
-                    ctx.actions.push(Action::Delete(entry.path.clone()));
-                    ui.close();
-                }
-            });
+            if response.secondary_clicked() {
+                log::debug!(
+                    "explorer context menu path={} y={:.1}",
+                    entry.path.display(),
+                    response.rect.bottom() + 1.0
+                );
+            }
+            egui::Popup::context_menu(&response)
+                .at_position(egui::pos2(response.rect.left(), response.rect.bottom() + 1.0))
+                .show(|ui| {
+                    compact_menu(ui);
+                    ui.set_min_width(196.0);
+                    if menu_item(ui, ctx.icons, "eye", &t("Open"), Some("Enter"), false) {
+                        ctx.actions.push(Action::Open(entry.path.clone()));
+                        ui.close();
+                    }
+                    if menu_item(ui, ctx.icons, "history", &t("Reveal"), None, false) {
+                        ctx.actions.push(Action::Reveal(entry.path.clone()));
+                        ui.close();
+                    }
+                    ui.separator();
+                    if menu_item(ui, ctx.icons, "edit", &t("Rename…"), Some("F2"), false) {
+                        ctx.actions.push(Action::Rename(entry.path.clone()));
+                        ui.close();
+                    }
+                    if menu_item(ui, ctx.icons, "close", &t("Delete…"), None, true) {
+                        ctx.actions.push(Action::Delete(entry.path.clone()));
+                        ui.close();
+                    }
+                });
         }
     }
 }

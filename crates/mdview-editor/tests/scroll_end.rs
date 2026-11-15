@@ -31,6 +31,10 @@ fn scroll_end_is_stable() {
             handle.borrow_mut().show(ui);
         });
     harness.run();
+    editor.borrow_mut().set_style(mdview_editor::EditorStyle {
+        scroll_beyond_last_line: false,
+        ..mdview_editor::EditorStyle::default()
+    });
     editor.borrow_mut().scroll_to_end();
     for _ in 0..5 {
         harness.run();
@@ -44,4 +48,5 @@ fn scroll_end_is_stable() {
     }
     assert!((editor.borrow().scroll_offset() - first).abs() < 0.5);
     assert!((first - max).abs() < 2.0);
+    assert!(editor.borrow().bottom_clearance() >= 6.0);
 }

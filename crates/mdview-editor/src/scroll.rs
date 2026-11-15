@@ -54,6 +54,16 @@ impl Editor {
         self.last_max_offset
     }
 
+    /// Space below the last text row for overlay scrollbars.
+    pub fn bottom_clearance(&self) -> f32 {
+        self.last_bottom_clearance
+    }
+
+    /// Whether a user scroll changed the offset recently.
+    pub fn scrolling_recently(&self, window: std::time::Duration) -> bool {
+        self.last_scroll_at.elapsed() <= window
+    }
+
     /// Whether the user scrolled this frame, consuming the flag.
     pub fn take_user_scroll(&mut self) -> bool {
         std::mem::take(&mut self.user_scrolled)
