@@ -20,8 +20,8 @@ Severity scale:
 | `cargo clippy --workspace --all-targets -- -D warnings` | pass |
 | `cargo xtask check-file-length` | pass (7 files are above 450 lines) |
 | `cargo test --workspace --locked` | pass with a disk-backed `TMPDIR`; see REL-04 and REL-05 |
-| `cargo xtask e2e` (release) | **E2E PASS**, 23,760 frames, final windows 0 frames over 8.33 ms, 231 KB log |
-| `cargo xtask perf` | combined p50 1.559 ms, p95 2.337 ms, max 2.474 ms |
+| `cargo xtask e2e` (release) | **E2E PASS**, 24,600 frames, last three steady windows p95 ≤ 8.33 ms, 242 KB log |
+| `cargo xtask perf` | combined p50 1.564 ms, p95 2.339 ms, max 2.632 ms |
 | `cargo xtask release-check` | pass, 4 assets, version 0.14.0 |
 | `cargo deny check` | advisories, bans, licenses, and sources pass (REL-02) |
 
@@ -265,27 +265,27 @@ Golden-image snapshots at 1×/2× cover the title bar, tab bar, and explorer.
 
 ## 6. Feature-by-feature E2E status
 
-E2E (`cargo xtask e2e`, Xvfb, debug profile) passed every stage. The table shows what is
-exercised and what is not verified.
+E2E (`cargo xtask e2e`, Xvfb, release profile) passed every stage. This table started as
+the 0.13.0 gap list; the Gaps column now records the 0.14.0 coverage.
 
 | Feature | Exercised | Verified visually in this review | Gaps |
 |---|---|---|---|
 | Startup, workspace, logs | yes | yes | — |
-| Menus (File/Edit/View/Go/Help) | yes | yes | No keyboard navigation of menus |
-| Settings (6 tabs, switches, steppers) | yes | yes | ICO-09; dark theme not covered by E2E |
-| Explorer (nested, context menu, rename, delete, create, collapse, refresh) | yes | yes | ICO-04, ICO-08; no keyboard tree navigation |
+| Menus (File/Edit/View/Go/Help) | yes | yes | Resolved: F10/Alt+letter keyboard overlay, arrows, Enter; Spanish/pseudo captures |
+| Settings (6 tabs, switches, steppers) | yes | yes | Resolved: ICO-09 polish; dark theme captured in E2E |
+| Explorer (nested, context menu, rename, delete, create, collapse, refresh) | yes | yes | Resolved: context menu below row; keyboard tree traversal covered by `sidebar_keyboard` tests |
 | Quick Open, command palette | yes | yes | — |
-| Tabs (select, close, close others, overflow, wheel scroll) | yes | yes | ICO-06, ICO-07 |
-| Editor (edit, save, find, replace, go-to-line) | yes | yes | UX-03, UX-05; no end-of-file scroll assertion (SCR-01) |
-| Split + 120 wheel events | yes | yes | Only frame time is checked, not final positions; cannot leave Split (UX-02) |
-| Rendering (LaTeX, tables, links, local/remote PNG/SVG, animated SVG, Mermaid, code, tasks) | yes | yes | RDV-01..06; preview end not asserted (SCR-02) |
-| Image documents (SVG, PNG) | yes | yes | No zoom/pan (UX-04) |
+| Tabs (select, close, close others, overflow, wheel scroll) | yes | yes | Resolved: overflow pressed-state capture; ICO-06/07 polish |
+| Editor (edit, save, find, replace, go-to-line) | yes | yes | Resolved: floating find overlay, end-scroll matrix (SCR-01) |
+| Split + 120 wheel events | yes | yes | Resolved: segmented control and 300-event end matrix |
+| Rendering (LaTeX, tables, links, local/remote PNG/SVG, animated SVG, Mermaid, code, tasks) | yes | yes | Resolved: reading polish and End-key preview end (SCR-02) |
+| Image documents (SVG, PNG) | yes | yes | Resolved: zoom, pan, lightbox, SVG re-raster |
 | Reading presets and size stepper | yes | yes | — |
-| Lightbox | **no** | no | Add an E2E stage |
-| Conflict banner / diff on external change | **no** (unit snapshot only) | snapshot only | Add an E2E stage with an external write |
-| Spanish UI / pseudo-locale | **no** | no | Add a language-switch stage |
-| Dark themes | **no** | snapshot only | Run the render stage in a dark theme |
-| Back navigation, workspace search | n/a | — | New features (UX-01) |
+| Lightbox | yes | yes | Covered by `29-lightbox.png`; SVG re-raster asserted |
+| Conflict banner / diff on external change | yes | yes | Covered by `31-conflict.png` and external-write reload stage |
+| Spanish UI / pseudo-locale | yes | yes | Menus, palette, find, About, and prompts captured in `37..47-*.png` |
+| Dark themes | yes | yes | Covered by `34-dark-render.png` |
+| Back navigation, workspace search | yes | yes | Covered by search/history stage |
 
 ## 7. E2E additions required by this review
 
@@ -348,6 +348,17 @@ Key automated evidence:
 - Code-document mode evidence — opening `src/segmented.rs` logs
   `mode=edit can_edit=true can_view=false can_split=false`; clicking View/Split produces no
   `SetMode` command, and `36-code-modes.png` shows Edit selected with the other segments dimmed.
+- Menu keyboard evidence — `F10`/`Alt+F/E/V/G/H` opens the keyboard menu overlay; arrow keys
+  navigate groups/items and Enter runs the item. Spanish opens `37-menu-file-spanish.png` and
+  `38-menu-item-spanish.png`, executes `command NewFile`, and captures `39-prompt-spanish.png`;
+  Help keyboard navigation captures `42-about-spanish.png`. Pseudo-locale repeats the menu,
+  palette, find, About, and prompt captures in `43..47-*.png`.
+- Locale dialog evidence — Spanish `40-palette-spanish.png`, `41-find-spanish.png`,
+  `42-about-spanish.png`, `39-prompt-spanish.png`; pseudo-locale `44-palette-pseudo.png`,
+  `45-find-pseudo.png`, `46-about-pseudo.png`, `47-prompt-pseudo.png`.
+- Overflow pressed-state evidence — the E2E holds the overflow button with XTest, captures
+  `13a-tab-overflow-pressed.png`, and asserts `tab overflow pressed`; the released click opens
+  the menu in `13-tab-menu.png`.
 - Explorer context menu — the menu is positioned at `row.left(), row.bottom() + 1`; the E2E
   records `explorer context menu ... y=...` below the row and captures `08b-context-menu.png`.
 - `crates/mdview-app/src/sidebar_keyboard.rs` — keyboard tree traversal/expansion ordering.
@@ -363,3 +374,6 @@ Key automated evidence:
 | ICO-08, menu no longer covers the row label | `egui::Popup::context_menu` anchored at `row.left(), row.bottom() + 1`; `08b-context-menu.png` |
 | UX-04, SVG re-rasterized at zoom | Viewer logs `image reraster scale=2.50/3.00/3.50`; lightbox logs `lightbox reraster scale=1.50/2.00` |
 | Section 7.4, code document disabled modes | `document mode .../segmented.rs mode=edit can_edit=true can_view=false can_split=false`; no `SetMode` on View/Split clicks; `36-code-modes.png` |
+| Section 7.7, Spanish and pseudo dialogs | Keyboard menus, palette, find overlay, About, and prompt captures in both locales; `37..47-*.png` |
+| Section 6, menu keyboard navigation | `F10`/`Alt+letter` menu overlay, arrow navigation, Enter execution; `keyboard menu group=` logs and `command NewFile`/`About` |
+| Section 6, overflow pressed state | XTest press/release stage; `13a-tab-overflow-pressed.png` and `tab overflow pressed` log |

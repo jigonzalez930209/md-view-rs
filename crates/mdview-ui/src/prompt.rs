@@ -29,6 +29,8 @@ pub struct NamePrompt<'a> {
     pub value: &'a mut String,
     /// Primary button label.
     pub confirm: String,
+    /// Cancel button label.
+    pub cancel: String,
     /// Optional validation message.
     pub error: Option<String>,
 }
@@ -60,7 +62,7 @@ pub fn show_name_prompt(ctx: &Context, prompt: &mut NamePrompt<'_>) -> Option<Pr
                 ui.label(RichText::new(error).small().color(ui.visuals().error_fg_color));
             }
             ui.add_space(14.0);
-            footer(ui, &prompt.confirm, false, &mut action);
+            footer(ui, &prompt.confirm, &prompt.cancel, false, &mut action);
             if ui.input(|input| input.key_pressed(Key::Enter)) {
                 action = Some(PromptAction::Submit);
             }
@@ -79,6 +81,8 @@ pub struct ConfirmPrompt {
     pub message: String,
     /// Primary button label.
     pub confirm: String,
+    /// Cancel button label.
+    pub cancel: String,
     /// Paint the primary action as destructive.
     pub danger: bool,
 }
@@ -93,7 +97,7 @@ pub fn show_confirm_prompt(ctx: &Context, prompt: &ConfirmPrompt) -> Option<Prom
             dialog_header(ui, &prompt.title, &mut action);
             ui.label(&prompt.message);
             ui.add_space(14.0);
-            footer(ui, &prompt.confirm, prompt.danger, &mut action);
+            footer(ui, &prompt.confirm, &prompt.cancel, prompt.danger, &mut action);
         });
     if dialog.backdrop_response.clicked() || ctx.input(|input| input.key_pressed(Key::Escape)) {
         action = Some(PromptAction::Cancel);
@@ -140,13 +144,13 @@ fn dialog_header(ui: &mut Ui, title: &str, action: &mut Option<PromptAction>) {
     ui.add_space(8.0);
 }
 
-fn footer(ui: &mut Ui, confirm: &str, danger: bool, action: &mut Option<PromptAction>) {
+fn footer(ui: &mut Ui, confirm: &str, cancel: &str, danger: bool, action: &mut Option<PromptAction>) {
     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         if primary_button(ui, confirm, danger).clicked() {
             *action = Some(PromptAction::Submit);
         }
         ui.add_space(8.0);
-        if secondary_button(ui, "Cancel").clicked() {
+        if secondary_button(ui, cancel).clicked() {
             *action = Some(PromptAction::Cancel);
         }
     });

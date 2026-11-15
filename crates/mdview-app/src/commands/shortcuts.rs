@@ -25,6 +25,26 @@ impl MdViewApp {
         if self.dialogs.is_open() || self.close_prompt_open {
             return;
         }
+        let alt_menu = if self.consume_shortcut(ctx, "Alt+F") {
+            Some(0)
+        } else if self.consume_shortcut(ctx, "Alt+E") {
+            Some(1)
+        } else if self.consume_shortcut(ctx, "Alt+V") {
+            Some(2)
+        } else if self.consume_shortcut(ctx, "Alt+G") {
+            Some(3)
+        } else if self.consume_shortcut(ctx, "Alt+H") {
+            Some(4)
+        } else if ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::F10)) {
+            Some(0)
+        } else {
+            None
+        };
+        if let Some(group) = alt_menu {
+            log::debug!("keyboard menu group={group}");
+            self.keyboard_menu.open(group);
+            return;
+        }
         if self.tabs.active().conflict {
             if self.consume_shortcut(ctx, "Alt+R") {
                 let index = self.tabs.active_index();

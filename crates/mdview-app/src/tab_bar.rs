@@ -111,45 +111,8 @@ pub fn show_tab_bar(ui: &mut egui::Ui, tabs: &[TabInfo], active: usize, view: Ta
                 if icon_button(ui, view.icons, "history", &t("Quick Open"), false) {
                     action = Some(TabAction::Command(mdview_ui::Command::QuickOpen));
                 }
-                if let Some(texture) = view.icons.ui_texture(ui.ctx(), "more") {
-                    let image = egui::Image::new(&texture)
-                        .fit_to_exact_size(egui::vec2(18.0, 18.0))
-                        .tint(ui.visuals().text_color());
-                    ui.scope(|ui| {
-                        let visuals = ui.visuals_mut();
-                        visuals.widgets.inactive.weak_bg_fill = egui::Color32::TRANSPARENT;
-                        visuals.widgets.inactive.bg_fill = egui::Color32::TRANSPARENT;
-                        visuals.widgets.inactive.bg_stroke = egui::Stroke::NONE;
-                        visuals.widgets.hovered.bg_stroke = egui::Stroke::NONE;
-                        visuals.widgets.active.bg_stroke = egui::Stroke::NONE;
-                        ui.menu_image_button(image, |ui| {
-                            ui.set_min_width(210.0);
-                            if ui.button(t("Close Tab")).clicked() {
-                                action = Some(TabAction::Command(mdview_ui::Command::CloseTab));
-                                ui.close();
-                            }
-                            if ui.button(t("Close Other Tabs")).clicked() {
-                                action = Some(TabAction::Command(mdview_ui::Command::CloseOtherTabs));
-                                ui.close();
-                            }
-                            ui.separator();
-                            if ui.button(t("Move Tab Left")).clicked() {
-                                action = Some(TabAction::Command(mdview_ui::Command::MoveTabLeft));
-                                ui.close();
-                            }
-                            if ui.button(t("Move Tab Right")).clicked() {
-                                action = Some(TabAction::Command(mdview_ui::Command::MoveTabRight));
-                                ui.close();
-                            }
-                            ui.separator();
-                            if ui.button(t("Save")).clicked() {
-                                action = Some(TabAction::Command(mdview_ui::Command::Save));
-                                ui.close();
-                            }
-                        })
-                        .response
-                        .on_hover_text(t("Tab actions"));
-                    });
+                if let Some(command) = overflow_button(ui, view.icons, &t) {
+                    action = Some(TabAction::Command(command));
                 }
                 if icon_button(ui, view.icons, "plus", &t("New tab"), false) {
                     action = Some(TabAction::New);
@@ -165,6 +128,62 @@ pub fn show_tab_bar(ui: &mut egui::Ui, tabs: &[TabInfo], active: usize, view: Ta
     if right < bar.left() {
         // no room for controls; the tab strip still works
     }
+    action
+}
+
+fn overflow_button(
+    ui: &mut egui::Ui,
+    icons: &mut mdview_ui::MaterialIcons,
+    t: &dyn Fn(&str) -> String,
+) -> Option<mdview_ui::Command> {
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(26.0, 26.0), egui::Sense::click());
+    let open = egui::Popup::menu(&response).is_open();
+    if response.is_pointer_button_down_on() {
+        log::debug!("tab overflow pressed");
+    }
+    let fill = if response.is_pointer_button_down_on() {
+        ui.visuals().widgets.active.weak_bg_fill
+    } else if open || response.hovered() {
+        ui.visuals().widgets.hovered.weak_bg_fill
+    } else {
+        egui::Color32::TRANSPARENT
+    };
+    ui.painter().rect_filled(rect, egui::CornerRadius::same(5), fill);
+    if let Some(texture) = icons.ui_texture(ui.ctx(), "more") {
+        ui.put(
+            rect.shrink(4.0),
+            egui::Image::new(&texture)
+                .fit_to_exact_size(egui::vec2(18.0, 18.0))
+                .tint(ui.visuals().text_color()),
+        );
+    }
+    let mut action = None;
+    egui::Popup::menu(&response).show(|ui| {
+        ui.set_min_width(210.0);
+        if ui.button(t("Close Tab")).clicked() {
+            action = Some(mdview_ui::Command::CloseTab);
+            ui.close();
+        }
+        if ui.button(t("Close Other Tabs")).clicked() {
+            action = Some(mdview_ui::Command::CloseOtherTabs);
+            ui.close();
+        }
+        ui.separator();
+        if ui.button(t("Move Tab Left")).clicked() {
+            action = Some(mdview_ui::Command::MoveTabLeft);
+            ui.close();
+        }
+        if ui.button(t("Move Tab Right")).clicked() {
+            action = Some(mdview_ui::Command::MoveTabRight);
+            ui.close();
+        }
+        ui.separator();
+        if ui.button(t("Save")).clicked() {
+            action = Some(mdview_ui::Command::Save);
+            ui.close();
+        }
+    });
+    response.on_hover_text(t("Tab actions"));
     action
 }
 

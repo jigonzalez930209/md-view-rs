@@ -74,16 +74,28 @@ pub fn show_title_bar(ui: &mut Ui, state: TitleBarState<'_>, icons: &mut Materia
                 .layout(Layout::left_to_right(Align::Center)),
             |ui| {
                 ui.spacing_mut().item_spacing = Vec2::new(2.0, 0.0);
+                ui.spacing_mut().button_padding = Vec2::new(7.0, 3.0);
+                ui.style_mut()
+                    .text_styles
+                    .insert(egui::TextStyle::Button, FontId::proportional(13.0));
+                let visuals = ui.visuals_mut();
+                visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
+                visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+                visuals.widgets.inactive.bg_stroke = egui::Stroke::NONE;
+                visuals.widgets.hovered.bg_stroke = egui::Stroke::NONE;
+                visuals.widgets.active.bg_stroke = egui::Stroke::NONE;
                 ui.add_space(8.0);
                 if let Some(texture) = icons.ui_texture(ui.ctx(), "logo") {
                     ui.add(Image::new(&texture).fit_to_exact_size(Vec2::splat(ICON_LARGE)));
                 }
                 ui.add_space(6.0);
-                menu_button(ui, &t("File"), |ui| file_menu(ui, &t, &mut command));
-                menu_button(ui, &t("Edit"), |ui| edit_menu(ui, &t, &mut command));
-                menu_button(ui, &t("View"), |ui| view_menu(ui, &t, &state, &mut command));
-                menu_button(ui, &t("Go"), |ui| go_menu(ui, &t, &mut command));
-                menu_button(ui, &t("Help"), |ui| help_menu(ui, &t, &mut command));
+                egui::MenuBar::new().ui(ui, |ui| {
+                    menu_button(ui, &t("File"), |ui| file_menu(ui, &t, &mut command));
+                    menu_button(ui, &t("Edit"), |ui| edit_menu(ui, &t, &mut command));
+                    menu_button(ui, &t("View"), |ui| view_menu(ui, &t, &state, &mut command));
+                    menu_button(ui, &t("Go"), |ui| go_menu(ui, &t, &mut command));
+                    menu_button(ui, &t("Help"), |ui| help_menu(ui, &t, &mut command));
+                });
                 ui.add_space(6.0);
                 if icon_button(ui, icons, "back", &t("Back"), false, !state.can_back) {
                     command = Some(Command::Back);
@@ -187,19 +199,7 @@ pub fn show_title_bar(ui: &mut Ui, state: TitleBarState<'_>, icons: &mut Materia
 }
 
 fn menu_button(ui: &mut Ui, label: &str, add: impl FnOnce(&mut Ui)) {
-    ui.scope(|ui| {
-        ui.spacing_mut().button_padding = Vec2::new(7.0, 3.0);
-        ui.style_mut()
-            .text_styles
-            .insert(egui::TextStyle::Button, FontId::proportional(13.0));
-        let visuals = ui.visuals_mut();
-        visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
-        visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
-        visuals.widgets.inactive.bg_stroke = egui::Stroke::NONE;
-        visuals.widgets.hovered.bg_stroke = egui::Stroke::NONE;
-        visuals.widgets.active.bg_stroke = egui::Stroke::NONE;
-        ui.menu_button(label, add);
-    });
+    ui.menu_button(label, add);
 }
 
 fn folder_pill(

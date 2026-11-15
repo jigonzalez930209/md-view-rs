@@ -13,6 +13,7 @@ mod links;
 mod load_job;
 mod logging;
 mod media_runtime;
+mod menu_keyboard;
 mod navigation;
 mod palette_flow;
 mod perf;

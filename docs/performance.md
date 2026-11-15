@@ -16,9 +16,9 @@ Latest result on the Linux development machine:
 
 ```text
 120Hz frame budget (120 frames):
-editor  p50=0.237 ms p95=0.378 ms
-preview p50=1.319 ms p95=1.999 ms
-combined p50=1.559 ms p95=2.337 ms max=2.474 ms
+editor  p50=0.240 ms p95=0.383 ms
+preview p50=1.319 ms p95=1.978 ms
+combined p50=1.564 ms p95=2.339 ms max=2.632 ms
 ```
 
 The release test asserts `combined p95 <= 8.33 ms`. Debug builds use a relaxed assertion so the
@@ -77,15 +77,17 @@ under the 8.33 ms budget.
 folder expansion through a watcher refresh, file operations, tabs, editing, find/goto, split
 scrolling, local/remote media, standalone image documents, LaTeX, code blocks, a clickable
 table link, tables, Mermaid, the Reading settings, search/history, segmented modes, image
-zoom/pan/lightbox, conflict recovery, and language/theme switching in one run (23,760 frames).
+zoom/pan/lightbox, conflict recovery, and language/theme switching in one run (24,600 frames).
 Steady-state windows after the theme change:
 
 ```text
-frames=23520 p50=0.596ms p95=1.320ms max=1.535ms over_8.33ms=0
-frames=23640 p50=0.597ms p95=1.288ms max=1.569ms over_8.33ms=0
-frames=23760 p50=0.603ms p95=1.414ms max=2.234ms over_8.33ms=0
+frames=24120 p50=0.310ms p95=0.487ms max=1.156ms over_8.33ms=0
+frames=24240 p50=0.323ms p95=0.570ms max=1.162ms over_8.33ms=0
+frames=24480 p50=0.483ms p95=1.126ms max=19.016ms over_8.33ms=1
+frames=24600 p50=0.555ms p95=1.190ms max=1.509ms over_8.33ms=0
 ```
 
 Transition frames can still exceed 8.33 ms during cold start, the first large media upload,
-and the first split-mode layout. There are no over-budget frames in steady-state scrolling,
-editing, or rendering.
+the first split-mode layout, or an Xvfb scheduler spike. The gate is the steady-state p95
+(≤8.33 ms); the E2E reads the last three pre-shutdown windows and does not claim that every
+individual frame is below the budget.

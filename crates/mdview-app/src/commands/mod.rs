@@ -53,7 +53,9 @@ impl MdViewApp {
             Command::NewFile => {
                 if let Some(workspace) = &self.workspace {
                     let parent = workspace.root().to_path_buf();
-                    self.create_file_in(&parent, ctx);
+                    self.sidebar.begin_new_file(parent);
+                    self.sidebar.reveal();
+                    ctx.request_repaint();
                 }
             }
             Command::OpenRecentWorkspace(index) => {

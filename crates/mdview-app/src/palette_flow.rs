@@ -51,6 +51,7 @@ impl MdViewApp {
             } else {
                 let entries: Vec<(&str, mdview_ui::Command)> = vec![
                     ("New", mdview_ui::Command::New),
+                    ("New File in Workspace", mdview_ui::Command::NewFile),
                     ("Open…", mdview_ui::Command::Open),
                     ("Open Folder…", mdview_ui::Command::OpenFolder),
                     ("Save", mdview_ui::Command::Save),
@@ -77,6 +78,8 @@ impl MdViewApp {
                     ("Next Tab", mdview_ui::Command::NextTab),
                     ("Previous Tab", mdview_ui::Command::PreviousTab),
                     ("Check for Updates…", mdview_ui::Command::CheckUpdates),
+                    ("Pause SVG animations", mdview_ui::Command::ToggleAnimations),
+                    ("Reduce motion", mdview_ui::Command::ToggleReduceMotion),
                     ("Open Logs", mdview_ui::Command::OpenLogs),
                     (
                         "Language: Follow system",

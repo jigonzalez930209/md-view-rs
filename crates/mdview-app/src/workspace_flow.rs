@@ -6,7 +6,6 @@ use eframe::egui;
 use mdview_theme::ThemeMode;
 
 use crate::app::MdViewApp;
-use crate::workspace_ops;
 
 impl MdViewApp {
     /// Open a workspace folder and remember it.
@@ -57,22 +56,6 @@ impl MdViewApp {
         self.quick_open_paths.clear();
         self.sync_session();
         ctx.request_repaint();
-    }
-
-    /// Create a new file in a directory and open it.
-    pub(crate) fn create_file_in(&mut self, parent: &Path, ctx: &egui::Context) {
-        match workspace_ops::create_file(parent, "untitled.md") {
-            Ok(path) => {
-                if let Some(workspace) = &mut self.workspace {
-                    workspace.refresh_dir(parent);
-                }
-                if let Err(error) = self.open_path(&path) {
-                    self.show_error(format!("{} {error}", self.t("Could not open file.")));
-                }
-                self.update_title(ctx);
-            }
-            Err(error) => self.show_error(error.to_string()),
-        }
     }
 
     /// Restore the previous session when no explicit paths were passed on the command line.

@@ -184,6 +184,7 @@ fn new_file_prompt_snapshot() {
                 label: "File name".to_owned(),
                 value: &mut name,
                 confirm: "Create".to_owned(),
+                cancel: "Cancel".to_owned(),
                 error: None,
             };
             show_name_prompt(ui.ctx(), &mut prompt);
@@ -203,6 +204,7 @@ fn delete_prompt_snapshot() {
                 title: "Delete".to_owned(),
                 message: "Delete this entry permanently? src/old-notes.md".to_owned(),
                 confirm: "Delete".to_owned(),
+                cancel: "Cancel".to_owned(),
                 danger: true,
             };
             show_confirm_prompt(ui.ctx(), &prompt);

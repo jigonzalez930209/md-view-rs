@@ -3,6 +3,15 @@
 use super::*;
 
 impl Sidebar {
+    /// Start the new-file prompt in a workspace folder.
+    pub(crate) fn begin_new_file(&mut self, parent: PathBuf) {
+        self.creating = Some(CreateDialog {
+            kind: CreateKind::File,
+            parent,
+            name: "untitled.md".to_owned(),
+        });
+    }
+
     pub(super) fn dialogs(
         &mut self,
         ctx: &egui::Context,
@@ -26,6 +35,7 @@ impl Sidebar {
                 label,
                 value: &mut dialog.name,
                 confirm: t("Create"),
+                cancel: t("Cancel"),
                 error: self.error.take(),
             };
             match mdview_ui::show_name_prompt(ctx, &mut prompt) {
@@ -63,6 +73,7 @@ impl Sidebar {
                 label: t("New name"),
                 value: &mut name,
                 confirm: t("Rename"),
+                cancel: t("Cancel"),
                 error: self.error.take(),
             };
             match mdview_ui::show_name_prompt(ctx, &mut prompt) {
@@ -91,6 +102,7 @@ impl Sidebar {
                 title: t("Delete"),
                 message: format!("{} {}", t("Delete this entry permanently?"), path.display()),
                 confirm: t("Delete"),
+                cancel: t("Cancel"),
                 danger: true,
             };
             match mdview_ui::show_confirm_prompt(ctx, &prompt) {

@@ -68,6 +68,7 @@ pub struct MdViewApp {
     pub(crate) lightbox: Option<crate::lightbox::LightboxState>,
     pub(crate) history: crate::history::HistoryState,
     pub(crate) search: crate::search::SearchState,
+    pub(crate) keyboard_menu: mdview_ui::KeyboardMenuState,
 }
 
 impl MdViewApp {
@@ -158,6 +159,7 @@ impl MdViewApp {
             lightbox: None,
             history: crate::history::HistoryState::default(),
             search: crate::search::SearchState::default(),
+            keyboard_menu: mdview_ui::KeyboardMenuState::default(),
         };
 
         mdview_theme::apply_theme(&cc.egui_ctx, theme_id, follow_system);

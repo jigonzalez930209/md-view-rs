@@ -144,6 +144,18 @@ if __name__ == "__main__":
         XTST.XTestFakeButtonEvent(dpy, 3, 0, 0)
         X11.XFlush(dpy)
         time.sleep(0.2)
+    elif command == "press":
+        x, y = int(sys.argv[2]), int(sys.argv[3])
+        XTST.XTestFakeMotionEvent(dpy, -1, x, y, 0)
+        XTST.XTestFakeButtonEvent(dpy, 1, 1, 0)
+        X11.XFlush(dpy)
+        time.sleep(0.2)
+    elif command == "release":
+        x, y = int(sys.argv[2]), int(sys.argv[3])
+        XTST.XTestFakeMotionEvent(dpy, -1, x, y, 0)
+        XTST.XTestFakeButtonEvent(dpy, 1, 0, 0)
+        X11.XFlush(dpy)
+        time.sleep(0.2)
     elif command == "drag":
         x1, y1, x2, y2 = (int(value) for value in sys.argv[2:6])
         XTST.XTestFakeMotionEvent(dpy, -1, x1, y1, 0)

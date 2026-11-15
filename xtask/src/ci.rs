@@ -11,7 +11,7 @@ pub fn run() -> ExitCode {
             "clippy",
             &["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"],
         ),
-        ("tests", &["test", "--workspace", "--locked"]),
+        ("tests", &["test", "--workspace", "--locked", "--", "--test-threads=1"]),
         ("deny", &["deny", "check"]),
         ("file length", &["xtask", "check-file-length"]),
         ("release build", &["build", "--release", "-p", "mdview-app", "--locked"]),

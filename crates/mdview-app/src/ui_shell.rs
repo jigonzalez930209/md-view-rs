@@ -436,6 +436,7 @@ impl eframe::App for MdViewApp {
         }
         self.show_lightbox(ui.ctx());
         self.show_search_ui(ui.ctx());
+        self.show_keyboard_menu(ui.ctx());
         self.show_update_dialog(ui.ctx());
         if let Some(job) = &self.pending_load {
             ui.ctx().request_repaint_after(std::time::Duration::from_millis(50));

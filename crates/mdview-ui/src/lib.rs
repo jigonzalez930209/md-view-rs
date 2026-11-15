@@ -7,6 +7,7 @@ mod about;
 mod close_prompt;
 mod controls;
 mod header;
+mod keyboard_menu;
 mod loading;
 mod material_icons;
 mod menu;
@@ -25,6 +26,7 @@ pub use controls::{
     CONTROL_HEIGHT, compact_menu, menu_item, numeric_stepper, primary_button, secondary_button, text_field,
 };
 pub use header::{TitleBarState, show_title_bar};
+pub use keyboard_menu::{KeyboardMenuState, MenuEntry, MenuGroup, show_keyboard_menu};
 pub use loading::show_loading;
 pub use material_icons::MaterialIcons;
 pub use menu::{MenuState, show_menu};

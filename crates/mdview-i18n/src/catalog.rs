@@ -217,4 +217,13 @@ pub(crate) const SPANISH: &str = concat!(
     "\tLanguage: Pseudo-locale\tIdioma: Pseudolocalización\n",
     "\tExplorer\tExplorador\n",
     "\tAbout\tAcerca de\n",
+    "\tRename File…\tRenombrar archivo…\n",
+    "\tDelete File…\tEliminar archivo…\n",
+    "\tTab actions\tAcciones de pestaña\n",
+    "\tType to filter…\tEscribe para filtrar…\n",
+    "\tArrows navigate · Enter runs · Esc closes\tFlechas navegan · Enter ejecuta · Esc cierra\n",
+    "\tOpen Logs\tAbrir registros\n",
+    "\tFile name\tNombre del archivo\n",
+    "\tFolder name\tNombre de la carpeta\n",
+    "\tCreating in\tCreando en\n",
 );
