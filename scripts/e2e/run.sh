@@ -241,6 +241,7 @@ for index in 1 2 3 4; do
   printf '# Extra %s\n\nAnother document for tab scrolling.\n' "$index" > "$WS/extra$index.md"
 done
 printf 'fn main() {}\n' > "$WS/src/main.rs"
+printf 'fn segmented() {}\n' > "$WS/src/segmented.rs"
 mkdir -p "$WS/deep/nested/three/four/five"
 printf '# Leaf\n' > "$WS/deep/nested/leaf.md"
 printf '# Level three\n' > "$WS/deep/nested/three/three.md"
@@ -685,6 +686,11 @@ log_has "image reraster"
 click 490 360
 sleep 0.8
 log_has "lightbox open"
+click 276 70
+click 276 70
+click 276 70
+sleep 1.2
+log_has "lightbox reraster"
 shot "29-lightbox"
 key Escape
 sleep 0.4
@@ -695,6 +701,24 @@ click 864 51
 sleep 0.4
 after_modes=$(grep -c 'command SetMode' "$LOGS/mdview.log" || true)
 [[ "$before_modes" == "$after_modes" ]] || fail "image document accepted Edit/Split mode"
+key ctrl+p
+type_text "showcase"
+key Enter
+wait_title "showcase.md"
+
+echo "== code document segmented modes =="
+key ctrl+p
+type_text "segmented.rs"
+key Enter
+wait_title "segmented.rs"
+log_has "document mode.*segmented.rs mode=edit can_edit=true can_view=false can_split=false"
+shot "36-code-modes"
+before_modes=$(grep -c 'command SetMode' "$LOGS/mdview.log" || true)
+click 756 51
+click 864 51
+sleep 0.5
+after_modes=$(grep -c 'command SetMode' "$LOGS/mdview.log" || true)
+[[ "$before_modes" == "$after_modes" ]] || fail "code document accepted View/Split mode"
 key ctrl+p
 type_text "showcase"
 key Enter

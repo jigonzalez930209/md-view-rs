@@ -98,13 +98,7 @@ impl MdViewApp {
         if let Some(output) = preview_output {
             if let Some(lightbox) = output.lightbox.clone() {
                 log::debug!("lightbox open alt={}", lightbox.alt);
-                self.lightbox = Some(crate::lightbox::LightboxState {
-                    request: lightbox.request,
-                    alt: lightbox.alt,
-                    scale: 1.0,
-                    fit: true,
-                    pan: egui::Vec2::ZERO,
-                });
+                self.lightbox = Some(crate::lightbox::LightboxState::new(lightbox.request, lightbox.alt));
             }
             self.handle_preview_output(output, ui.ctx());
         }

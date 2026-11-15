@@ -20,8 +20,8 @@ Severity scale:
 | `cargo clippy --workspace --all-targets -- -D warnings` | pass |
 | `cargo xtask check-file-length` | pass (7 files are above 450 lines) |
 | `cargo test --workspace --locked` | pass with a disk-backed `TMPDIR`; see REL-04 and REL-05 |
-| `cargo xtask e2e` (release) | **E2E PASS**, 23,040 frames, final windows 0 frames over 8.33 ms, 227 KB log |
-| `cargo xtask perf` | combined p50 1.542 ms, p95 2.221 ms, max 2.709 ms |
+| `cargo xtask e2e` (release) | **E2E PASS**, 23,760 frames, final windows 0 frames over 8.33 ms, 231 KB log |
+| `cargo xtask perf` | combined p50 1.559 ms, p95 2.337 ms, max 2.474 ms |
 | `cargo xtask release-check` | pass, 4 assets, version 0.14.0 |
 | `cargo deny check` | advisories, bans, licenses, and sources pass (REL-02) |
 
@@ -343,6 +343,11 @@ Key automated evidence:
   `last_bottom <= content`.
 - Image viewer evidence — the zoom stage logs successive `image reraster scale=2.50/3.00/3.50`
   lines when SVG crosses half-step raster buckets.
+- Lightbox evidence — the zoom stage also logs `lightbox reraster scale=1.50` and `2.00` after
+  pressing the lightbox `+` control.
+- Code-document mode evidence — opening `src/segmented.rs` logs
+  `mode=edit can_edit=true can_view=false can_split=false`; clicking View/Split produces no
+  `SetMode` command, and `36-code-modes.png` shows Edit selected with the other segments dimmed.
 - Explorer context menu — the menu is positioned at `row.left(), row.bottom() + 1`; the E2E
   records `explorer context menu ... y=...` below the row and captures `08b-context-menu.png`.
 - `crates/mdview-app/src/sidebar_keyboard.rs` — keyboard tree traversal/expansion ordering.
@@ -356,4 +361,5 @@ Key automated evidence:
 | SCR-02, one End key reaches the final preview block | Release E2E End stage; `preview end via End offset=2645.2 max=2645.2 last_bottom=3231.2 content=3243.2` |
 | SCR-05, scrollbar clears the last line | `crates/mdview-editor/tests/scroll_end.rs` with scroll-beyond disabled; E2E `clearance=10.0` |
 | ICO-08, menu no longer covers the row label | `egui::Popup::context_menu` anchored at `row.left(), row.bottom() + 1`; `08b-context-menu.png` |
-| UX-04, SVG re-rasterized at zoom | Image E2E logs `image reraster scale=2.50`, `3.00`, `3.50` while zooming |
+| UX-04, SVG re-rasterized at zoom | Viewer logs `image reraster scale=2.50/3.00/3.50`; lightbox logs `lightbox reraster scale=1.50/2.00` |
+| Section 7.4, code document disabled modes | `document mode .../segmented.rs mode=edit can_edit=true can_view=false can_split=false`; no `SetMode` on View/Split clicks; `36-code-modes.png` |

@@ -18,6 +18,28 @@ pub struct LightboxState {
     pub fit: bool,
     /// Pan offset from the center.
     pub pan: egui::Vec2,
+    /// Base raster width used to derive zoom-scale requests.
+    base_max_width: u32,
+    /// Base raster height used to derive zoom-scale requests.
+    base_max_height: u32,
+    /// Last SVG raster bucket requested.
+    raster_scale: f32,
+}
+
+impl LightboxState {
+    /// Build a lightbox from a resolved media request.
+    pub fn new(request: MediaRequest, alt: String) -> Self {
+        Self {
+            base_max_width: request.max_width,
+            base_max_height: request.max_height,
+            request,
+            alt,
+            scale: 1.0,
+            fit: true,
+            pan: egui::Vec2::ZERO,
+            raster_scale: 1.0,
+        }
+    }
 }
 
 impl MdViewApp {
@@ -32,6 +54,15 @@ impl MdViewApp {
         } else {
             state.alt.clone()
         };
+        if state.request.kind == mdview_media::MediaKind::Svg {
+            let bucket = ((state.scale.max(1.0) * 2.0).ceil() / 2.0).clamp(1.0, 4.0);
+            if (bucket - state.raster_scale).abs() > 0.01 {
+                state.request.max_width = (state.base_max_width as f32 * bucket).clamp(64.0, 16_384.0) as u32;
+                state.request.max_height = (state.base_max_height as f32 * bucket).clamp(64.0, 16_384.0) as u32;
+                state.raster_scale = bucket;
+                log::debug!("lightbox reraster scale={bucket:.2}");
+            }
+        }
         let media = self.media.resolve(ctx, &state.request);
         if ctx.input(|input| input.key_pressed(egui::Key::Escape)) {
             open = false;

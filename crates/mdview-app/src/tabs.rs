@@ -51,6 +51,17 @@ impl DocumentTab {
         let viewer = document.path().and_then(crate::viewers::create);
         let previewable = viewer.is_some() || (!large && document.path().is_some_and(is_markdown_path));
         let mode = if previewable { ViewMode::View } else { ViewMode::Edit };
+        log::debug!(
+            "document mode path={} mode={} can_edit={} can_view={} can_split={}",
+            document
+                .path()
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| "untitled".to_owned()),
+            mode.as_setting(),
+            viewer.is_none(),
+            previewable,
+            is_markdown_path(document.path().unwrap_or(std::path::Path::new(""))) && !large,
+        );
         let mut editor = Editor::new(document);
         editor.set_identity(NEXT_ID.fetch_add(1, Ordering::Relaxed));
         Self {
