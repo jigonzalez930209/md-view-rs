@@ -142,6 +142,16 @@ pub enum BlockKind {
         /// Definition blocks.
         blocks: Vec<Block>,
     },
+    /// An HTML `<details>` element whose content is Markdown between its opening and
+    /// closing HTML blocks, as GitHub renders it.
+    Details {
+        /// The raw HTML of the opening block, including `<summary>`.
+        summary: String,
+        /// Whether the element has the `open` attribute.
+        open: bool,
+        /// The Markdown blocks inside the element.
+        blocks: Vec<Block>,
+    },
 }
 
 /// A list item.
@@ -285,6 +295,10 @@ pub enum Inline {
         alt: String,
         /// Classification.
         kind: LinkKind,
+        /// Display width in CSS pixels from an HTML `width` attribute.
+        width: Option<u32>,
+        /// Display height in CSS pixels from an HTML `height` attribute.
+        height: Option<u32>,
     },
     /// Inline or display math.
     Math {

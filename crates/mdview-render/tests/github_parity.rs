@@ -32,8 +32,23 @@ impl MediaProvider for Media {
     }
 }
 
+/// The same 240 x 80 test image the GitHub reference page loads as `logo.png`.
+fn logo(directory: &std::path::Path) {
+    let image = image::RgbaImage::from_fn(240, 80, |x, _| {
+        if x < 120 {
+            image::Rgba([9, 105, 218, 255])
+        } else {
+            image::Rgba([130, 80, 223, 255])
+        }
+    });
+    image.save(directory.join("logo.png")).expect("png");
+}
+
 #[test]
 fn github_parity_snapshot() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    logo(directory.path());
+    let base = directory.path().to_path_buf();
     let mode = ThemeMode::Light;
     let theme = Theme::for_mode(mode);
     let mut preview = Preview::default();
@@ -50,10 +65,10 @@ fn github_parity_snapshot() {
     );
     let mut media = Media::default();
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(760.0, 2_600.0))
+        .with_size(egui::vec2(760.0, 3_000.0))
         .with_context_setup(move |ctx| apply(ctx, mode))
         .build_ui(move |ui| {
-            preview.show_with_media(ui, DOCUMENT, &theme, true, None, &mut media);
+            preview.show_with_media(ui, DOCUMENT, &theme, true, Some(base.clone()), &mut media);
         });
     harness.run();
     harness.snapshot("github-parity");

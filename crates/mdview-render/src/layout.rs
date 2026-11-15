@@ -65,6 +65,18 @@ pub(crate) fn estimate_height(
         }
         BlockKind::Table { rows, .. } => 40.0 + rows.len() as f32 * (typography.tables.max(9.0) * 2.6).max(30.0),
         BlockKind::Rule => body * 1.25,
+        // Collapsed by default, like GitHub: one summary row.
+        BlockKind::Details { open, blocks, .. } => {
+            line_height
+                + if *open {
+                    blocks
+                        .iter()
+                        .map(|block| estimate_height(&block.kind, width, typography, sizes))
+                        .sum::<f32>()
+                } else {
+                    0.0
+                }
+        }
         BlockKind::FootnoteDefinition { blocks, .. } => {
             34.0 + blocks
                 .iter()

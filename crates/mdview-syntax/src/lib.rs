@@ -6,8 +6,10 @@
 use std::path::Path;
 use std::sync::{Arc, OnceLock};
 
+mod github_theme;
+
 use syntect::easy::HighlightLines;
-use syntect::highlighting::{Style, Theme, ThemeSet};
+use syntect::highlighting::{Style, Theme};
 use syntect::parsing::{SyntaxReference, SyntaxSet};
 use syntect::util::LinesWithEndings;
 
@@ -40,7 +42,8 @@ impl Highlighted {
 /// A syntax highlighter with cached syntax and theme sets.
 pub struct Highlighter {
     syntaxes: SyntaxSet,
-    themes: ThemeSet,
+    /// GitHub light and dark code colors.
+    github: [Theme; 2],
 }
 
 impl Highlighter {
@@ -48,7 +51,7 @@ impl Highlighter {
     pub fn new() -> Self {
         Self {
             syntaxes: two_face::syntax::extra_newlines(),
-            themes: ThemeSet::load_defaults(),
+            github: [github_theme::github_theme(true), github_theme::github_theme(false)],
         }
     }
 
@@ -61,7 +64,7 @@ impl Highlighter {
     /// Highlight a document. `light` selects a light or dark syntax palette.
     pub fn highlight(&self, text: &str, path: Option<&Path>, light: bool) -> Highlighted {
         let syntax = detect_syntax(&self.syntaxes, path, text);
-        let Some(theme) = theme(&self.themes, light) else {
+        let Some(theme) = self.theme(light) else {
             return Highlighted {
                 lines: text.lines().map(Highlighted::plain).collect(),
             };
@@ -91,6 +94,11 @@ impl Highlighter {
         Highlighted { lines }
     }
 
+    /// The code theme for a light or dark surface: GitHub's prettylights colors.
+    fn theme(&self, light: bool) -> Option<&Theme> {
+        self.github.get(usize::from(!light))
+    }
+
     /// The language name for the status bar.
     pub fn language_name(&self, path: Option<&Path>, text: &str) -> String {
         detect_syntax(&self.syntaxes, path, text).name.clone()
@@ -101,11 +109,6 @@ impl Default for Highlighter {
     fn default() -> Self {
         Self::new()
     }
-}
-
-fn theme(themes: &ThemeSet, light: bool) -> Option<&Theme> {
-    let name = if light { "InspiredGitHub" } else { "base16-ocean.dark" };
-    themes.themes.get(name).or_else(|| themes.themes.values().next())
 }
 
 fn color(style: Style) -> Option<[u8; 3]> {
@@ -317,7 +320,7 @@ impl Highlighter {
         }
 
         let syntax = detect_syntax(&self.syntaxes, path, text);
-        let Some(theme) = theme(&self.themes, light) else {
+        let Some(theme) = self.theme(light) else {
             for line in start..=end {
                 if let Some(slot) = cache.lines.get_mut(line) {
                     *slot = Some(Highlighted::plain(source_lines.get(line).copied().unwrap_or("")));

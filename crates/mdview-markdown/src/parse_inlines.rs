@@ -144,6 +144,8 @@ impl<'a> EventParser<'a> {
                         title,
                         alt,
                         kind,
+                        width: None,
+                        height: None,
                     });
                 }
                 Event::TaskListMarker(_checked) => {

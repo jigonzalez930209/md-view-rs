@@ -9,6 +9,7 @@ use crate::slug::Slugger;
 use lines::LineIndex;
 
 mod convert;
+mod details;
 mod lines;
 mod links;
 mod nesting;
@@ -38,7 +39,7 @@ pub fn parse(source: &str) -> MarkdownDocument {
         front_matter: None,
         depth: 0,
     };
-    let blocks = parser.parse_blocks(BlockEnd::Document);
+    let blocks = details::footnotes_last(details::group(parser.parse_blocks(BlockEnd::Document)));
     MarkdownDocument {
         blocks,
         headings: parser.headings,

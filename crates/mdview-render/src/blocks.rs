@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use egui::{Align, Align2, Color32, FontId, Label, Layout, RichText, TextFormat, Ui};
 mod code;
 mod footnote;
+mod html;
 mod list;
 mod octicon;
 mod quote;
@@ -96,6 +97,15 @@ pub(crate) fn block_gap(typography: mdview_theme::ReadingTypography) -> f32 {
     typography.body.round()
 }
 
+/// Space after a top-level block. HTML whose last element is a container such as
+/// `<div>` has no bottom margin on GitHub (only `<p>`, headings, and lists do).
+pub(crate) fn gap_after(kind: &BlockKind, typography: mdview_theme::ReadingTypography) -> f32 {
+    match kind {
+        BlockKind::Html(html) if crate::html::ends_without_margin(html) => 0.0,
+        _ => block_gap(typography),
+    }
+}
+
 pub(crate) fn show_blocks_spacing(
     ui: &mut Ui,
     blocks: &[Block],
@@ -144,19 +154,9 @@ pub(crate) fn show_block(
         BlockKind::Code { language, text, math } => {
             code::show_code(ui, language.as_deref(), text, *math, ctx, media);
         }
-        BlockKind::Html(html) => {
-            egui::Frame::new()
-                .fill(ctx.theme.sunken)
-                .stroke(egui::Stroke::new(1.0, ctx.theme.border))
-                .inner_margin(8.0)
-                .show(ui, |ui| {
-                    ui.label(
-                        RichText::new(html.trim_end())
-                            .monospace()
-                            .size((ctx.typography.code - 1.0).max(9.0))
-                            .color(ctx.theme.text_muted),
-                    );
-                });
+        BlockKind::Html(html) => html::show_html(ui, html, ctx, media),
+        BlockKind::Details { summary, open, blocks } => {
+            html::show_details(ui, block.id, summary, *open, blocks, ctx, media);
         }
         BlockKind::BlockQuote { kind, blocks } => quote::show_quote(ui, *kind, blocks, ctx, media),
         BlockKind::List {
@@ -186,6 +186,17 @@ pub(crate) fn show_block(
 /// A heading with GitHub's 24 px top margin, 1.25 line height, and the bottom rule
 /// under h1 and h2.
 fn show_heading(ui: &mut Ui, level: u8, inlines: &[mdview_markdown::Inline], ctx: &mut BlockCtx<'_>) {
+    show_heading_aligned(ui, level, inlines, ctx, Align::Min);
+}
+
+/// A heading aligned like an HTML `<hN align="...">`.
+pub(super) fn show_heading_aligned(
+    ui: &mut Ui,
+    level: u8,
+    inlines: &[mdview_markdown::Inline],
+    ctx: &mut BlockCtx<'_>,
+    align: Align,
+) {
     let text = text_of(inlines);
     let size = heading_size(level, ctx.typography.headings);
     let body = ctx.typography.body;
@@ -218,7 +229,9 @@ fn show_heading(ui: &mut Ui, level: u8, inlines: &[mdview_markdown::Inline], ctx
             },
         );
     }
-    ui.add(Label::new(job).selectable(true));
+    ui.with_layout(Layout::top_down(align), |ui| {
+        ui.add(Label::new(job).selectable(true));
+    });
     if level <= 2 {
         ui.add_space((size * 0.3).round());
         let (rule, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), egui::Sense::hover());

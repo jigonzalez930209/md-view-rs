@@ -18,7 +18,10 @@ The preview layout is checked against GitHub's own output, not against memory:
 6. Render `crates/mdview-render/tests/fixtures/github-parity.md` (every common element:
    h1-h6, inline styles, `<kbd>`, `<sub>`, `<sup>`, quotes and nested quotes, the five
    alerts, three-level ordered lists, loose lists, task lists, inline and display math,
-   aligned tables with code, fenced code, rules, footnotes) the same way at 16 px, with
+   aligned tables with code, fenced code, rules, footnotes, and README-style HTML: a
+   centered paragraph with a sized image, a comment, a centered heading, `<details>`
+   with Markdown inside, a right-aligned `div`, and an inline image) the same way at
+   16 px, with
    MathJax inlined and GitHub's `.sr-only` rule (which hides the "Footnotes" heading), and
    compare it with `github-parity.png`.
 7. Run `python3 -I scripts/github-parity/measure.py <github-ref.png> <math-ref.png>
@@ -45,13 +48,15 @@ in it: paragraphs, alert, lists, task lists, code block, table):
 | Table | 190 | 190 |
 | Alert box | 72 | 72 |
 
-Full-element document (`github-parity.png`), ink bands matched in order (37 in both):
+Full-element document (`github-parity.png`), ink bands matched in order (43 in both):
 
 | Bands | Elements | Top offset vs GitHub |
 |---|---|---|
 | 0-28 | h1-h6, paragraph with kbd/sub/sup, wrapped paragraph, quote, nested quote, 5 alerts (72 px each), nested ordered list, loose list, tasks, inline-math line | 0 to +2 px |
 | 29 | display `\sum` formula | +3 px; same 141 px width, 56 px tall vs 50 |
-| 30-36 | table, code block, rule, footnote text, 2 notes | +9 to +12 px, a constant shift; heights match within 2 px |
+| 30-34 | table, code block, rule, footnote reference line | +9 to +12 px, a constant shift; heights match within 2 px |
+| 35-40 | centered image + caption, centered heading, collapsed `<details>`, right-aligned `div`, inline image on the baseline | +10 px, the same constant shift; heights match exactly |
+| 41-42 | footnotes (moved to the end, as on GitHub) | +11 px |
 
 The shift after the display formula comes from the TeX engine: RaTeX sets the limits of
 `\sum` 6 px taller than MathJax at the same width. Everything after it keeps GitHub's
@@ -79,3 +84,9 @@ Values taken from that comparison and GitHub's CSS:
 Math is rendered with RaTeX instead of MathJax; both use the Computer Modern / KaTeX
 metrics, and the size is calibrated to MathJax's output above. The `↩` back link is drawn
 as a vector arrow because the bundled fonts have no arrow glyphs.
+
+## Code colors
+
+Fenced code uses GitHub's Primer "prettylights" palette (`crates/mdview-syntax/src/github_theme.rs`),
+light and dark. Sampled from the parity render: `def`/`return` #cf222e, function names
+#6639ba, strings #0a3069, interpolation braces #953800 — the same colors as GitHub.

@@ -2,12 +2,14 @@
 
 use egui::{Label, RichText, Sense, Ui};
 use mdview_markdown::{Inline, LinkKind, plain_text};
-use mdview_media::MediaKind;
 use mdview_theme::Theme;
 
-use crate::{AnimationStatus, LinkActivation, MediaContext, MediaLightbox, MediaState, PreviewOutput};
+use crate::{LinkActivation, MediaContext, PreviewOutput};
 
 mod code;
+mod image;
+
+pub(crate) use image::display_size as image_display_size;
 mod math;
 
 /// Inline typography plus intrinsic media sizes.
@@ -31,6 +33,10 @@ pub(crate) struct Segment {
     pub keyboard: bool,
     pub link: Option<LinkTarget>,
     pub image: bool,
+    /// Image source, kept apart from `link` so a linked image keeps its link.
+    pub image_source: Option<LinkTarget>,
+    /// Display size from HTML `width`/`height` attributes.
+    pub image_size: (Option<u32>, Option<u32>),
     pub math: bool,
     pub display_math: bool,
     pub footnote: Option<String>,
@@ -100,14 +106,22 @@ fn flatten(inlines: &[Inline], style: &Segment, html: &mut HtmlState, out: &mut 
                 });
                 flatten(children, &nested, html, out);
             }
-            Inline::Image { source, alt, kind, .. } => {
+            Inline::Image {
+                source,
+                alt,
+                kind,
+                width,
+                height,
+                ..
+            } => {
                 let mut segment = style.clone();
                 segment.image = true;
                 segment.text = if alt.is_empty() { source.clone() } else { alt.clone() };
-                segment.link = Some(LinkTarget {
+                segment.image_source = Some(LinkTarget {
                     destination: source.clone(),
                     kind: *kind,
                 });
+                segment.image_size = (*width, *height);
                 push_segment(segment, html, out);
             }
             Inline::Math { tex, display } => {
@@ -126,7 +140,11 @@ fn flatten(inlines: &[Inline], style: &Segment, html: &mut HtmlState, out: &mut 
             }
             Inline::SoftBreak => push_text(" ", style, html, out),
             Inline::HardBreak => push_text("\n", style, html, out),
-            Inline::Html(raw) => apply_html(raw, html, style, out),
+            Inline::Html(raw) => match crate::html::image_tag(raw) {
+                // GitHub renders inline `<img>` tags in paragraphs.
+                Some(image) => flatten(std::slice::from_ref(&image), style, html, out),
+                None => apply_html(raw, html, style, out),
+            },
         }
     }
 }
@@ -197,7 +215,33 @@ pub(crate) fn show_inlines(
         ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
         // The wrapped layout reads its first row height from the parent spacing.
         ui.spacing_mut().interact_size.y = body_row;
-        ui.horizontal_wrapped(|ui| {
+        // Rows with images align on the bottom, which with the image's descent pad
+        // puts images on the text baseline like CSS `vertical-align: baseline`.
+        let layout = if segments.iter().any(|segment| segment.image) {
+            egui::Layout::left_to_right(egui::Align::Max).with_main_wrap(true)
+        } else {
+            egui::Layout::left_to_right(egui::Align::Center).with_main_wrap(true)
+        };
+        // Same sizing as `horizontal_wrapped`, with the chosen cross alignment. A row
+        // with images starts at the tallest image's height, so text placed before an
+        // image is already bottom-aligned with it (egui does not re-place items).
+        let width = ui.available_size_before_wrap().x;
+        let descent = body_row - math::text_baseline(ui, style.typography);
+        let image_row = segments
+            .iter()
+            .filter_map(|segment| {
+                let source = segment.image_source.as_ref()?;
+                let (natural_width, natural_height) = style.media_sizes.get(&source.destination)?;
+                let size = image::display_size(
+                    egui::vec2(*natural_width, *natural_height),
+                    segment.image_size,
+                    ui.max_rect().width().max(32.0),
+                );
+                Some(size.y + descent)
+            })
+            .fold(body_row, f32::max);
+        let initial = egui::vec2(width, image_row);
+        ui.allocate_ui_with_layout(initial, layout, |ui| {
             let mut first = None;
             for segment in &segments {
                 let next = media.as_deref_mut();
@@ -244,7 +288,7 @@ fn show_segment(
     }
     if segment.image {
         let before = ui.cursor().min;
-        show_image(ui, segment, theme, output, media, typography, media_sizes);
+        image::show_image(ui, segment, theme, output, media, typography, media_sizes);
         return Some(egui::Rect::from_min_max(before, ui.min_rect().max));
     }
     if let Some(footnote) = &segment.footnote {
@@ -318,6 +362,16 @@ fn show_segment(
         } else if code {
             let rect = code::show_code_chip(ui, text, &run, theme, size, typography);
             first.get_or_insert(rect);
+        } else if ui.layout().vertical_align() == egui::Align::Max && !matched {
+            // Rows with images are bottom-aligned. A wrapping label would center its
+            // first row regardless, so text goes word by word as non-wrapping labels
+            // and the row layout breaks lines between words.
+            let row = line_height(typography);
+            for word in run.split_inclusive(' ') {
+                let word_text = styled_text(word, segment, theme, size, typography.code).line_height(Some(row));
+                let rect = ui.add(Label::new(word_text).wrap_mode(egui::TextWrapMode::Extend)).rect;
+                first.get_or_insert(rect);
+            }
         } else {
             let rect = ui.add(Label::new(text)).rect;
             first.get_or_insert(rect);
@@ -351,120 +405,6 @@ fn styled_text(text: &str, segment: &Segment, theme: &Theme, size: f32, code: f3
         text = text.color(theme.link);
     }
     text
-}
-
-fn show_image(
-    ui: &mut Ui,
-    segment: &Segment,
-    theme: &Theme,
-    output: &mut PreviewOutput,
-    media: Option<&mut MediaContext<'_>>,
-    typography: mdview_theme::ReadingTypography,
-    media_sizes: &std::collections::HashMap<String, (f32, f32)>,
-) {
-    let Some(target) = &segment.link else {
-        return;
-    };
-    let max_width = ui.available_width().clamp(32.0, 720.0);
-    let alt = segment.text.clone();
-    let Some(media_context) = media else {
-        ui.label(RichText::new(&alt).italics().color(theme.text_muted));
-        return;
-    };
-    // A stable raster width lets the same texture survive a split resize; the displayed
-    // size is still derived from the pane width.
-    let request = media_context.request(
-        ui.ctx(),
-        MediaKind::Image,
-        &target.destination,
-        1_600.0,
-        theme.is_dark(),
-    );
-    let key = request.cache_key();
-    let status = media_context.provider.animation_status(&key);
-    match media_context.provider.resolve(ui.ctx(), &request) {
-        MediaState::Loading => {
-            let height = crate::layout::reserved_media_height(
-                MediaKind::Image,
-                &target.destination,
-                max_width,
-                typography,
-                media_sizes,
-            );
-            let (rect, _) = ui.allocate_exact_size(egui::vec2(max_width, height), egui::Sense::hover());
-            ui.painter().text(
-                rect.center(),
-                egui::Align2::CENTER_CENTER,
-                &alt,
-                egui::FontId::proportional(12.0),
-                theme.text_muted,
-            );
-        }
-        MediaState::Ready(texture) => {
-            let points = texture.size_vec2() / ui.ctx().pixels_per_point().max(1.0);
-            let reserved = crate::layout::reserved_media_height(
-                MediaKind::Image,
-                &target.destination,
-                max_width,
-                typography,
-                media_sizes,
-            );
-            let scale = (max_width / points.x).min(reserved / points.y).min(1.0);
-            let size = points * scale;
-            let (rect, response) = ui.allocate_exact_size(egui::vec2(max_width, reserved), egui::Sense::click());
-            let image_rect = egui::Rect::from_center_size(rect.center(), size);
-            ui.painter().image(
-                texture.id(),
-                image_rect,
-                egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-                egui::Color32::WHITE,
-            );
-            if let Some(label) = animation_label(status) {
-                ui.painter().text(
-                    egui::pos2(rect.left() + 4.0, rect.bottom() - 4.0),
-                    egui::Align2::LEFT_BOTTOM,
-                    label,
-                    egui::FontId::proportional(10.0),
-                    theme.text_muted,
-                );
-            }
-            let response = response.on_hover_text(if alt.is_empty() {
-                target.destination.clone()
-            } else {
-                alt.clone()
-            });
-            media_context
-                .provider
-                .mark_visible(&key, ui.is_rect_visible(response.rect));
-            if response.clicked() {
-                output.lightbox = Some(MediaLightbox {
-                    request: request.clone(),
-                    alt,
-                });
-            }
-        }
-        MediaState::Error(error) => {
-            egui::Frame::new()
-                .fill(theme.sunken)
-                .stroke(egui::Stroke::new(1.0, theme.danger))
-                .inner_margin(6.0)
-                .show(ui, |ui| {
-                    ui.vertical(|ui| {
-                        ui.label(RichText::new(&alt).italics().color(theme.text_muted));
-                        ui.label(RichText::new(error).small().color(theme.danger));
-                    });
-                });
-        }
-    }
-}
-
-fn animation_label(status: AnimationStatus) -> Option<&'static str> {
-    match status {
-        AnimationStatus::None => None,
-        AnimationStatus::Playing => Some("Animated"),
-        AnimationStatus::Paused => Some("Animation paused"),
-        AnimationStatus::Unsupported => Some("Animation not fully supported"),
-    }
 }
 
 /// Plain text of an inline sequence, used by tooltips and snapshots.

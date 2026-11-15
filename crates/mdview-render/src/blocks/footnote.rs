@@ -60,7 +60,9 @@ pub(crate) fn block_anchors(block: &Block, footnotes: &Footnotes) -> Vec<String>
 fn collect_block_references(block: &Block, numbers: &mut HashMap<String, usize>) {
     match &block.kind {
         BlockKind::Paragraph(inlines) | BlockKind::Heading { inlines, .. } => collect_inlines(inlines, numbers),
-        BlockKind::BlockQuote { blocks, .. } | BlockKind::FootnoteDefinition { blocks, .. } => {
+        BlockKind::BlockQuote { blocks, .. }
+        | BlockKind::FootnoteDefinition { blocks, .. }
+        | BlockKind::Details { blocks, .. } => {
             for block in blocks {
                 collect_block_references(block, numbers);
             }

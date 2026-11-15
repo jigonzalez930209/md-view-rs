@@ -17,6 +17,7 @@
 
 mod blocks;
 mod highlight;
+mod html;
 mod inline;
 mod layout;
 mod media;
@@ -342,11 +343,10 @@ impl Preview {
         }
         let mut output = PreviewOutput::default();
         let mut block_screens: Vec<BlockScreen> = Vec::new();
-        let mut media = media;
         let search_query = self.search_query.clone();
         let mut heights = std::mem::take(&mut self.heights);
         let margin_fraction = self.margins.percent() / 100.0;
-        let (top_gap, bottom_gap, block_gap) = (8.0, 12.0, blocks::block_gap(self.typography));
+        let (top_gap, bottom_gap) = (8.0, 12.0);
 
         let anchor_before = self.anchor();
         let old_content_height = self.content_height;
@@ -396,6 +396,7 @@ impl Preview {
                         };
                         let mut top = 0.0_f32;
                         for block in &cached.document.blocks {
+                            let block_gap = blocks::gap_after(&block.kind, self.typography);
                             let estimated = estimate_height(&block.kind, width, self.typography, &self.media_sizes);
                             let height = heights.get(&block.id).copied().unwrap_or(estimated);
                             let visible = top + height >= viewport.min.y - overscan && top <= viewport.max.y + overscan;

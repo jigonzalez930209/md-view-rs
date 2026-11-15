@@ -72,3 +72,24 @@ Text with two notes.[^one][^two]
 
 [^one]: The first note.
 [^two]: The second note.
+
+<p align="center">
+  <img src="logo.png" width="120" alt="Logo">
+  <br>
+  <b>Centered caption</b> with a <a href="https://example.com">link</a>
+</p>
+
+<!-- This comment is hidden on GitHub -->
+
+<h3 align="center">Centered heading</h3>
+
+<details>
+<summary>Click to expand</summary>
+
+Hidden content.
+
+</details>
+
+<div align="right">Right aligned text</div>
+
+Inline image ![logo](logo.png) in text.

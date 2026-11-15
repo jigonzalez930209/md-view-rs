@@ -96,7 +96,20 @@ fn collect_block(block: &Block, out: &mut Vec<(MediaKind, String)>) {
                 }
             }
         }
-        BlockKind::Html(_) | BlockKind::Rule => {}
+        BlockKind::Html(html) => {
+            for line in crate::html::to_lines(html) {
+                collect_inlines(&line.inlines, out);
+            }
+        }
+        BlockKind::Details { summary, blocks, .. } => {
+            for line in crate::html::to_lines(summary) {
+                collect_inlines(&line.inlines, out);
+            }
+            for block in blocks {
+                collect_block(block, out);
+            }
+        }
+        BlockKind::Rule => {}
     }
 }
 

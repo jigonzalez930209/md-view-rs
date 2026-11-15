@@ -126,7 +126,7 @@ fn baseline(ui: &Ui, source: &str) -> Option<f32> {
 }
 
 /// Distance from the top of a body line box to the text baseline.
-fn text_baseline(ui: &Ui, typography: mdview_theme::ReadingTypography) -> f32 {
+pub(super) fn text_baseline(ui: &Ui, typography: mdview_theme::ReadingTypography) -> f32 {
     let row = crate::inline::line_height(typography);
     let mut job = egui::text::LayoutJob::default();
     job.append(

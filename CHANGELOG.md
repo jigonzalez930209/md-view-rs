@@ -20,6 +20,14 @@
 - Formulas scale by font size instead of being squeezed into a fixed box, so fractions,
   integrals, and matrices keep their full size. The scale is calibrated to GitHub's MathJax
   output. Inline math uses TeX text style.
+- Rendered raw HTML the way GitHub's sanitizer does instead of showing the source:
+  comments and scripts disappear; `align` centers or right-aligns paragraphs and headings;
+  `<img>` honors `width`/`height`; `<a>`, `<b>`, `<i>`, `<code>`, `<br>`, `<hr>`, `<ul>`
+  work; `<details>`/`<summary>` collapse, including Markdown between the HTML blocks; and
+  `<div>` has no bottom margin. Inline images show at their natural size on the text
+  baseline (`max-width: 100%`), linked images follow their link, and footnotes are
+  collected at the end of the document.
+- Code blocks and the editor use GitHub's Primer prettylights syntax colors.
 - Fixed task markers in loose lists (they were dropped) and record list looseness, so
   loose items get GitHub's paragraph spacing. Added GitHub's purple `done` color for
   Important alerts in every theme, `<kbd>` keys, raised and lowered `<sub>`/`<sup>`, code
