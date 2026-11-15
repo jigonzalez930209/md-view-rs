@@ -27,6 +27,12 @@ impl MdViewApp {
                     .path()
                     .map(std::path::Path::to_path_buf)
                 {
+                    log::debug!(
+                        "rename prompt title={} confirm={} cancel={}",
+                        self.t("Rename"),
+                        self.t("Rename"),
+                        self.t("Cancel")
+                    );
                     self.sidebar.begin_rename(path);
                     self.sidebar.reveal();
                     ctx.request_repaint();
@@ -43,6 +49,12 @@ impl MdViewApp {
                     .path()
                     .map(std::path::Path::to_path_buf)
                 {
+                    log::debug!(
+                        "delete prompt title={} confirm={} cancel={}",
+                        self.t("Delete"),
+                        self.t("Delete"),
+                        self.t("Cancel")
+                    );
                     self.sidebar.begin_delete(path);
                     self.sidebar.reveal();
                     ctx.request_repaint();

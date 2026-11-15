@@ -20,8 +20,8 @@ Severity scale:
 | `cargo clippy --workspace --all-targets -- -D warnings` | pass |
 | `cargo xtask check-file-length` | pass (7 files are above 450 lines) |
 | `cargo test --workspace --locked` | pass with a disk-backed `TMPDIR`; see REL-04 and REL-05 |
-| `cargo xtask e2e` (release) | **E2E PASS**, 24,600 frames, last three steady windows p95 ≤ 8.33 ms, 242 KB log |
-| `cargo xtask perf` | combined p50 1.564 ms, p95 2.339 ms, max 2.632 ms |
+| `cargo xtask e2e` (release) | **E2E PASS**, 26,040 frames, last three steady windows p95 ≤ 8.33 ms, 247 KB log |
+| `cargo xtask perf` | combined p50 1.553 ms, p95 2.198 ms, max 2.357 ms |
 | `cargo xtask release-check` | pass, 4 assets, version 0.14.0 |
 | `cargo deny check` | advisories, bans, licenses, and sources pass (REL-02) |
 
@@ -283,7 +283,7 @@ the 0.13.0 gap list; the Gaps column now records the 0.14.0 coverage.
 | Reading presets and size stepper | yes | yes | — |
 | Lightbox | yes | yes | Covered by `29-lightbox.png`; SVG re-raster asserted |
 | Conflict banner / diff on external change | yes | yes | Covered by `31-conflict.png` and external-write reload stage |
-| Spanish UI / pseudo-locale | yes | yes | Menus, palette, find, About, and prompts captured in `37..47-*.png` |
+| Spanish UI / pseudo-locale | yes | yes | Menus, palette, find, About, New File, rename, delete, and unsaved-close prompts captured in `37..53-*.png` |
 | Dark themes | yes | yes | Covered by `34-dark-render.png` |
 | Back navigation, workspace search | yes | yes | Covered by search/history stage |
 
@@ -356,6 +356,13 @@ Key automated evidence:
 - Locale dialog evidence — Spanish `40-palette-spanish.png`, `41-find-spanish.png`,
   `42-about-spanish.png`, `39-prompt-spanish.png`; pseudo-locale `44-palette-pseudo.png`,
   `45-find-pseudo.png`, `46-about-pseudo.png`, `47-prompt-pseudo.png`.
+- Rename/delete/close prompt evidence — Spanish logs assert
+  `rename prompt title=Cambiar nombre confirm=Cambiar nombre cancel=Cancelar`,
+  `delete prompt title=Eliminar ...`, and
+  `close prompt title=¿Guardar cambios? save=Guardar discard=Descartar cancel=Cancelar`;
+  captures are `48-rename-spanish.png`, `49-delete-spanish.png`, `50-close-spanish.png`.
+  Pseudo-locale logs the wrapped `[!Rename!]`, `[!Delete!]`, and `[!Save changes?!]` labels with
+  captures `51-rename-pseudo.png`, `52-delete-pseudo.png`, `53-close-pseudo.png`.
 - Overflow pressed-state evidence — the E2E holds the overflow button with XTest, captures
   `13a-tab-overflow-pressed.png`, and asserts `tab overflow pressed`; the released click opens
   the menu in `13-tab-menu.png`.
@@ -374,6 +381,6 @@ Key automated evidence:
 | ICO-08, menu no longer covers the row label | `egui::Popup::context_menu` anchored at `row.left(), row.bottom() + 1`; `08b-context-menu.png` |
 | UX-04, SVG re-rasterized at zoom | Viewer logs `image reraster scale=2.50/3.00/3.50`; lightbox logs `lightbox reraster scale=1.50/2.00` |
 | Section 7.4, code document disabled modes | `document mode .../segmented.rs mode=edit can_edit=true can_view=false can_split=false`; no `SetMode` on View/Split clicks; `36-code-modes.png` |
-| Section 7.7, Spanish and pseudo dialogs | Keyboard menus, palette, find overlay, About, and prompt captures in both locales; `37..47-*.png` |
+| Section 7.7, Spanish and pseudo dialogs | Keyboard menus, palette, find overlay, About, New File, rename, delete, and unsaved-close prompts in both locales; logs assert translated titles/buttons and captures are `37..53-*.png` |
 | Section 6, menu keyboard navigation | `F10`/`Alt+letter` menu overlay, arrow navigation, Enter execution; `keyboard menu group=` logs and `command NewFile`/`About` |
 | Section 6, overflow pressed state | XTest press/release stage; `13a-tab-overflow-pressed.png` and `tab overflow pressed` log |

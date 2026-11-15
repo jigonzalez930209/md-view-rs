@@ -801,6 +801,45 @@ log_has "command About"
 shot "42-about-spanish"
 key Escape
 sleep 0.3
+key ctrl+shift+p
+type_text "Renombrar"
+key Enter
+sleep 0.6
+log_has "rename prompt title=Cambiar nombre confirm=Cambiar nombre cancel=Cancelar"
+shot "48-rename-spanish"
+key Escape
+sleep 0.3
+key ctrl+shift+p
+type_text "Eliminar"
+key Enter
+sleep 0.6
+log_has "delete prompt title=Eliminar confirm=Eliminar cancel=Cancelar"
+shot "49-delete-spanish"
+key Escape
+sleep 0.4
+key Escape
+sleep 0.4
+key ctrl+p
+type_text "showcase"
+key Enter
+wait_title "showcase.md"
+key ctrl+shift+p
+type_text "Modo"
+key Enter
+sleep 0.5
+click 640 400
+click 640 400
+type_text "unsaved "
+sleep 0.5
+wait_title "showcase.md •"
+click 950 16
+sleep 0.7
+log_has "close prompt title=¿Guardar cambios\\? save=Guardar discard=Descartar cancel=Cancelar"
+shot "50-close-spanish"
+key Escape
+sleep 0.4
+key ctrl+s
+sleep 0.6
 
 echo "== pseudo-locale dialogs and keyboard menus =="
 key ctrl+shift+p
@@ -837,6 +876,46 @@ sleep 0.6
 shot "46-about-pseudo"
 key Escape
 sleep 0.3
+key ctrl+shift+p
+type_text "Rename"
+key Enter
+sleep 0.6
+log_has "rename prompt title=\\[!Rename!\\]"
+shot "51-rename-pseudo"
+key Escape
+sleep 0.3
+key ctrl+shift+p
+type_text "Delete File"
+key Enter
+sleep 0.6
+log_has "delete prompt title=\\[!Delete!\\]"
+shot "52-delete-pseudo"
+key Escape
+sleep 0.4
+key Escape
+sleep 0.4
+key ctrl+p
+type_text "showcase"
+key Enter
+wait_title "showcase.md"
+key ctrl+shift+p
+type_text "Edit mode"
+key Enter
+sleep 0.5
+click 640 400
+click 640 400
+type_text "unsaved "
+sleep 0.5
+wait_title "showcase.md •"
+sleep 0.4
+click 950 16
+sleep 0.7
+log_has "close prompt title="
+shot "53-close-pseudo"
+key Escape
+sleep 0.4
+key ctrl+s
+sleep 0.6
 key alt+f
 sleep 0.2
 key Down

@@ -265,6 +265,13 @@ impl MdViewApp {
             log::info!("close requested dirty={}", self.tabs.any_dirty());
             if self.tabs.any_dirty() {
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+                log::debug!(
+                    "close prompt title={} save={} discard={} cancel={}",
+                    self.t("Save changes?"),
+                    self.t("Save"),
+                    self.t("Discard"),
+                    self.t("Cancel")
+                );
                 self.close_prompt_open = true;
             } else {
                 self.allow_close = true;

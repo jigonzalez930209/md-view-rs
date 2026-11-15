@@ -16,9 +16,9 @@ Latest result on the Linux development machine:
 
 ```text
 120Hz frame budget (120 frames):
-editor  p50=0.240 ms p95=0.383 ms
-preview p50=1.319 ms p95=1.978 ms
-combined p50=1.564 ms p95=2.339 ms max=2.632 ms
+editor  p50=0.243 ms p95=0.385 ms
+preview p50=1.308 ms p95=1.835 ms
+combined p50=1.553 ms p95=2.198 ms max=2.357 ms
 ```
 
 The release test asserts `combined p95 <= 8.33 ms`. Debug builds use a relaxed assertion so the
@@ -77,14 +77,13 @@ under the 8.33 ms budget.
 folder expansion through a watcher refresh, file operations, tabs, editing, find/goto, split
 scrolling, local/remote media, standalone image documents, LaTeX, code blocks, a clickable
 table link, tables, Mermaid, the Reading settings, search/history, segmented modes, image
-zoom/pan/lightbox, conflict recovery, and language/theme switching in one run (24,600 frames).
+zoom/pan/lightbox, conflict recovery, and language/theme switching in one run (26,040 frames).
 Steady-state windows after the theme change:
 
 ```text
-frames=24120 p50=0.310ms p95=0.487ms max=1.156ms over_8.33ms=0
-frames=24240 p50=0.323ms p95=0.570ms max=1.162ms over_8.33ms=0
-frames=24480 p50=0.483ms p95=1.126ms max=19.016ms over_8.33ms=1
-frames=24600 p50=0.555ms p95=1.190ms max=1.509ms over_8.33ms=0
+frames=25800 p50=0.674ms p95=1.330ms max=1.610ms over_8.33ms=0
+frames=25920 p50=0.580ms p95=0.919ms max=1.601ms over_8.33ms=0
+frames=26040 p50=0.755ms p95=1.572ms max=20.259ms over_8.33ms=1
 ```
 
 Transition frames can still exceed 8.33 ms during cold start, the first large media upload,

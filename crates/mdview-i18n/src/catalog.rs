@@ -226,4 +226,5 @@ pub(crate) const SPANISH: &str = concat!(
     "\tFile name\tNombre del archivo\n",
     "\tFolder name\tNombre de la carpeta\n",
     "\tCreating in\tCreando en\n",
+    "\tNew name\tNuevo nombre\n",
 );

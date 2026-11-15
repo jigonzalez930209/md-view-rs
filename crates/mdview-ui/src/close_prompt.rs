@@ -22,6 +22,9 @@ pub fn show_close_prompt(
     open: &mut bool,
 ) -> Option<CloseChoice> {
     let t = |source: &str| translations.t(lang, source);
+    if ctx.input(|input| input.key_pressed(egui::Key::Escape)) {
+        *open = false;
+    }
     let mut choice = None;
     egui::Window::new(t("Save changes?"))
         .open(open)
