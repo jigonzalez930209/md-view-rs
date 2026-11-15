@@ -74,6 +74,8 @@ pub struct Theme {
     pub warning: Color32,
     /// Success color.
     pub success: Color32,
+    /// "Done" purple, used by GitHub for Important alerts.
+    pub done: Color32,
     /// Link color.
     pub link: Color32,
     /// Scrollbar thumb.

@@ -159,8 +159,13 @@ pub(crate) fn show_block(
                 });
         }
         BlockKind::BlockQuote { kind, blocks } => quote::show_quote(ui, *kind, blocks, ctx, media),
-        BlockKind::List { ordered, start, items } => {
-            list::show_list(ui, *ordered, *start, items, ctx, media);
+        BlockKind::List {
+            ordered,
+            start,
+            items,
+            loose,
+        } => {
+            list::show_list(ui, (*ordered, *start, *loose), items, ctx, media);
         }
         BlockKind::Table { alignments, head, rows } => table::show_table(ui, alignments, head, rows, ctx, media),
         BlockKind::Rule => {

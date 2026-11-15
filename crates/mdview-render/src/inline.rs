@@ -7,7 +7,6 @@ use mdview_theme::Theme;
 
 use crate::{AnimationStatus, LinkActivation, MediaContext, MediaLightbox, MediaState, PreviewOutput};
 
-mod back_link;
 mod code;
 mod math;
 
@@ -274,13 +273,8 @@ fn show_segment(
         }
         return Some(response.rect);
     }
-    if let Some(label) = segment
-        .link
-        .as_ref()
-        .and_then(|target| back_link::target(&target.destination))
-    {
-        let row = line_height(typography);
-        return Some(back_link::show(ui, label, size, row, theme.link, output));
+    if (segment.subscript || segment.superscript) && segment.link.is_none() && !segment.monospace {
+        return Some(code::show_script(ui, segment, theme, size, typography));
     }
     let runs = search
         .map(|query| crate::highlight::highlight_runs(&segment.text, query))
@@ -305,6 +299,12 @@ fn show_segment(
             }
             if response.clicked()
                 && let Some(target) = &segment.link
+                && let Some(label) = target.destination.strip_prefix("#fnref-")
+            {
+                // A footnote's `↩` scrolls back to its reference inside the preview.
+                output.anchor = Some(format!("fnref-{label}"));
+            } else if response.clicked()
+                && let Some(target) = &segment.link
             {
                 output.link = Some(LinkActivation {
                     destination: target.destination.clone(),
@@ -312,6 +312,9 @@ fn show_segment(
                 });
             }
             first.get_or_insert(response.rect);
+        } else if segment.keyboard {
+            let rect = code::show_kbd(ui, &run, theme, size, typography);
+            first.get_or_insert(rect);
         } else if code {
             let rect = code::show_code_chip(ui, text, &run, theme, size, typography);
             first.get_or_insert(rect);

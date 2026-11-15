@@ -10,15 +10,20 @@ use super::*;
 
 pub(super) fn show_list(
     ui: &mut Ui,
-    ordered: bool,
-    start: u64,
+    (ordered, start, loose): (bool, u64, bool),
     items: &[ListItem],
     ctx: &mut BlockCtx<'_>,
     media: &mut Option<&mut MediaContext<'_>>,
 ) {
     let body = ctx.typography.body;
     let indent = (body * 2.0).round();
-    let item_gap = (body * 0.25).round();
+    // GitHub: `li + li { margin-top: .25em }`; loose items are paragraphs with a 16 px
+    // (1em) margin between them.
+    let item_gap = if loose {
+        block_gap(ctx.typography)
+    } else {
+        (body * 0.25).round()
+    };
     let line = crate::inline::line_height(ctx.typography);
     let depth = ctx.list.depth;
     let content_width = (ui.available_width() - indent).max(80.0);
@@ -29,9 +34,17 @@ pub(super) fn show_list(
         let mut first_line = None;
         let row = ui.horizontal_top(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
-            let (marker_rect, _) = ui.allocate_exact_size(egui::vec2(indent, line), egui::Sense::hover());
-            ui.allocate_ui_with_layout(egui::vec2(content_width, 0.0), Layout::top_down(Align::Min), |ui| {
-                ui.set_width(content_width);
+            // GitHub task items: the checkbox has `margin-left: -1.4em` and a 0.2em right
+            // margin plus a space, so the text starts `box - 0.94em` from the content edge.
+            let shift = if item.task.is_some() {
+                (checkbox_side(body) - body * 0.94).min(0.0)
+            } else {
+                0.0
+            };
+            let (marker_rect, _) = ui.allocate_exact_size(egui::vec2(indent + shift, line), egui::Sense::hover());
+            let width = content_width - shift;
+            ui.allocate_ui_with_layout(egui::vec2(width, 0.0), Layout::top_down(Align::Min), |ui| {
+                ui.set_width(width);
                 ui.spacing_mut().item_spacing.y = 0.0;
                 ctx.list.depth = depth + 1;
                 first_line = show_item_blocks(ui, &item.blocks, ctx, media);
@@ -41,9 +54,12 @@ pub(super) fn show_list(
         });
         let marker_rect = row.inner;
         let center_y = first_line.unwrap_or(marker_rect.center().y);
-        let content_left = marker_rect.right();
+        let content_left = marker_rect.left() + indent;
         match item.task {
-            Some(checked) => task_checkbox(ui, content_left - body * 0.9, center_y, checked, ctx.theme, body),
+            Some(checked) => {
+                let center_x = content_left - body * 1.4 + checkbox_side(body) * 0.5;
+                task_checkbox(ui, center_x, center_y, checked, ctx.theme, body);
+            }
             None if ordered => {
                 let number = start.saturating_add(index as u64);
                 ui.painter().text(
@@ -168,8 +184,14 @@ fn alpha(number: u64) -> String {
     String::from_utf8(out).unwrap_or_default()
 }
 
+/// Browser checkboxes are 13 px at GitHub's 16 px body and smaller sizes; larger
+/// reading sizes scale them up.
+fn checkbox_side(body: f32) -> f32 {
+    (13.0 * (body / 16.0).max(1.0)).round()
+}
+
 fn task_checkbox(ui: &Ui, center_x: f32, center_y: f32, checked: bool, theme: &mdview_theme::Theme, body: f32) {
-    let side = (body * 0.93).clamp(12.0, 18.0).round();
+    let side = checkbox_side(body);
     let box_rect = egui::Rect::from_center_size(egui::pos2(center_x, center_y), egui::vec2(side, side));
     // GitHub renders task boxes in Markdown files as disabled inputs: a light outline,
     // and a muted gray fill with a light check mark when done.

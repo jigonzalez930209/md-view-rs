@@ -11,8 +11,9 @@ use crate::{MediaError, MediaKind, MediaRequest, Raster, rasterize_svg};
 /// consumer scales the texture by `font_size / MATH_UNITS_PER_EM` to match text.
 pub const MATH_UNITS_PER_EM: f32 = 40.0;
 
-/// Raster padding around a formula, in pixels at one pixel per SVG unit.
-const MATH_PADDING: f32 = 6.0;
+/// Raster padding around a formula, in pixels at one pixel per SVG unit. Layout
+/// subtracts it so display math takes the TeX box height, as MathJax does.
+pub const MATH_PADDING: f32 = 6.0;
 
 /// Baseline of a formula as a fraction of its raster height, measured from the top.
 ///

@@ -215,10 +215,21 @@ impl<'a> EventParser<'a> {
                 Event::Start(Tag::List(start)) => {
                     self.cursor += 1;
                     let mut items = Vec::new();
+                    let mut loose = false;
                     loop {
                         match self.peek().cloned() {
                             Some((Event::Start(Tag::Item), _)) => {
                                 self.cursor += 1;
+                                // In loose lists the marker follows the item's paragraph
+                                // start; move it first so both list kinds read the same.
+                                // pulldown-cmark wraps item text in a paragraph only
+                                // when the list is loose.
+                                loose |= matches!(self.peek(), Some((Event::Start(Tag::Paragraph), _)));
+                                if matches!(self.peek(), Some((Event::Start(Tag::Paragraph), _)))
+                                    && matches!(self.events.get(self.cursor + 1), Some((Event::TaskListMarker(_), _)))
+                                {
+                                    self.events.swap(self.cursor, self.cursor + 1);
+                                }
                                 let task = match self.peek().cloned() {
                                     Some((Event::TaskListMarker(checked), _)) => {
                                         self.cursor += 1;
@@ -255,6 +266,7 @@ impl<'a> EventParser<'a> {
                             ordered: start.is_some(),
                             start: start.unwrap_or(1),
                             items,
+                            loose,
                         },
                     );
                 }

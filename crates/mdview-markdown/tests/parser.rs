@@ -42,6 +42,23 @@ fn tasks_and_footnotes_are_parsed() {
 }
 
 #[test]
+fn loose_lists_keep_task_markers_and_looseness() {
+    let source = "- Loose one.\n\n  Second.\n\n- [ ] Open task\n- [x] Done\n\nTight:\n\n- a\n- b\n";
+    let document = parse(source);
+    let BlockKind::List { items, loose, .. } = &document.blocks[0].kind else {
+        panic!("expected a list");
+    };
+    assert!(*loose);
+    assert_eq!(items[0].task, None);
+    assert_eq!(items[1].task, Some(false));
+    assert_eq!(items[2].task, Some(true));
+    let BlockKind::List { loose, .. } = &document.blocks[2].kind else {
+        panic!("expected a second list");
+    };
+    assert!(!*loose);
+}
+
+#[test]
 fn tables_parse_cells_and_alignment() {
     let source = "| left | center | right |\n|:-----|:------:|------:|\n| 1 | 2 | 3 |\n";
     let document = parse(source);

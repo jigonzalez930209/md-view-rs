@@ -13,6 +13,10 @@ const SEMIBOLD: &[u8] = include_bytes!("../../../assets/fonts/NotoSans-SemiBold.
 const BOLD: &[u8] = include_bytes!("../../../assets/fonts/NotoSans-Bold.ttf");
 const ITALIC: &[u8] = include_bytes!("../../../assets/fonts/NotoSans-Italic.ttf");
 const BOLD_ITALIC: &[u8] = include_bytes!("../../../assets/fonts/NotoSans-BoldItalic.ttf");
+/// Arrow subset of DejaVu Sans (Bitstream Vera license, see
+/// `assets/fonts/LICENSE-DejaVu.txt`). Noto Sans has no arrows; DejaVu Sans is the
+/// Linux fallback Chrome uses for them on GitHub (for example the footnote `↩`).
+const ARROWS: &[u8] = include_bytes!("../../../assets/fonts/DejaVuSans-Arrows.ttf");
 
 /// A face of the reading font.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -78,6 +82,17 @@ impl ReadingFace {
 /// Each face falls back to egui's default proportional chain (UI font, emoji, and
 /// icon fonts), so characters Noto Sans lacks never leave a family without a glyph.
 pub fn add_reading_fonts(ctx: &egui::Context) {
+    ctx.add_font(FontInsert {
+        name: "mdview-reading-arrows".to_owned(),
+        data: FontData::from_static(ARROWS),
+        families: FACES
+            .iter()
+            .map(|face| InsertFontFamily {
+                family: face.family(),
+                priority: FontPriority::Lowest,
+            })
+            .collect(),
+    });
     let defaults = egui::FontDefinitions::default();
     let mut chain = defaults
         .families

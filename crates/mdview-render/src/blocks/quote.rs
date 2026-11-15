@@ -70,7 +70,8 @@ fn alert_color(kind: QuoteKind, theme: &Theme) -> Color32 {
         QuoteKind::Caution => theme.danger,
         QuoteKind::Warning => theme.warning,
         QuoteKind::Tip => theme.success,
-        QuoteKind::Important | QuoteKind::Note => theme.accent,
+        QuoteKind::Important => theme.done,
+        QuoteKind::Note => theme.accent,
         QuoteKind::Quote => theme.quote_border,
     }
 }

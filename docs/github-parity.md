@@ -15,7 +15,14 @@ The preview layout is checked against GitHub's own output, not against memory:
 5. GitHub sizes its margins in pixels for a 16 px body, so the full layout is also
    compared at GitHub's real scale: render the same page without the 14 px override and
    compare it with `preview-github-scale.png` (body 16, h1 32, code 14, tables 16).
-6. Run `python3 -I scripts/github-parity/measure.py <github-ref.png> <math-ref.png> <github-ref16.png>`.
+6. Render `crates/mdview-render/tests/fixtures/github-parity.md` (every common element:
+   h1-h6, inline styles, `<kbd>`, `<sub>`, `<sup>`, quotes and nested quotes, the five
+   alerts, three-level ordered lists, loose lists, task lists, inline and display math,
+   aligned tables with code, fenced code, rules, footnotes) the same way at 16 px, with
+   MathJax inlined and GitHub's `.sr-only` rule (which hides the "Footnotes" heading), and
+   compare it with `github-parity.png`.
+7. Run `python3 -I scripts/github-parity/measure.py <github-ref.png> <math-ref.png>
+   <github-ref16.png> <parity-ref.png>`.
 
 Last measurement (14 px body, default settings):
 
@@ -38,7 +45,19 @@ in it: paragraphs, alert, lists, task lists, code block, table):
 | Table | 190 | 190 |
 | Alert box | 72 | 72 |
 
-The math section is excluded there: the API page has no MathJax and the snapshot has no
+Full-element document (`github-parity.png`), ink bands matched in order (37 in both):
+
+| Bands | Elements | Top offset vs GitHub |
+|---|---|---|
+| 0-28 | h1-h6, paragraph with kbd/sub/sup, wrapped paragraph, quote, nested quote, 5 alerts (72 px each), nested ordered list, loose list, tasks, inline-math line | 0 to +2 px |
+| 29 | display `\sum` formula | +3 px; same 141 px width, 56 px tall vs 50 |
+| 30-36 | table, code block, rule, footnote text, 2 notes | +9 to +12 px, a constant shift; heights match within 2 px |
+
+The shift after the display formula comes from the TeX engine: RaTeX sets the limits of
+`\sum` 6 px taller than MathJax at the same width. Everything after it keeps GitHub's
+sizes and spacing.
+
+The math section is excluded from the section-height table: the API page has no MathJax and the snapshot has no
 media provider, so both show raw TeX. Math is measured against MathJax separately above.
 
 Values taken from that comparison and GitHub's CSS:

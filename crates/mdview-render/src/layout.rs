@@ -147,7 +147,9 @@ pub(crate) fn display_media_height(
     match kind {
         MediaKind::Math => {
             let scale = math_scale(typography).min(width / natural_width);
-            natural_height * scale + math_em(typography) * 0.5
+            // MathJax lays display math out at its TeX box: the raster's transparent
+            // padding overlaps the surrounding margins instead of adding to them.
+            ((natural_height - 2.0 * mdview_media::MATH_PADDING) * scale).max(1.0)
         }
         MediaKind::Mermaid | MediaKind::Image | MediaKind::Svg => (width / natural_width).min(1.0) * natural_height,
     }

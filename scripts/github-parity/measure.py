@@ -2,7 +2,8 @@
 """Measure preview snapshots against GitHub's own render.
 
 Usage:
-    python3 -I scripts/github-parity/measure.py <github-ref.png> <math-ref.png> [<github-ref16.png>]
+    python3 -I scripts/github-parity/measure.py <github-ref.png> <math-ref.png> \
+        [<github-ref16.png> [<parity-ref.png>]]
 
 The reference screenshots are produced as described in docs/github-parity.md: the
 render_snapshots.rs and media_snapshots.rs documents are rendered by the GitHub
@@ -20,6 +21,7 @@ from PIL import Image
 
 PREVIEW = "crates/mdview-render/tests/snapshots/preview-light.png"
 GITHUB_SCALE = "crates/mdview-render/tests/snapshots/preview-github-scale.png"
+PARITY = "crates/mdview-render/tests/snapshots/github-parity.png"
 MEDIA = "crates/mdview-render/tests/snapshots/media-light.png"
 
 
@@ -83,6 +85,37 @@ def sections(path):
     return [b - a for a, b in zip(rules, rules[1:])], bar_runs
 
 
+def ink_bands(path, x0=118, x1=642):
+    """Vertical ink bands (top, height) of the content column: lines, rules, boxes."""
+    image = Image.open(path).convert("RGB")
+    px = image.load()
+    width, height = image.size
+    background = px[x0 + 2, height - 30]
+    rows = [
+        y
+        for y in range(20, height - 20)
+        if any(sum(abs(a - b) for a, b in zip(px[x, y], background)) > 40 for x in range(x0, x1, 2))
+    ]
+    runs = []
+    for y in rows:
+        if runs and y - runs[-1][1] <= 2:
+            runs[-1][1] = y
+        else:
+            runs.append([y, y])
+    return [(top, bottom - top + 1) for top, bottom in runs if bottom - top + 1 >= 3]
+
+
+def compare_bands(reference, preview):
+    github = ink_bands(reference)
+    ours = ink_bands(preview)
+    print(f"ink bands: GitHub {len(github)}, preview {len(ours)}")
+    print(" #  GitHub(top,h)   preview(top,h)  top delta")
+    for index, (left, right) in enumerate(zip(github, ours)):
+        top_left = left[0] - github[0][0]
+        top_right = right[0] - ours[0][0]
+        print(f"{index:2d}  {top_left:5d},{left[1]:4d}     {top_right:5d},{right[1]:4d}     {top_right - top_left:+d}")
+
+
 def main():
     github, math = sys.argv[1], sys.argv[2]
     print("list marker offsets (px), GitHub:", markers(github, 290, 540))
@@ -93,6 +126,9 @@ def main():
         # GitHub's real scale: a 16 px body against preview-github-scale.png.
         print("section heights / alert height (px), GitHub:", sections(sys.argv[3]))
         print("section heights / alert height (px), preview:", sections(GITHUB_SCALE))
+    if len(sys.argv) > 4:
+        # Every common element (fixtures/github-parity.md) at GitHub's 16 px scale.
+        compare_bands(sys.argv[4], PARITY)
 
 
 if __name__ == "__main__":

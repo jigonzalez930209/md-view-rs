@@ -105,6 +105,18 @@ pub(super) fn show_table(
                 .max(left),
                 row_rect.top() + 1.0 + pad_y,
             );
+            for &(start, end) in &cell.code {
+                let from = cell.galley.pos_from_cursor(egui::text::CCursor::new(start));
+                let to = cell.galley.pos_from_cursor(egui::text::CCursor::new(end));
+                if (from.center().y - to.center().y).abs() < 1.0 {
+                    let chip = egui::Rect::from_min_max(
+                        origin + from.left_top().to_vec2(),
+                        origin + to.right_bottom().to_vec2(),
+                    )
+                    .expand2(egui::vec2((size * 0.25).round(), 1.0));
+                    painter.rect_filled(chip, 6.0, ctx.theme.table_header);
+                }
+            }
             painter.galley(origin, cell.galley.clone(), ctx.theme.text);
             let cell_rect = egui::Rect::from_min_size(egui::pos2(x, row_rect.top()), egui::vec2(width, heights[row]));
             for (link_index, link) in cell.links.iter().enumerate() {
@@ -155,6 +167,8 @@ struct CellLink {
 struct LaidCell {
     galley: std::sync::Arc<egui::Galley>,
     links: Vec<CellLink>,
+    /// Character ranges of inline code, painted as GitHub chips behind the text.
+    code: Vec<(usize, usize)>,
 }
 
 fn layout_table_cell(
@@ -169,11 +183,13 @@ fn layout_table_cell(
     job.wrap.max_width = width;
     let mut chars = 0usize;
     let mut links = Vec::new();
+    let mut code = Vec::new();
     for segment in crate::inline::segments(inlines) {
         let start = chars;
         chars += segment.text.chars().count();
         let font = if segment.monospace {
-            egui::FontId::monospace((size - 1.0).max(9.0))
+            // Inline code in cells is GitHub's 85% chip.
+            egui::FontId::monospace((size * 0.85).round().max(9.0))
         } else {
             // GitHub table headers are semibold (600); bold runs stay bold.
             let face = if header && !segment.strong && !segment.emphasis {
@@ -196,12 +212,11 @@ fn layout_table_cell(
                     color,
                     background: if matched {
                         theme.selection
-                    } else if segment.monospace {
-                        theme.table_header
                     } else {
                         egui::Color32::TRANSPARENT
                     },
-                    line_height: Some(line),
+                    // Code keeps its own glyph-height box so its chip does not fill the row.
+                    line_height: (!segment.monospace).then_some(line),
                     strikethrough: if segment.strike {
                         egui::Stroke::new(1.0, theme.text)
                     } else {
@@ -210,6 +225,9 @@ fn layout_table_cell(
                     ..Default::default()
                 },
             );
+        }
+        if segment.monospace {
+            code.push((start, chars));
         }
         if let Some(target) = &segment.link {
             links.push(CellLink {
@@ -222,5 +240,6 @@ fn layout_table_cell(
     LaidCell {
         galley: ui.painter().layout_job(job),
         links,
+        code,
     }
 }

@@ -18,3 +18,8 @@ They are licensed under the SIL Open Font License 1.1; see `assets/fonts/OFL.txt
 default UI fonts; only preview text uses the reading faces. `mdview-render` checks that
 the faces are active before laying out a document and waits one frame when they were
 just registered.
+
+`assets/fonts/DejaVuSans-Arrows.ttf` is DejaVu Sans subset to the arrow blocks
+(U+2190-21FF, U+2B05-2B07) with fontTools, under the Bitstream Vera license
+(`assets/fonts/LICENSE-DejaVu.txt`). It backs the reading faces for arrows such as the
+footnote `↩`, which Noto Sans lacks; Chrome uses DejaVu Sans for them on Linux.

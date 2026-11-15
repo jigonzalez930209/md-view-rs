@@ -120,6 +120,9 @@ pub enum BlockKind {
         start: u64,
         /// Items in order.
         items: Vec<ListItem>,
+        /// Whether the list is loose (items separated by blank lines). Loose items
+        /// are spaced like paragraphs.
+        loose: bool,
     },
     /// A GFM table.
     Table {

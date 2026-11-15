@@ -70,6 +70,25 @@ fn show_media_block(
             // finished texture occupy the same height, so lazy rasterization cannot
             // reflow the document or shift the reader's position.
             let reserved = crate::layout::reserved_media_height(kind, source, width, ctx.typography, ctx.media_sizes);
+            if kind == MediaKind::Math {
+                // The texture keeps its padding and is centered on the TeX box, so it
+                // may overhang the reserved height by that transparent margin.
+                let size = points * (width / points.x).min(1.0);
+                let (rect, response) = ui.allocate_exact_size(egui::vec2(width, reserved), egui::Sense::click());
+                ui.painter().image(
+                    texture.id(),
+                    egui::Rect::from_center_size(rect.center(), size),
+                    egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                    egui::Color32::WHITE,
+                );
+                if response.on_hover_cursor(egui::CursorIcon::ZoomIn).clicked() {
+                    ctx.output.lightbox = Some(MediaLightbox {
+                        request,
+                        alt: format!("{} view", kind.label()),
+                    });
+                }
+                return true;
+            }
             let scale = (width / points.x).min(reserved / points.y).min(1.0);
             let size = points * scale;
             let response = ui

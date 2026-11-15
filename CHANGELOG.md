@@ -20,6 +20,12 @@
 - Formulas scale by font size instead of being squeezed into a fixed box, so fractions,
   integrals, and matrices keep their full size. The scale is calibrated to GitHub's MathJax
   output. Inline math uses TeX text style.
+- Fixed task markers in loose lists (they were dropped) and record list looseness, so
+  loose items get GitHub's paragraph spacing. Added GitHub's purple `done` color for
+  Important alerts in every theme, `<kbd>` keys, raised and lowered `<sub>`/`<sup>`, code
+  chips in table cells, GitHub's task-item geometry, display math at its TeX box height,
+  and a DejaVu Sans arrow subset so the footnote `↩` is a real glyph. A full-element parity
+  fixture is compared with GitHub band by band (see `docs/github-parity.md`).
 - Calibrated block spacing at GitHub's 16 px scale: alert titles use line height 1, code
   blocks 1em padding, table cells 0.375em x 0.8125em with collapsed 1 px borders, footnotes
   0.75em, and lines with inline code are 0.125em taller, as in GitHub's CSS. Every section of
