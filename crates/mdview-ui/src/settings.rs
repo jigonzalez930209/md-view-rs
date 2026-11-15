@@ -417,8 +417,8 @@ fn tab_button(ui: &mut Ui, label: &str, selected: bool) -> bool {
         );
     }
     ui.painter().text(
-        rect.center(),
-        egui::Align2::CENTER_CENTER,
+        egui::pos2(rect.right() - 14.0, rect.center().y),
+        egui::Align2::RIGHT_CENTER,
         label,
         egui::FontId::proportional(12.5),
         if selected {

@@ -13,6 +13,11 @@
 - Added 2 px more padding around the File/Edit/View/Go/Help menu labels.
 - Made the preview end-stick tolerance account for media that finishes measuring after a
   scroll.
+- Right-aligned the Settings section buttons and made the margin slider rail visible with an
+  accent fill.
+- Made split-end synchronization idempotent: once both panes are at the end, continued editor
+  wheel input no longer re-sends a programmatic preview scroll, removing the end-of-file
+  flicker. Added exhaustive plan, no-op end-request, wrap, and E2E hold tests.
 
 
 ## 0.14.0 — Pre-1.0 review resolution

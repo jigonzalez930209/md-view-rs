@@ -767,6 +767,20 @@ sleep 2
 log_has "preview scroll end"
 shot "30-split-end"
 
+echo "== split end hold with continued editor wheel input =="
+set_mode "Split view"
+set_wrap false
+click 320 400
+key ctrl+Home
+sleep 0.6
+before_end=$(grep -c 'split sync editor->preview end' "$LOGS/mdview.log" || true)
+x wheel 320 400 400
+sleep 1.6
+log_has "editor scroll end mode=split wrap=false"
+after_end=$(grep -c 'split sync editor->preview end' "$LOGS/mdview.log" || true)
+(( after_end - before_end <= 1 )) || fail "preview end target was rewritten while the editor stayed at the end"
+shot "30a-split-end-hold"
+
 echo "== external conflict and reload =="
 key ctrl+shift+p
 type_text "Edit mode"

@@ -12,8 +12,9 @@
 
 - Startup with a workspace and a Markdown document; diagnostics log creation.
 - Every title-bar menu (`File`, `Edit`, `View`, `Go`, `Help`).
-- Settings: all six tabs, every switch on and off, the numeric steppers, Done, close, Escape,
-  and persisted configuration values (including editor style and reading typography).
+- Settings: all six tabs, every switch on and off, the numeric steppers, the 5–40% margin
+  slider at both ends and the default, Done, close, Escape, and persisted configuration values
+  (including editor style, reading margins, and equation size).
 - Workbench layout: explorer under the menu bar, tabs confined to the editor column, and the
   new tab surfaces.
 - Explorer: five nested folders expanded, a root file touched so the debounced watcher rescans
@@ -27,6 +28,8 @@
   and scroll-beyond-last-line end stability.
 - Split mode and 120 wheel events across both panes, then a 200-event end-of-document run
   with stable editor offsets and the last preview block visible.
+- Split-end hold: 400 wheel events at the editor end, asserting the editor offset is stable,
+  the preview stays at its maximum, and the preview end target is written at most once.
 - Rendering: inline and display LaTeX, tables with a clickable cell link, local and HTTP
   PNG/SVG, animated SVG, two Mermaid diagrams, syntax-highlighted Rust code, and task
   checkboxes.

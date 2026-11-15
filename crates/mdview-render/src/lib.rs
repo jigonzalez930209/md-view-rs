@@ -156,13 +156,19 @@ impl Preview {
     }
 
     /// Scroll to the maximum offset on the next paint.
-    pub fn scroll_to_end(&mut self) {
+    ///
+    /// Returns `false` when the preview is already at the end.
+    pub fn scroll_to_end(&mut self) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
         self.end_requested = true;
         self.pending_scroll = Some(if self.max_offset > 0.0 {
             self.max_offset
         } else {
             f32::MAX
         });
+        true
     }
 
     /// Consume a completed end request from `End` or split synchronization.
@@ -191,12 +197,18 @@ impl Preview {
     }
 
     /// Scroll to a zero-based source line, preserving an intra-line fraction.
-    pub fn scroll_to_line(&mut self, line: usize, fraction: f32) {
+    ///
+    /// Returns `false` when the preview is already at that offset.
+    pub fn scroll_to_line(&mut self, line: usize, fraction: f32) -> bool {
         if let Some(offset) = self.source_map.offset_for_line(line, fraction) {
+            if (offset - self.scroll).abs() <= 1.0 {
+                return false;
+            }
             self.pending_scroll = Some(offset);
         } else {
             self.pending_line = Some((line, fraction));
         }
+        true
     }
 
     /// Scroll to a heading or footnote anchor.

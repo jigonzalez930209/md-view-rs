@@ -44,15 +44,30 @@ impl Editor {
     }
 
     /// Scroll to a zero-based logical line with an intra-line fraction.
-    pub fn scroll_to_line(&mut self, line: usize, fraction: f32) {
-        self.pending_line = Some((line, fraction.clamp(0.0, 1.0)));
+    ///
+    /// Returns `false` when the editor is already at that offset, which prevents a
+    /// synchronized pane from repainting the same target every frame.
+    pub fn scroll_to_line(&mut self, line: usize, fraction: f32) -> bool {
+        let fraction = fraction.clamp(0.0, 1.0);
+        let target = (self.line_to_row(line) as f32 + fraction) * self.last_row_height.max(1.0);
+        if (target - self.scroll_y).abs() <= 1.0 {
+            return false;
+        }
+        self.pending_line = Some((line, fraction));
         self.programmatic_scroll = true;
+        true
     }
 
     /// Scroll to the maximum offset on the next frame.
-    pub fn scroll_to_end(&mut self) {
+    ///
+    /// Returns `false` when the editor is already at the end.
+    pub fn scroll_to_end(&mut self) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
         self.pending_end = true;
         self.programmatic_scroll = true;
+        true
     }
 
     /// Whether the editor is at the end of its scrollable range.

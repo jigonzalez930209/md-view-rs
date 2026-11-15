@@ -73,4 +73,10 @@ fn scroll_beyond_last_line_reaches_the_viewport_top() {
     assert!(editor.borrow().is_at_end());
     let top = editor.borrow().last_row_screen_top();
     assert!(top.abs() <= 1.0, "last row top = {top}");
+    let settled = editor.borrow().scroll_offset();
+    assert!(!editor.borrow_mut().scroll_to_end());
+    for _ in 0..10 {
+        harness.run();
+    }
+    assert!((editor.borrow().scroll_offset() - settled).abs() < 0.5);
 }
