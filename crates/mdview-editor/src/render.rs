@@ -50,7 +50,7 @@ impl Editor {
         // `.max(available_height)` made the maximum offset oscillate when the horizontal
         // scrollbar appeared, which looked like flicker at the end of the document.
         let overscroll = if self.style.scroll_beyond_last_line {
-            (available_height - row_height).max(0.0)
+            (available_height - row_height - crate::BOTTOM_CLEARANCE).max(0.0)
         } else {
             0.0
         };
@@ -279,6 +279,7 @@ impl Editor {
         self.scroll_y = new_scroll;
         self.last_max_offset = (content_height - output.inner_rect.height()).max(0.0);
         self.last_bottom_clearance = crate::BOTTOM_CLEARANCE;
+        self.last_last_row_top = total_rows.saturating_sub(1) as f32 * row_height - new_scroll;
         self.last_row_height = row_height;
         self.last_columns = columns;
         self.viewport_rect = output.inner_rect;

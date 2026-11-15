@@ -21,7 +21,7 @@ Severity scale:
 | `cargo xtask check-file-length` | pass (7 files are above 450 lines) |
 | `cargo test --workspace --locked` | pass with a disk-backed `TMPDIR`; see REL-04 and REL-05 |
 | `cargo xtask e2e` (release) | **E2E PASS**, 26,040 frames, last three steady windows p95 ≤ 8.33 ms, 247 KB log |
-| `cargo xtask perf` | combined p50 1.552 ms, p95 2.298 ms, max 3.422 ms |
+| `cargo xtask perf` | combined p50 1.583 ms, p95 2.290 ms, max 2.415 ms |
 | `cargo xtask release-check` | pass, 4 assets, version 0.14.0 |
 | `cargo deny check` | advisories, bans, licenses, and sources pass (REL-02) |
 
@@ -292,10 +292,12 @@ the 0.13.0 gap list; the Gaps column now records the 0.14.0 coverage.
 1. **DONE** — Assert the editor offset is stable over 300 wheel events at the end of the file (SCR-01).
 2. **DONE** — Assert the last preview block is fully visible after `End` and after continuous wheel input
    on a media-heavy document (SCR-02).
-3. **DONE** — Assert the last line can reach the top of the editor viewport (SCR-03).
+3. **DONE** — Assert the last line can reach the top of the editor viewport (SCR-03); direct test
+   `scroll_beyond_last_line_reaches_the_viewport_top`.
 4. **DONE** — Cycle View → Editor → Split → View with the segmented control, and assert disabled segments
    for image and code documents (UX-02).
-5. **DONE** — Lightbox and image zoom/pan: zoom in, pan, fit, 100% (UX-04).
+5. **DONE** — Lightbox and image zoom/pan: zoom in, pan, fit, 100% (UX-04); viewer and lightbox
+   pan are logged and asserted in the release E2E.
 6. **DONE** — External modification of an open dirty file → conflict banner → diff → resolve.
 7. **DONE** — Switch to Spanish and the pseudo-locale and capture every dialog.
 8. **DONE** — Run the render stage in one dark theme.
@@ -327,7 +329,8 @@ cargo xtask release-check                        pass
 
 Key automated evidence:
 
-- `crates/mdview-editor/tests/scroll_end.rs` — stable editor end offset.
+- `crates/mdview-editor/tests/scroll_end.rs` — stable editor end offset, scrollbar clearance,
+  and `scroll_beyond_last_line_reaches_the_viewport_top` (`last_row_screen_top().abs() <= 1.0`).
 - `crates/mdview-render/tests/scroll_end.rs` — media-heavy preview reaches the last block.
 - `crates/mdview-render/tests/render_snapshots.rs` — light/dark/compact/custom typography.
 - `crates/mdview-ui/tests/ui_snapshots.rs` — header 1×/2×, search popover, settings.
@@ -344,7 +347,11 @@ Key automated evidence:
 - Image viewer evidence — the zoom stage logs successive `image reraster scale=2.50/3.00/3.50`
   lines when SVG crosses half-step raster buckets.
 - Lightbox evidence — the zoom stage also logs `lightbox reraster scale=1.50` and `2.00` after
-  pressing the lightbox `+` control.
+  pressing the lightbox `+` control; the same stage drags the lightbox image and asserts a
+  non-zero `lightbox pan=` value (release run: `lightbox pan=[62.0 44.0]`), captured in
+  `29-lightbox.png`.
+- Scroll-beyond evidence — `scroll_beyond_last_line_reaches_the_viewport_top` sets the style to
+  `true`, scrolls to the end, and asserts `|last_row_screen_top()| <= 1.0`.
 - Code-document mode evidence — opening `src/segmented.rs` logs
   `mode=edit can_edit=true can_view=false can_split=false`; clicking View/Split produces no
   `SetMode` command, and `36-code-modes.png` shows Edit selected with the other segments dimmed.
@@ -384,3 +391,5 @@ Key automated evidence:
 | Section 7.7, Spanish and pseudo dialogs | Keyboard menus, palette, find overlay, About, New File, rename, delete, and unsaved-close prompts in both locales; logs assert translated titles/buttons and captures are `37..53-*.png` |
 | Section 6, menu keyboard navigation | `F10`/`Alt+letter` menu overlay, arrow navigation, Enter execution; `keyboard menu group=` logs and `command NewFile`/`About` |
 | Section 6, overflow pressed state | XTest press/release stage; `13a-tab-overflow-pressed.png` and `tab overflow pressed` log |
+| SCR-03, final row reaches the viewport top | `scroll_beyond_last_line_reaches_the_viewport_top`; asserts `last_row_screen_top().abs() <= 1.0` |
+| UX-04, lightbox pan | Image E2E drags the lightbox and asserts a non-zero `lightbox pan=`; `29-lightbox.png` |

@@ -133,6 +133,7 @@ impl MdViewApp {
                         if response.dragged() {
                             state.pan += response.drag_delta();
                             state.fit = false;
+                            log::debug!("lightbox pan={:?}", state.pan);
                         }
                         if viewport.contains(ui.ctx().pointer_latest_pos().unwrap_or(egui::Pos2::ZERO)) {
                             let zoom = ui.input(|input| input.zoom_delta());

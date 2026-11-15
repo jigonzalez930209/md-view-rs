@@ -64,6 +64,14 @@ impl Editor {
         self.last_scroll_at.elapsed() <= window
     }
 
+    /// The final row's top relative to the viewport top, in points.
+    ///
+    /// At the maximum offset with scroll-beyond-last-line enabled this is
+    /// approximately zero, proving the final row can reach the viewport top.
+    pub fn last_row_screen_top(&self) -> f32 {
+        self.last_last_row_top
+    }
+
     /// Whether the user scrolled this frame, consuming the flag.
     pub fn take_user_scroll(&mut self) -> bool {
         std::mem::take(&mut self.user_scrolled)

@@ -50,3 +50,27 @@ fn scroll_end_is_stable() {
     assert!((first - max).abs() < 2.0);
     assert!(editor.borrow().bottom_clearance() >= 6.0);
 }
+
+#[test]
+fn scroll_beyond_last_line_reaches_the_viewport_top() {
+    let editor = Rc::new(RefCell::new(Editor::new(document())));
+    let handle = editor.clone();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(700.0, 500.0))
+        .build_ui(move |ui| {
+            handle.borrow_mut().show(ui);
+        });
+    harness.run();
+    editor.borrow_mut().set_style(mdview_editor::EditorStyle {
+        scroll_beyond_last_line: true,
+        ..mdview_editor::EditorStyle::default()
+    });
+    editor.borrow_mut().scroll_to_end();
+    for _ in 0..6 {
+        harness.run();
+    }
+    assert!(editor.borrow().max_scroll_offset() > 0.0);
+    assert!(editor.borrow().is_at_end());
+    let top = editor.borrow().last_row_screen_top();
+    assert!(top.abs() <= 1.0, "last row top = {top}");
+}

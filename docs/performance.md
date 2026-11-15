@@ -16,9 +16,9 @@ Latest result on the Linux development machine:
 
 ```text
 120Hz frame budget (120 frames):
-editor  p50=0.237 ms p95=0.383 ms
-preview p50=1.306 ms p95=1.948 ms
-combined p50=1.552 ms p95=2.298 ms max=3.422 ms
+editor  p50=0.239 ms p95=0.366 ms
+preview p50=1.333 ms p95=1.963 ms
+combined p50=1.583 ms p95=2.290 ms max=2.415 ms
 ```
 
 The release test asserts `combined p95 <= 8.33 ms`. Debug builds use a relaxed assertion so the
@@ -81,9 +81,10 @@ zoom/pan/lightbox, conflict recovery, and language/theme switching in one run (2
 Steady-state windows after the theme change:
 
 ```text
-frames=25800 p50=0.674ms p95=1.330ms max=1.610ms over_8.33ms=0
-frames=25920 p50=0.580ms p95=0.919ms max=1.601ms over_8.33ms=0
-frames=26040 p50=0.755ms p95=1.572ms max=20.259ms over_8.33ms=1
+frames=25680 p50=0.316ms p95=0.594ms max=0.858ms over_8.33ms=0
+frames=25800 p50=0.333ms p95=0.809ms max=22.599ms over_8.33ms=3
+frames=25920 p50=0.538ms p95=1.210ms max=20.363ms over_8.33ms=1
+frames=26040 p50=0.601ms p95=1.282ms max=19.340ms over_8.33ms=1
 ```
 
 Transition frames can still exceed 8.33 ms during cold start, the first large media upload,

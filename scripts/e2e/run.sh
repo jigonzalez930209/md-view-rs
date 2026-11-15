@@ -701,6 +701,23 @@ click 276 70
 click 276 70
 sleep 1.2
 log_has "lightbox reraster"
+x drag 490 360 560 410
+sleep 0.6
+log_has "lightbox pan="
+python3 - "$LOGS/mdview.log" <<'PY' || fail "lightbox drag did not move the image"
+import re
+import sys
+
+text = open(sys.argv[1], encoding="utf-8").read()
+pans = [
+    tuple(map(float, match))
+    for match in re.findall(r"lightbox pan=\[(-?[0-9.]+) (-?[0-9.]+)\]", text)
+]
+if not pans:
+    raise SystemExit("no lightbox pan diagnostics")
+if not any(abs(x) > 1.0 or abs(y) > 1.0 for x, y in pans):
+    raise SystemExit(f"lightbox pan did not move: {pans[-3:]}")
+PY
 shot "29-lightbox"
 key Escape
 sleep 0.4

@@ -105,6 +105,8 @@ Run these local checks before tagging a release:
 - [ ] `rpm -qlp dist/mdview-0.14.0-1.x86_64.rpm` lists the binary, desktop, MIME, metainfo, and
       hicolor icons.
 - [ ] `dist/MD-View-0.14.0-x86_64.AppImage --appimage-extract-and-run --version` prints `0.14.0`.
+      If the system temporary filesystem is quota-limited, prefix the command with
+      `TMPDIR=$PWD/target/tmp`; otherwise the runtime can extract an empty payload and exit 127.
 - [ ] A local HTTP server can serve `latest.json` and an asset; the update dialog finds the
       version, downloads it, and verifies SHA-256.
 - [ ] From a writable copy of the AppImage, install the downloaded AppImage; the original file is
