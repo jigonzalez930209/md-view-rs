@@ -16,9 +16,9 @@ Latest result on the Linux development machine:
 
 ```text
 120Hz frame budget (120 frames):
-editor  p50=0.243 ms p95=0.385 ms
-preview p50=1.308 ms p95=1.835 ms
-combined p50=1.553 ms p95=2.198 ms max=2.357 ms
+editor  p50=0.237 ms p95=0.383 ms
+preview p50=1.306 ms p95=1.948 ms
+combined p50=1.552 ms p95=2.298 ms max=3.422 ms
 ```
 
 The release test asserts `combined p95 <= 8.33 ms`. Debug builds use a relaxed assertion so the

@@ -21,7 +21,7 @@ Severity scale:
 | `cargo xtask check-file-length` | pass (7 files are above 450 lines) |
 | `cargo test --workspace --locked` | pass with a disk-backed `TMPDIR`; see REL-04 and REL-05 |
 | `cargo xtask e2e` (release) | **E2E PASS**, 26,040 frames, last three steady windows p95 ≤ 8.33 ms, 247 KB log |
-| `cargo xtask perf` | combined p50 1.553 ms, p95 2.198 ms, max 2.357 ms |
+| `cargo xtask perf` | combined p50 1.552 ms, p95 2.298 ms, max 3.422 ms |
 | `cargo xtask release-check` | pass, 4 assets, version 0.14.0 |
 | `cargo deny check` | advisories, bans, licenses, and sources pass (REL-02) |
 
