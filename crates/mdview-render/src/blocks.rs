@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 
 use egui::{Align, Align2, Color32, FontId, Label, Layout, RichText, TextFormat, Ui};
+mod list;
 mod table;
 
 use mdview_markdown::{Block, BlockKind, ListItem, QuoteKind};
@@ -136,7 +137,7 @@ pub(crate) fn show_block(
                 });
         }
         BlockKind::List { ordered, start, items } => {
-            show_list(ui, *ordered, *start, items, ctx, media);
+            list::show_list(ui, *ordered, *start, items, ctx, media);
         }
         BlockKind::Table { alignments, head, rows } => table::show_table(ui, alignments, head, rows, ctx, media),
         BlockKind::Rule => {
@@ -162,95 +163,6 @@ pub(crate) fn show_block(
                     show_blocks(ui, blocks, ctx, media);
                 });
         }
-    }
-}
-
-fn task_checkbox(ui: &mut Ui, rect: egui::Rect, checked: bool, theme: &mdview_theme::Theme, size: f32) {
-    let side = (size * 1.0).clamp(13.0, 18.0);
-    let box_rect = egui::Rect::from_center_size(rect.center(), egui::vec2(side, side));
-    ui.painter().rect_filled(
-        box_rect,
-        egui::CornerRadius::same(2),
-        if checked {
-            theme.accent
-        } else {
-            egui::Color32::TRANSPARENT
-        },
-    );
-    ui.painter().rect_stroke(
-        box_rect,
-        egui::CornerRadius::same(2),
-        egui::Stroke::new(1.2, if checked { theme.accent } else { theme.text_muted }),
-        egui::StrokeKind::Inside,
-    );
-    if checked {
-        let check = egui::Stroke::new(1.6, theme.accent_text);
-        ui.painter().line_segment(
-            [
-                egui::pos2(box_rect.left() + 2.6, box_rect.center().y),
-                egui::pos2(box_rect.left() + 5.6, box_rect.bottom() - 2.8),
-            ],
-            check,
-        );
-        ui.painter().line_segment(
-            [
-                egui::pos2(box_rect.left() + 5.6, box_rect.bottom() - 2.8),
-                egui::pos2(box_rect.right() - 2.2, box_rect.top() + 3.0),
-            ],
-            check,
-        );
-    }
-}
-
-fn show_list(
-    ui: &mut Ui,
-    ordered: bool,
-    start: u64,
-    items: &[ListItem],
-    ctx: &mut BlockCtx<'_>,
-    media: &mut Option<&mut MediaContext<'_>>,
-) {
-    let list_width = ui.available_width().max(120.0);
-    let body = ctx.typography.body;
-    let line_height = ui
-        .ctx()
-        .fonts_mut(|fonts| fonts.row_height(&FontId::proportional(body)))
-        .max(body * 1.1);
-    let marker_width = if ordered { 26.0 } else { 16.0 };
-    for (index, item) in items.iter().enumerate() {
-        ui.horizontal_top(|ui| {
-            ui.add_space(4.0);
-            // Paint the marker in a fixed first-line box. Text layout centers it on the
-            // actual row height, so bullets, numbers, and checkboxes share one baseline.
-            let (marker_rect, _) = ui.allocate_exact_size(egui::vec2(marker_width, line_height), egui::Sense::hover());
-            match item.task {
-                Some(checked) => task_checkbox(ui, marker_rect, checked, ctx.theme, body),
-                None => {
-                    let marker = if ordered {
-                        format!("{}.", start + index as u64)
-                    } else {
-                        "•".to_owned()
-                    };
-                    ui.painter().text(
-                        marker_rect.center(),
-                        Align2::CENTER_CENTER,
-                        marker,
-                        FontId::proportional(body),
-                        ctx.theme.text_muted,
-                    );
-                }
-            }
-            ui.add_space(4.0);
-            let content_width = (list_width - marker_width - 14.0).max(80.0);
-            ui.allocate_ui_with_layout(egui::vec2(content_width, 0.0), Layout::top_down(Align::Min), |ui| {
-                ui.set_width(content_width);
-                if item.task.is_some() {
-                    show_blocks_spacing(ui, &item.blocks, ctx, media, 2.0);
-                } else {
-                    show_blocks(ui, &item.blocks, ctx, media);
-                }
-            });
-        });
     }
 }
 

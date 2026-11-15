@@ -7,7 +7,8 @@
 - Updated split scrolling to interpolate within multi-line blocks in both directions, so the
   editor and preview stay on the same source position instead of snapping to block tops.
 - Replaced the View/Editor/Split text segments with eye, pencil, and split icons.
-- Centered list bullets, ordered numbers, and task boxes on the first text line.
+- Centered list bullets, ordered numbers, and task boxes on the first text line,
+  accounting for the taller row produced by inline code and math.
 - Moved search to a command-palette-style panel anchored at the top center.
 - Restored the back/forward history buttons and the selected document name in the title bar.
 - Added 2 px more padding around the File/Edit/View/Go/Help menu labels.
