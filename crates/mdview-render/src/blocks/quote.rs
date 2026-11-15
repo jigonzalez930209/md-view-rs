@@ -32,7 +32,8 @@ pub(super) fn show_quote(
             ui.set_width(ui.available_width());
             ui.spacing_mut().item_spacing.y = 0.0;
             if let Some(title) = alert {
-                let line = crate::inline::line_height(ctx.typography);
+                // GitHub sets the alert title with `line-height: 1`.
+                let line = body.round();
                 let (rect, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), line), egui::Sense::hover());
                 let icon_center = egui::pos2(rect.left() + body * 0.5, rect.center().y);
                 // GitHub draws the 16 px Octicon at a 16 px body: one em.

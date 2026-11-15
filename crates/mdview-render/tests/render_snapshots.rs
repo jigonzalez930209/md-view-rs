@@ -115,3 +115,21 @@ fn preview_custom_typography_snapshot() {
         },
     );
 }
+
+/// GitHub's own scale (16 px body, 32 px h1, 85% code, body-size tables). Compared
+/// against GitHub's render by `scripts/github-parity/measure.py`.
+#[test]
+fn preview_github_scale_snapshot() {
+    snapshot_with(
+        "preview-github-scale",
+        ThemeMode::Light,
+        ReadingMargins::new(15.0),
+        ReadingTypography {
+            body: 16.0,
+            headings: 32.0,
+            code: 14.0,
+            tables: 16.0,
+            math: 23.0,
+        },
+    );
+}

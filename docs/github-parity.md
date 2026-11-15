@@ -12,7 +12,10 @@ The preview layout is checked against GitHub's own output, not against memory:
 
 4. For math, render `media_snapshots.rs`'s formulas the same way with MathJax 3.2.2
    (`es5/tex-svg.js`, inlined into the page) and compare with `media-light.png`.
-5. Run `python3 -I scripts/github-parity/measure.py <github-ref.png> <math-ref.png>`.
+5. GitHub sizes its margins in pixels for a 16 px body, so the full layout is also
+   compared at GitHub's real scale: render the same page without the 14 px override and
+   compare it with `preview-github-scale.png` (body 16, h1 32, code 14, tables 16).
+6. Run `python3 -I scripts/github-parity/measure.py <github-ref.png> <math-ref.png> <github-ref16.png>`.
 
 Last measurement (14 px body, default settings):
 
@@ -23,6 +26,20 @@ Last measurement (14 px body, default settings):
 | Display formula ink size (px) | 98 × 42 | 96 × 44 |
 | Inline `E = mc^2` ink height (px) | 14 | 14 |
 | Body text ink width, "An inline formula" (px) | 110 | 108 |
+
+At GitHub's 16 px scale, measured between heading rules (each section covers every block
+in it: paragraphs, alert, lists, task lists, code block, table):
+
+| Section height (px) | GitHub | Preview |
+|---|---|---|
+| Title, paragraph, and alert | 215 | 216 |
+| Lists, task lists, ordered list | 359 | 360 |
+| Code block | 189 | 190 |
+| Table | 190 | 190 |
+| Alert box | 72 | 72 |
+
+The math section is excluded there: the API page has no MathJax and the snapshot has no
+media provider, so both show raw TeX. Math is measured against MathJax separately above.
 
 Values taken from that comparison and GitHub's CSS:
 

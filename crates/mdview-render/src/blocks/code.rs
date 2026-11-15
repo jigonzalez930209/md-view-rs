@@ -103,7 +103,8 @@ fn show_media_block(
 fn show_plain_code(ui: &mut Ui, language: Option<&str>, text: &str, math: bool, ctx: &mut BlockCtx<'_>) {
     let code_size = ctx.typography.code;
     let line_height = (code_size * 1.45).round();
-    let padding = (ctx.typography.body * 1.15).round();
+    // GitHub: 16 px padding at a 16 px body.
+    let padding = ctx.typography.body.round();
     let frame = egui::Frame::new()
         .fill(ctx.theme.code_background)
         .corner_radius(6.0)

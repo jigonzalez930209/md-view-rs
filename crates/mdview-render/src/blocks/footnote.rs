@@ -96,7 +96,7 @@ fn collect_inlines(inlines: &[Inline], numbers: &mut HashMap<String, usize>) {
 }
 
 /// A footnote definition laid out like GitHub's footnote list: an ordered marker in
-/// a 2em gutter, 12/14 of the body size, muted text. The marker links back to the
+/// a 2em gutter, 0.75em (12 px at 16 px), muted text. The marker links back to the
 /// reference.
 pub(super) fn show_footnote(
     ui: &mut Ui,
@@ -105,7 +105,8 @@ pub(super) fn show_footnote(
     ctx: &mut BlockCtx<'_>,
     media: &mut Option<&mut MediaContext<'_>>,
 ) {
-    let size = (ctx.typography.body * 0.86).round();
+    // GitHub: 12 px footnotes at a 16 px body.
+    let size = (ctx.typography.body * 0.75).round();
     let indent = (ctx.typography.body * 2.0).round();
     let number = ctx
         .footnotes

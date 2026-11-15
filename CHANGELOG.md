@@ -20,6 +20,10 @@
 - Formulas scale by font size instead of being squeezed into a fixed box, so fractions,
   integrals, and matrices keep their full size. The scale is calibrated to GitHub's MathJax
   output. Inline math uses TeX text style.
+- Calibrated block spacing at GitHub's 16 px scale: alert titles use line height 1, code
+  blocks 1em padding, table cells 0.375em x 0.8125em with collapsed 1 px borders, footnotes
+  0.75em, and lines with inline code are 0.125em taller, as in GitHub's CSS. Every section of
+  the parity document is within 1 px of GitHub.
 - Task boxes look like GitHub's disabled Markdown checkboxes, footnotes end with a `↩`
   back link that scrolls to the reference, and nested lists have no extra top margin.
 - Replaced the three Reading width presets with a 5–40% margin slider and added an

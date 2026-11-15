@@ -21,9 +21,9 @@ pub(super) fn show_table(
         .max(rows.iter().map(Vec::len).max().unwrap_or(0))
         .max(1);
     let size = ctx.typography.tables;
-    // GitHub: `padding: 6px 13px` (fixed pixels, 14 px text here), 1.5 line height, 1 px borders.
-    let pad_x = (size * 0.93).round();
-    let pad_y = (size * 0.43).round();
+    // GitHub: `padding: 6px 13px` at its 16 px body, 1.5 line height, 1 px borders.
+    let pad_x = (size * 0.8125).round();
+    let pad_y = (size * 0.375).round();
     let line = (size * 1.5).round();
 
     let mut all_rows = Vec::with_capacity(rows.len() + 1);
@@ -73,10 +73,11 @@ pub(super) fn show_table(
     };
     let heights: Vec<f32> = galleys
         .iter()
-        .map(|row| row.iter().map(|cell| cell.galley.rect.height()).fold(line, f32::max) + pad_y * 2.0)
+        // Each row owns its 1 px top border, as with GitHub's collapsed borders.
+        .map(|row| row.iter().map(|cell| cell.galley.rect.height()).fold(line, f32::max) + pad_y * 2.0 + 1.0)
         .collect();
     let total_width: f32 = widths.iter().sum::<f32>().min(available);
-    let total_height: f32 = heights.iter().sum();
+    let total_height: f32 = heights.iter().sum::<f32>() + 1.0;
     let (rect, _) = ui.allocate_exact_size(egui::vec2(total_width, total_height), egui::Sense::hover());
     let painter = ui.painter().clone();
     let border = egui::Stroke::new(1.0, ctx.theme.border);
@@ -102,7 +103,7 @@ pub(super) fn show_table(
                     Alignment::Left | Alignment::None => left,
                 }
                 .max(left),
-                row_rect.top() + pad_y,
+                row_rect.top() + 1.0 + pad_y,
             );
             painter.galley(origin, cell.galley.clone(), ctx.theme.text);
             let cell_rect = egui::Rect::from_min_size(egui::pos2(x, row_rect.top()), egui::vec2(width, heights[row]));

@@ -289,8 +289,10 @@ fn show_segment(
     for (run, matched) in runs {
         let code = segment.monospace || segment.keyboard;
         // Every run shares the body line box, so wrapped rows keep GitHub's 1.5 rhythm.
-        let mut text =
-            styled_text(&run, segment, theme, size, typography.code).line_height(Some(line_height(typography)));
+        // In GitHub a line holding inline code is 0.125em taller: the monospace font's
+        // own 1.5 line box, aligned on the baseline, extends the line.
+        let row = line_height(typography) + if code { (size * 0.125).round() } else { 0.0 };
+        let mut text = styled_text(&run, segment, theme, size, typography.code).line_height(Some(row));
         if matched {
             text = text.background_color(theme.selection);
         }

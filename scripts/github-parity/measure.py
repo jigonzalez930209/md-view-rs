@@ -2,7 +2,7 @@
 """Measure preview snapshots against GitHub's own render.
 
 Usage:
-    python3 -I scripts/github-parity/measure.py <github-ref.png> <math-ref.png>
+    python3 -I scripts/github-parity/measure.py <github-ref.png> <math-ref.png> [<github-ref16.png>]
 
 The reference screenshots are produced as described in docs/github-parity.md: the
 render_snapshots.rs and media_snapshots.rs documents are rendered by the GitHub
@@ -19,6 +19,7 @@ import sys
 from PIL import Image
 
 PREVIEW = "crates/mdview-render/tests/snapshots/preview-light.png"
+GITHUB_SCALE = "crates/mdview-render/tests/snapshots/preview-github-scale.png"
 MEDIA = "crates/mdview-render/tests/snapshots/media-light.png"
 
 
@@ -60,12 +61,38 @@ def ink(path, box):
     return max(xs) - min(xs) + 1, max(ys) - min(ys) + 1
 
 
+def sections(path):
+    """Heading-rule positions, section heights, and the alert bar of one render."""
+    image = Image.open(path).convert("RGB")
+    px = image.load()
+    width, height = image.size
+    background = px[width - 40, 10]
+
+    def diff(color):
+        return sum(abs(a - b) for a, b in zip(color, background))
+
+    rules = [
+        y
+        for y in range(1, height - 1)
+        if all(8 < diff(px[x, y]) < 120 for x in range(125, 635, 5))
+        and diff(px[300, y - 1]) < 8
+        and diff(px[300, y + 1]) < 8
+    ]
+    bar = [y for y in range(height) if px[122, y][2] > 150 and px[122, y][0] < 100]
+    bar_runs = [len(run) for run in groups(bar) if len(run) > 8]
+    return [b - a for a, b in zip(rules, rules[1:])], bar_runs
+
+
 def main():
     github, math = sys.argv[1], sys.argv[2]
     print("list marker offsets (px), GitHub:", markers(github, 290, 540))
     print("list marker offsets (px), preview:", markers(PREVIEW, 265, 520))
     print("display formula (w, h), GitHub:", ink(math, (200, 112, 480, 190)))
     print("display formula (w, h), preview:", ink(MEDIA, (200, 105, 560, 185)))
+    if len(sys.argv) > 3:
+        # GitHub's real scale: a 16 px body against preview-github-scale.png.
+        print("section heights / alert height (px), GitHub:", sections(sys.argv[3]))
+        print("section heights / alert height (px), preview:", sections(GITHUB_SCALE))
 
 
 if __name__ == "__main__":
