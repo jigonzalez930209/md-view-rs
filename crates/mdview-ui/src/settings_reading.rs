@@ -21,11 +21,18 @@ pub(super) fn reading(
         t("Left and right margins as a percentage of the pane."),
         |ui| {
             ui.spacing_mut().slider_width = 120.0;
+            ui.spacing_mut().slider_rail_height = 6.0;
+            let visuals = ui.visuals_mut();
+            // The theme's inactive fill matches the panel, which hid the rail entirely.
+            // Use the dialog border color for the track and the accent for the filled part.
+            visuals.widgets.inactive.bg_fill = visuals.widgets.noninteractive.bg_stroke.color;
+            visuals.widgets.hovered.bg_fill = visuals.selection.bg_fill;
             ui.horizontal(|ui| {
                 ui.add(
                     egui::Slider::new(&mut percent, ReadingMargins::MIN_PERCENT..=ReadingMargins::MAX_PERCENT)
                         .integer()
-                        .show_value(false),
+                        .show_value(false)
+                        .trailing_fill(true),
                 );
                 ui.label(egui::RichText::new(format!("{percent:.0}%")).monospace().size(11.0));
             });
