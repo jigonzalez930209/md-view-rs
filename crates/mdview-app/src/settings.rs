@@ -104,8 +104,8 @@ impl Default for Appearance {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
 pub struct ReadingSettings {
-    /// `comfortable`, `compact`, or `full`.
-    pub margins: String,
+    /// Left and right reading margin as a percentage of the pane, 5–40.
+    pub margin_percent: f32,
     /// Body text size in points.
     pub body_size: f32,
     /// Base heading size in points.
@@ -114,24 +114,27 @@ pub struct ReadingSettings {
     pub code_size: f32,
     /// Table size in points.
     pub table_size: f32,
+    /// Equation size in points.
+    pub math_size: f32,
 }
 
 impl Default for ReadingSettings {
     fn default() -> Self {
         Self {
-            margins: "comfortable".to_owned(),
+            margin_percent: mdview_theme::ReadingMargins::DEFAULT_PERCENT,
             body_size: 14.0,
             heading_size: 28.0,
             code_size: 13.0,
             table_size: 13.0,
+            math_size: 20.0,
         }
     }
 }
 
 impl ReadingSettings {
-    /// The selected margin preset.
+    /// The selected reading margins, clamped before use.
     pub fn margins(&self) -> mdview_theme::ReadingMargins {
-        mdview_theme::ReadingMargins::from_setting(&self.margins)
+        mdview_theme::ReadingMargins::new(self.margin_percent)
     }
 
     /// The selected text sizes, clamped before use.
@@ -141,6 +144,7 @@ impl ReadingSettings {
             headings: self.heading_size,
             code: self.code_size,
             tables: self.table_size,
+            math: self.math_size,
         }
         .sanitized()
     }

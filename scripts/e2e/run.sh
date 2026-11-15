@@ -323,21 +323,29 @@ click 850 16
 shot "03-settings-appearance"
 click 240 252
 shot "03b-settings-reading"
-click 700 250
-click 700 332
+x drag 705 243 665 243
 sleep 0.4
-expect_cfg margins full
-shot "03c-settings-reading-full"
-click 700 250
-click 700 282
+expect_cfg margin_percent 5.0
+shot "03c-settings-reading-wide"
+x drag 665 243 805 243
 sleep 0.4
-expect_cfg margins comfortable
-click 773 300
+expect_cfg margin_percent 40.0
+shot "03d-settings-reading-narrow"
+x drag 780 243 702 243
+sleep 0.4
+expect_cfg margin_percent 15.0
+click 773 286
 sleep 0.4
 expect_cfg body_size 14.5
-click 773 313
+click 773 300
 sleep 0.4
 expect_cfg body_size 14.0
+click 773 485
+sleep 0.4
+expect_cfg math_size 20.5
+click 773 500
+sleep 0.4
+expect_cfg math_size 20.0
 click 240 224
 shot "04-settings-editor"
 toggle_to wrap true 767 243
@@ -538,7 +546,7 @@ echo "== render pass =="
 x wheelup 640 400 200
 sleep 1.5
 shot "20-render-top"
-click 306 359
+click 420 369
 wait_title "guide.md"
 key ctrl+p
 type_text "logo.svg"
@@ -611,11 +619,11 @@ key Escape
 
 key ctrl+shift+e
 sleep 0.6
-click 756 51
+click 813 51
 sleep 0.5
-click 810 51
+click 849 51
 sleep 0.5
-click 864 51
+click 885 51
 sleep 0.5
 log_has "command SetMode\(View\)"
 log_has "command SetMode\(Edit\)"
@@ -723,8 +731,8 @@ key Escape
 sleep 0.4
 # Disabled segmented segments: an image cannot enter the editor or split mode.
 before_modes=$(grep -c 'command SetMode' "$LOGS/mdview.log" || true)
-click 810 51
-click 864 51
+click 849 51
+click 885 51
 sleep 0.4
 after_modes=$(grep -c 'command SetMode' "$LOGS/mdview.log" || true)
 [[ "$before_modes" == "$after_modes" ]] || fail "image document accepted Edit/Split mode"
@@ -741,8 +749,8 @@ wait_title "segmented.rs"
 log_has "document mode.*segmented.rs mode=edit can_edit=true can_view=false can_split=false"
 shot "36-code-modes"
 before_modes=$(grep -c 'command SetMode' "$LOGS/mdview.log" || true)
-click 756 51
-click 864 51
+click 813 51
+click 885 51
 sleep 0.5
 after_modes=$(grep -c 'command SetMode' "$LOGS/mdview.log" || true)
 [[ "$before_modes" == "$after_modes" ]] || fail "code document accepted View/Split mode"
@@ -957,7 +965,7 @@ sleep 0.8
 expect_cfg theme github-dark
 key Escape
 sleep 0.3
-click 756 51
+click 813 51
 sleep 0.6
 shot "34-dark-render"
 key Escape

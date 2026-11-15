@@ -227,4 +227,7 @@ pub(crate) const SPANISH: &str = concat!(
     "\tFolder name\tNombre de la carpeta\n",
     "\tCreating in\tCreando en\n",
     "\tNew name\tNuevo nombre\n",
+    "\tLeft and right margins as a percentage of the pane.\tMárgenes izquierdo y derecho como porcentaje del panel.\n",
+    "\tEquations\tEcuaciones\n",
+    "\tInline and display math size.\tTamaño de las fórmulas en línea y en bloque.\n",
 );

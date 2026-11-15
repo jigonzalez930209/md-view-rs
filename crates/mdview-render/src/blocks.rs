@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use egui::{Align, Color32, FontId, Label, Layout, RichText, TextFormat, Ui};
+use egui::{Align, Align2, Color32, FontId, Label, Layout, RichText, TextFormat, Ui};
 mod table;
 
 use mdview_markdown::{Block, BlockKind, ListItem, QuoteKind};
@@ -76,7 +76,7 @@ pub(crate) fn show_block(
                 ctx.theme,
                 ctx.output,
                 media.as_mut().map(|context| &mut **context),
-                ctx.typography.body,
+                ctx.typography,
                 ctx.search,
             );
         }
@@ -161,10 +161,9 @@ pub(crate) fn show_block(
     }
 }
 
-fn task_checkbox(ui: &mut Ui, checked: bool, theme: &mdview_theme::Theme, size: f32) {
+fn task_checkbox(ui: &mut Ui, rect: egui::Rect, checked: bool, theme: &mdview_theme::Theme, size: f32) {
     let side = (size * 1.0).clamp(13.0, 18.0);
-    let (rect, _) = ui.allocate_exact_size(egui::vec2(side, side), egui::Sense::hover());
-    let box_rect = rect.shrink(1.5).translate(egui::vec2(0.0, 1.0));
+    let box_rect = egui::Rect::from_center_size(rect.center(), egui::vec2(side, side));
     ui.painter().rect_filled(
         box_rect,
         egui::CornerRadius::same(2),
@@ -209,28 +208,34 @@ fn show_list(
 ) {
     let list_width = ui.available_width().max(120.0);
     let body = ctx.typography.body;
-    let line_height = (body * 1.22).max(14.0);
+    let line_height = ui
+        .ctx()
+        .fonts_mut(|fonts| fonts.row_height(&FontId::proportional(body)))
+        .max(body * 1.1);
     let marker_width = if ordered { 26.0 } else { 16.0 };
     for (index, item) in items.iter().enumerate() {
         ui.horizontal_top(|ui| {
             ui.add_space(4.0);
-            // Center the marker inside the first text line. Aligning both widgets to the top
-            // made checkboxes and bullets sit above the paragraph they belong to.
-            ui.allocate_ui_with_layout(
-                egui::vec2(marker_width, line_height),
-                Layout::left_to_right(Align::Center),
-                |ui| match item.task {
-                    Some(checked) => task_checkbox(ui, checked, ctx.theme, body),
-                    None => {
-                        let marker = if ordered {
-                            format!("{}.", start + index as u64)
-                        } else {
-                            "•".to_owned()
-                        };
-                        ui.label(RichText::new(marker).size(body).color(ctx.theme.text_muted).strong());
-                    }
-                },
-            );
+            // Paint the marker in a fixed first-line box. Text layout centers it on the
+            // actual row height, so bullets, numbers, and checkboxes share one baseline.
+            let (marker_rect, _) = ui.allocate_exact_size(egui::vec2(marker_width, line_height), egui::Sense::hover());
+            match item.task {
+                Some(checked) => task_checkbox(ui, marker_rect, checked, ctx.theme, body),
+                None => {
+                    let marker = if ordered {
+                        format!("{}.", start + index as u64)
+                    } else {
+                        "•".to_owned()
+                    };
+                    ui.painter().text(
+                        marker_rect.center(),
+                        Align2::CENTER_CENTER,
+                        marker,
+                        FontId::proportional(body),
+                        ctx.theme.text_muted,
+                    );
+                }
+            }
             ui.add_space(4.0);
             let content_width = (list_width - marker_width - 14.0).max(80.0);
             ui.allocate_ui_with_layout(egui::vec2(content_width, 0.0), Layout::top_down(Align::Min), |ui| {
@@ -295,9 +300,14 @@ fn show_media_block(
         MediaState::Ready(texture) => {
             let points = texture.size_vec2() / ui.ctx().pixels_per_point().max(1.0);
             // Keep diagram labels legible; below this scale the reader gets a horizontal
-            // scroll area instead of a tiny, unreadable raster.
-            let scale = (width / points.x).clamp(0.72, 1.0);
-            let size = points * scale;
+            // scroll area instead of a tiny, unreadable raster. Math follows the Reading
+            // equation size and centers at a readable height.
+            let size = if kind == MediaKind::Math {
+                let target = (ctx.typography.math * 2.4).max(40.0);
+                points * (width / points.x).min(target / points.y).min(1.0)
+            } else {
+                points * (width / points.x).clamp(0.72, 1.0)
+            };
             let response = egui::ScrollArea::horizontal()
                 .id_salt(("media-block", kind.label(), source.len(), source.as_ptr()))
                 .auto_shrink([false, true])

@@ -59,7 +59,7 @@ Footnotes work too.[^note]
 "#;
 
 fn snapshot(name: &str, mode: ThemeMode) {
-    snapshot_with(name, mode, ReadingMargins::Comfortable, ReadingTypography::default());
+    snapshot_with(name, mode, ReadingMargins::new(15.0), ReadingTypography::default());
 }
 
 fn snapshot_with(name: &str, mode: ThemeMode, margins: ReadingMargins, typography: ReadingTypography) {
@@ -67,11 +67,7 @@ fn snapshot_with(name: &str, mode: ThemeMode, margins: ReadingMargins, typograph
     let mut preview = Preview::default();
     preview.set_width(680.0);
     preview.set_reading_style(margins, typography);
-    let harness_width = if margins == ReadingMargins::Comfortable {
-        760.0
-    } else {
-        1100.0
-    };
+    let harness_width = if margins.percent() >= 15.0 { 760.0 } else { 1100.0 };
     let mut harness = Harness::builder()
         .with_size(egui::vec2(harness_width, 900.0))
         .with_context_setup(move |ctx| {
@@ -99,7 +95,7 @@ fn preview_compact_light_snapshot() {
     snapshot_with(
         "preview-compact-light",
         ThemeMode::Light,
-        ReadingMargins::Compact,
+        ReadingMargins::new(10.0),
         ReadingTypography::default(),
     );
 }
@@ -109,12 +105,13 @@ fn preview_custom_typography_snapshot() {
     snapshot_with(
         "preview-custom-typography",
         ThemeMode::Light,
-        ReadingMargins::Full,
+        ReadingMargins::new(5.0),
         ReadingTypography {
             body: 16.0,
             headings: 34.0,
             code: 15.0,
             tables: 14.0,
+            math: 24.0,
         },
     );
 }

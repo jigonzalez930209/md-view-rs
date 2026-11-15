@@ -58,7 +58,7 @@ fn inline_media_height(inlines: &[Inline], width: f32, typography: ReadingTypogr
     for inline in inlines {
         match inline {
             Inline::Image { .. } => height = height.max((width * 0.55).clamp(120.0, 360.0)),
-            Inline::Math { display, .. } if *display => height = height.max(typography.body * 3.2),
+            Inline::Math { display, .. } if *display => height = height.max(typography.math * 2.4),
             Inline::Emphasis(children)
             | Inline::Strong(children)
             | Inline::Strikethrough(children)

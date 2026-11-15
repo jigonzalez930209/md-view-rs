@@ -376,6 +376,7 @@ fn row(ui: &mut Ui, title: String, description: String, control: impl FnOnce(&mu
         ui.horizontal(|ui| {
             ui.vertical(|ui| {
                 ui.set_width(260.0);
+                ui.set_max_width(260.0);
                 ui.label(RichText::new(title).size(12.5));
                 ui.label(RichText::new(description).small().weak());
             });

@@ -27,9 +27,20 @@ impl Editor {
 
     /// The first logical line in the visible viewport.
     pub fn first_visible_line(&self) -> usize {
+        self.first_visible_line_fraction().0
+    }
+
+    /// The first visible source line and the fraction inside that line.
+    pub fn first_visible_line_fraction(&self) -> (usize, f32) {
         let row_height = self.last_row_height.max(1.0);
-        let row = (self.scroll_y / row_height).floor().max(0.0) as usize;
-        self.row_to_line(row, self.last_columns).0
+        let position = (self.scroll_y / row_height).max(0.0);
+        let row = position.floor() as usize;
+        let (line, _) = self.row_to_line(row, self.last_columns);
+        let line_row = self.line_to_row(line);
+        let rows = rows_for(self.display_widths.get(line).copied().unwrap_or(0), self.last_columns).max(1);
+        let within_row = position - position.floor();
+        let fraction = ((row.saturating_sub(line_row)) as f32 + within_row) / rows as f32;
+        (line, fraction.clamp(0.0, 1.0))
     }
 
     /// Scroll to a zero-based logical line with an intra-line fraction.

@@ -63,7 +63,15 @@ impl SourceMap {
     pub fn offset_for_line(&self, line: usize, fraction: f32) -> Option<f32> {
         let anchor = self.for_line(line)?;
         let fraction = fraction.clamp(0.0, 1.0);
-        Some(anchor.top + anchor.height() * fraction)
+        let line = line + 1;
+        let span = anchor.end_line.saturating_sub(anchor.start_line) + 1;
+        let within = if span <= 1 {
+            fraction
+        } else {
+            let index = line.clamp(anchor.start_line, anchor.end_line) - anchor.start_line;
+            (index as f32 + fraction) / span as f32
+        };
+        Some(anchor.top + anchor.height() * within)
     }
 
     /// The anchor intersecting a content-space offset.
@@ -90,9 +98,12 @@ impl SourceMap {
     pub fn line_at_offset(&self, offset: f32) -> Option<(usize, f32)> {
         let anchor = self.anchor_at_offset(offset)?;
         let fraction = ((offset - anchor.top) / anchor.height()).clamp(0.0, 1.0);
-        let span = anchor.end_line.saturating_sub(anchor.start_line);
-        let line = anchor.start_line + (fraction * span as f32).round() as usize;
-        Some((line.saturating_sub(1), fraction))
+        let span = anchor.end_line.saturating_sub(anchor.start_line) + 1;
+        let position = (fraction * span as f32).min(span as f32 - 0.001);
+        let line_offset = position.floor();
+        let line = anchor.start_line + line_offset as usize;
+        let intra = (position - line_offset).clamp(0.0, 0.999);
+        Some((line.saturating_sub(1), intra))
     }
 
     /// The content-space top of a block.
@@ -189,11 +200,18 @@ mod tests {
     #[test]
     fn line_offsets_round_trip() {
         let map = map();
-        let offset = map.offset_for_line(2, 0.5).expect("offset");
-        assert!((offset - 90.0).abs() < 0.01);
-        let (line, fraction) = map.line_at_offset(offset).expect("line");
-        assert_eq!(line, 3);
+        let first = map.offset_for_line(2, 0.0).expect("first");
+        let middle = map.offset_for_line(2, 0.5).expect("middle");
+        let next = map.offset_for_line(3, 0.0).expect("next");
+        assert!((first - 40.0).abs() < 0.01);
+        assert!((middle - 65.0).abs() < 0.01);
+        assert!((next - 90.0).abs() < 0.01);
+        let (line, fraction) = map.line_at_offset(middle).expect("line");
+        assert_eq!(line, 2);
         assert!((fraction - 0.5).abs() < 0.01);
+        let (line, fraction) = map.line_at_offset(next).expect("line");
+        assert_eq!(line, 3);
+        assert!(fraction < 0.01);
     }
 
     #[test]

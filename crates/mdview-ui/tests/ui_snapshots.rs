@@ -36,7 +36,7 @@ fn settings_snapshot() {
                     follow_system: false,
                     language: LanguagePreference::English,
                     zoom: 1.0,
-                    reading_margins: mdview_theme::ReadingMargins::Comfortable,
+                    reading_margins: mdview_theme::ReadingMargins::default(),
                     typography: mdview_theme::ReadingTypography::default(),
                     wrap: false,
                     line_numbers: true,

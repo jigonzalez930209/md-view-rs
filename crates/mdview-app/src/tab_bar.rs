@@ -117,7 +117,15 @@ pub fn show_tab_bar(ui: &mut egui::Ui, tabs: &[TabInfo], active: usize, view: Ta
                 if icon_button(ui, view.icons, "plus", &t("New tab"), false) {
                     action = Some(TabAction::New);
                 }
-                if let Some(mode) = mode_control(ui, view.mode, view.can_view, view.can_edit, view.can_split, &t) {
+                if let Some(mode) = mode_control(
+                    ui,
+                    view.mode,
+                    view.can_view,
+                    view.can_edit,
+                    view.can_split,
+                    view.icons,
+                    &t,
+                ) {
                     action = Some(TabAction::Command(mdview_ui::Command::SetMode(mode)));
                 }
             },
@@ -193,29 +201,32 @@ fn mode_control(
     can_view: bool,
     can_edit: bool,
     can_split: bool,
+    icons: &mut mdview_ui::MaterialIcons,
     t: &dyn Fn(&str) -> String,
 ) -> Option<ViewMode> {
     let options = [
-        (ViewMode::View, "View", can_view),
-        (ViewMode::Edit, "Editor", can_edit),
-        (ViewMode::Split, "Split", can_split),
+        (ViewMode::View, "View", "eye", can_view),
+        (ViewMode::Edit, "Editor", "edit", can_edit),
+        (ViewMode::Split, "Split", "split", can_split),
     ];
-    let width = 156.0;
+    let width = 108.0;
     let (rect, _) = ui.allocate_exact_size(egui::vec2(width, 24.0), egui::Sense::hover());
     ui.painter()
         .rect_filled(rect, egui::CornerRadius::same(5), ui.visuals().extreme_bg_color);
     let segment = width / 3.0;
     let mut selected = None;
-    for (index, (candidate, label, enabled)) in options.iter().enumerate() {
+    for (index, (candidate, label, icon, enabled)) in options.iter().enumerate() {
         let segment_rect = egui::Rect::from_min_size(
             egui::pos2(rect.left() + index as f32 * segment + 1.0, rect.top() + 1.0),
             egui::vec2(segment - 2.0, rect.height() - 2.0),
         );
-        let response = ui.interact(
-            segment_rect,
-            ui.make_persistent_id(("mode_segment", index)),
-            egui::Sense::click(),
-        );
+        let response = ui
+            .interact(
+                segment_rect,
+                ui.make_persistent_id(("mode_segment", index)),
+                egui::Sense::click(),
+            )
+            .on_hover_text(t(label));
         let active = *candidate == mode;
         if active {
             ui.painter().rect_filled(
@@ -237,13 +248,15 @@ fn mode_control(
         } else {
             ui.visuals().text_color()
         };
-        ui.painter().text(
-            segment_rect.center(),
-            egui::Align2::CENTER_CENTER,
-            t(label),
-            egui::FontId::proportional(11.5),
-            color,
-        );
+        if let Some(texture) = icons.ui_texture(ui.ctx(), icon) {
+            let icon_rect = egui::Rect::from_center_size(segment_rect.center(), egui::vec2(15.0, 15.0));
+            ui.painter().image(
+                texture.id(),
+                icon_rect,
+                egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                color,
+            );
+        }
         if *enabled && response.clicked() && !active {
             selected = Some(*candidate);
         }

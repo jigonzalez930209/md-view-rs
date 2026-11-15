@@ -280,7 +280,7 @@ the 0.13.0 gap list; the Gaps column now records the 0.14.0 coverage.
 | Split + 120 wheel events | yes | yes | Resolved: segmented control and 300-event end matrix |
 | Rendering (LaTeX, tables, links, local/remote PNG/SVG, animated SVG, Mermaid, code, tasks) | yes | yes | Resolved: reading polish and End-key preview end (SCR-02) |
 | Image documents (SVG, PNG) | yes | yes | Resolved: zoom, pan, lightbox, SVG re-raster |
-| Reading presets and size stepper | yes | yes | — |
+| Reading margin slider and size steppers | yes | yes | — |
 | Lightbox | yes | yes | Covered by `29-lightbox.png`; SVG re-raster asserted |
 | Conflict banner / diff on external change | yes | yes | Covered by `31-conflict.png` and external-write reload stage |
 | Spanish UI / pseudo-locale | yes | yes | Menus, palette, find, About, New File, rename, delete, and unsaved-close prompts captured in `37..53-*.png` |

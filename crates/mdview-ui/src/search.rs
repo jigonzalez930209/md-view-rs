@@ -67,10 +67,10 @@ pub fn show_search(ctx: &Context, view: SearchView<'_>) -> Option<SearchAction> 
     let t = |source: &str| view.translations.t(view.lang, source);
     let mut action = None;
     let screen = ctx.content_rect();
-    let width = 440.0_f32.min(screen.width() - 24.0);
+    let width = 560.0_f32.min(screen.width() - 24.0);
     let position = egui::pos2(
-        (screen.right() - width - 12.0).max(screen.left() + 12.0),
-        screen.top() + 38.0,
+        (screen.center().x - width * 0.5).max(screen.left() + 12.0),
+        screen.top() + 40.0,
     );
     egui::Area::new(Id::unique("mdview_search"))
         .order(egui::Order::Foreground)

@@ -135,13 +135,13 @@ impl MdViewApp {
                     log::debug!("split sync editor->preview end");
                     tab.preview.scroll_to_end();
                 } else {
-                    let line = tab.editor.first_visible_line();
+                    let (line, fraction) = tab.editor.first_visible_line_fraction();
                     log::debug!(
-                        "split sync editor->preview line={line} editor_y={:.1} preview_y={:.1}",
+                        "split sync editor->preview line={line} fraction={fraction:.3} editor_y={:.1} preview_y={:.1}",
                         tab.editor.scroll_offset(),
                         tab.preview.scroll_offset()
                     );
-                    tab.preview.scroll_to_line(line, 0.0);
+                    tab.preview.scroll_to_line(line, fraction);
                 }
                 ctx.request_repaint();
             }

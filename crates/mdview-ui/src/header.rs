@@ -73,8 +73,8 @@ pub fn show_title_bar(ui: &mut Ui, state: TitleBarState<'_>, icons: &mut Materia
                 .max_rect(bar)
                 .layout(Layout::left_to_right(Align::Center)),
             |ui| {
-                ui.spacing_mut().item_spacing = Vec2::new(2.0, 0.0);
-                ui.spacing_mut().button_padding = Vec2::new(7.0, 3.0);
+                ui.spacing_mut().item_spacing = Vec2::new(3.0, 0.0);
+                ui.spacing_mut().button_padding = Vec2::new(9.0, 4.0);
                 ui.style_mut()
                     .text_styles
                     .insert(egui::TextStyle::Button, FontId::proportional(13.0));
@@ -84,12 +84,13 @@ pub fn show_title_bar(ui: &mut Ui, state: TitleBarState<'_>, icons: &mut Materia
                 visuals.widgets.inactive.bg_stroke = egui::Stroke::NONE;
                 visuals.widgets.hovered.bg_stroke = egui::Stroke::NONE;
                 visuals.widgets.active.bg_stroke = egui::Stroke::NONE;
-                ui.add_space(8.0);
+                ui.add_space(10.0);
                 if let Some(texture) = icons.ui_texture(ui.ctx(), "logo") {
                     ui.add(Image::new(&texture).fit_to_exact_size(Vec2::splat(ICON_LARGE)));
                 }
-                ui.add_space(6.0);
-                egui::MenuBar::new().ui(ui, |ui| {
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 3.0;
                     menu_button(ui, &t("File"), |ui| file_menu(ui, &t, &mut command));
                     menu_button(ui, &t("Edit"), |ui| edit_menu(ui, &t, &mut command));
                     menu_button(ui, &t("View"), |ui| view_menu(ui, &t, &state, &mut command));
@@ -183,15 +184,15 @@ pub fn show_title_bar(ui: &mut Ui, state: TitleBarState<'_>, icons: &mut Materia
     {
         command = Some(action);
     }
-    if state.workspace_open && drag.width() > 220.0 {
+    if !state.document_name.is_empty() {
         let marker = if state.dirty { " •" } else { "" };
         let title = format!("{}{marker}", state.document_name);
         ui.painter().text(
             drag.center(),
             Align2::CENTER_CENTER,
             title,
-            FontId::proportional(12.0),
-            ui.visuals().weak_text_color(),
+            FontId::proportional(12.5),
+            ui.visuals().text_color(),
         );
     }
 

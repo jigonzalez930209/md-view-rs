@@ -102,7 +102,7 @@ impl Default for Preview {
             source_map: SourceMap::default(),
             anchors: BTreeMap::new(),
             width: 760.0,
-            margins: mdview_theme::ReadingMargins::Comfortable,
+            margins: mdview_theme::ReadingMargins::default(),
             typography: mdview_theme::ReadingTypography::default(),
             search_query: None,
             end_requested: false,
@@ -323,16 +323,13 @@ impl Preview {
         let mut media = media;
         let search_query = self.search_query.clone();
         let mut heights = std::mem::take(&mut self.heights);
-        let (top_gap, bottom_gap, block_gap, cap) = match self.margins {
-            mdview_theme::ReadingMargins::Comfortable => (8.0, 12.0, 6.0, self.width),
-            mdview_theme::ReadingMargins::Compact => (4.0, 8.0, 4.0, self.width.max(920.0)),
-            mdview_theme::ReadingMargins::Full => (2.0, 4.0, 3.0, f32::INFINITY),
-        };
+        let margin_fraction = self.margins.percent() / 100.0;
+        let (top_gap, bottom_gap, block_gap) = (8.0, 12.0, 6.0);
 
         let anchor_before = self.anchor();
         let old_content_height = self.content_height;
         let old_max_offset = self.max_offset;
-        let was_at_end = old_max_offset > 0.0 && self.scroll >= old_max_offset - 32.0;
+        let was_at_end = old_max_offset > 0.0 && self.scroll >= old_max_offset - 64.0;
         let mut area = egui::ScrollArea::vertical()
             .id_salt("mdview-markdown-preview")
             .animated(false)
@@ -346,16 +343,10 @@ impl Preview {
             ui.set_width(ui.available_width());
             ui.add_space(top_gap);
             let available = ui.available_width();
-            let width = if self.margins == mdview_theme::ReadingMargins::Full && available > 304.0 {
-                available - 24.0
-            } else {
-                cap.min(available)
-            };
-            let margin = ((available - width) * 0.5).max(if self.margins == mdview_theme::ReadingMargins::Full {
-                12.0
-            } else {
-                4.0
-            });
+            let width = (available * (1.0 - 2.0 * margin_fraction))
+                .max(240.0)
+                .min((available - 24.0).max(64.0));
+            let margin = ((available - width) * 0.5).max(4.0);
             ui.horizontal_top(|ui| {
                 ui.add_space(margin);
                 ui.vertical(|ui| {
@@ -459,7 +450,7 @@ impl Preview {
         // If the reader was at the end when an image, diagram, or table finished
         // measuring, stay pinned to the new end instead of stopping short.
         if !programmatic
-            && ((self.scroll >= max_offset - 32.0 && self.scroll < max_offset - 0.5)
+            && ((self.scroll >= max_offset - 64.0 && self.scroll < max_offset - 0.5)
                 || (was_at_end && max_offset > old_max_offset + 0.5))
         {
             self.pending_scroll = Some(max_offset);

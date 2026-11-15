@@ -186,10 +186,18 @@ mod tests {
 
     #[test]
     fn reading_margin_settings_round_trip() {
-        for mode in ReadingMargins::ALL {
-            assert_eq!(ReadingMargins::from_setting(mode.as_setting()), mode);
+        for percent in [
+            ReadingMargins::MIN_PERCENT,
+            12.5,
+            ReadingMargins::DEFAULT_PERCENT,
+            ReadingMargins::MAX_PERCENT,
+        ] {
+            let margins = ReadingMargins::new(percent);
+            assert_eq!(ReadingMargins::from_setting(&margins.as_setting()), margins);
         }
-        assert_eq!(ReadingMargins::from_setting("unknown"), ReadingMargins::Comfortable);
+        assert_eq!(ReadingMargins::from_setting("compact"), ReadingMargins::new(10.0));
+        assert_eq!(ReadingMargins::from_setting("full"), ReadingMargins::new(5.0));
+        assert_eq!(ReadingMargins::from_setting("unknown"), ReadingMargins::default());
     }
 
     #[test]
@@ -199,48 +207,63 @@ mod tests {
             headings: 200.0,
             code: 0.0,
             tables: 80.0,
+            math: 100.0,
         }
         .sanitized();
         assert_eq!(sanitized.body, 10.0);
         assert_eq!(sanitized.headings, 48.0);
         assert_eq!(sanitized.code, 9.0);
         assert_eq!(sanitized.tables, 22.0);
+        assert_eq!(sanitized.math, 36.0);
     }
 }
 
-/// Reading-width presets for Markdown previews.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum ReadingMargins {
-    /// Centered reading measure with comfortable spacing.
-    #[default]
-    Comfortable,
-    /// Wider measure with tighter vertical spacing.
-    Compact,
-    /// Use nearly the full editor width with a small gutter.
-    Full,
+/// Reading margins as a percentage of the preview width on each side.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ReadingMargins {
+    percent: f32,
 }
 
 impl ReadingMargins {
-    /// Parse a stored identifier.
+    /// Smallest selectable margin, used by the wide preset.
+    pub const MIN_PERCENT: f32 = 5.0;
+    /// Largest selectable margin.
+    pub const MAX_PERCENT: f32 = 40.0;
+    /// Default margin, matching the old comfortable preset.
+    pub const DEFAULT_PERCENT: f32 = 15.0;
+
+    /// Clamp a percentage to the supported range.
+    pub fn new(percent: f32) -> Self {
+        Self {
+            percent: percent.clamp(Self::MIN_PERCENT, Self::MAX_PERCENT),
+        }
+    }
+
+    /// The percentage of the pane reserved on each side.
+    pub fn percent(self) -> f32 {
+        self.percent
+    }
+
+    /// Parse a stored percentage. Legacy preset names are migrated.
     pub fn from_setting(value: &str) -> Self {
         match value {
-            "compact" => Self::Compact,
-            "full" => Self::Full,
-            _ => Self::Comfortable,
+            "compact" => Self::new(10.0),
+            "full" => Self::new(5.0),
+            "comfortable" => Self::default(),
+            other => other.parse().map(Self::new).unwrap_or_default(),
         }
     }
 
-    /// The stored identifier.
-    pub fn as_setting(self) -> &'static str {
-        match self {
-            Self::Comfortable => "comfortable",
-            Self::Compact => "compact",
-            Self::Full => "full",
-        }
+    /// The stored percentage.
+    pub fn as_setting(self) -> String {
+        format!("{:.1}", self.percent)
     }
+}
 
-    /// Every mode in display order.
-    pub const ALL: [Self; 3] = [Self::Comfortable, Self::Compact, Self::Full];
+impl Default for ReadingMargins {
+    fn default() -> Self {
+        Self::new(Self::DEFAULT_PERCENT)
+    }
 }
 
 /// Per-area text sizes for the Markdown reading view, in points.
@@ -254,6 +277,8 @@ pub struct ReadingTypography {
     pub code: f32,
     /// Table headers and cells.
     pub tables: f32,
+    /// Equation size. Display math scales up from this value.
+    pub math: f32,
 }
 
 impl Default for ReadingTypography {
@@ -263,6 +288,7 @@ impl Default for ReadingTypography {
             headings: 28.0,
             code: 13.0,
             tables: 13.0,
+            math: 20.0,
         }
     }
 }
@@ -275,6 +301,7 @@ impl ReadingTypography {
             headings: self.headings.clamp(16.0, 48.0),
             code: self.code.clamp(9.0, 22.0),
             tables: self.tables.clamp(9.0, 22.0),
+            math: self.math.clamp(10.0, 36.0),
         }
     }
 }

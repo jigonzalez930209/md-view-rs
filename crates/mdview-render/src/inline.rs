@@ -173,7 +173,7 @@ pub(crate) fn show_inlines(
     theme: &Theme,
     output: &mut PreviewOutput,
     mut media: Option<&mut MediaContext<'_>>,
-    size: f32,
+    typography: mdview_theme::ReadingTypography,
     search: Option<&str>,
 ) {
     let segments = segments(inlines);
@@ -181,7 +181,7 @@ pub(crate) fn show_inlines(
         ui.spacing_mut().item_spacing.x = 0.0;
         for segment in &segments {
             let next = media.as_deref_mut();
-            show_segment(ui, segment, theme, output, next, size, search);
+            show_segment(ui, segment, theme, output, next, typography, search);
         }
     });
 }
@@ -192,11 +192,12 @@ fn show_segment(
     theme: &Theme,
     output: &mut PreviewOutput,
     media: Option<&mut MediaContext<'_>>,
-    size: f32,
+    typography: mdview_theme::ReadingTypography,
     search: Option<&str>,
 ) {
+    let size = typography.body;
     if segment.math {
-        show_math(ui, segment, theme, media, size);
+        show_math(ui, segment, theme, media, typography.math);
         return;
     }
     if segment.image {
@@ -394,12 +395,12 @@ fn animation_label(status: AnimationStatus) -> Option<&'static str> {
     }
 }
 
-fn show_math(ui: &mut Ui, segment: &Segment, theme: &Theme, media: Option<&mut MediaContext<'_>>, body_size: f32) {
+fn show_math(ui: &mut Ui, segment: &Segment, theme: &Theme, media: Option<&mut MediaContext<'_>>, math_size: f32) {
     let Some(media_context) = media else {
         ui.label(RichText::new(&segment.text).italics().color(theme.accent));
         return;
     };
-    let max_width = ui.available_width().clamp(32.0, 720.0);
+    let max_width = ui.available_width().clamp(32.0, 960.0);
     // Render the formula once at a generous resolution. Display scaling then follows the
     // reading typography, so split-width changes do not rasterize the same formula again.
     let request_width = 1024.0;
@@ -409,13 +410,12 @@ fn show_math(ui: &mut Ui, segment: &Segment, theme: &Theme, media: Option<&mut M
         }
         MediaState::Ready(texture) => {
             let points = texture.size_vec2() / ui.ctx().pixels_per_point().max(1.0);
-            // RaTeX lays formulas out at 40 px. Scale inline formulas to the body size and
-            // display formulas to a heading-sized block; fractions and integrals keep their
-            // vertical detail because the aspect ratio is preserved.
+            // RaTeX lays formulas out at 40 px. The Math size setting controls the inline
+            // height; display formulas scale up from it so the layout keeps its aspect ratio.
             let target_height = if segment.display_math {
-                (body_size * 2.6).max(32.0)
+                (math_size * 2.4).max(40.0)
             } else {
-                (body_size * 1.25).max(15.0)
+                math_size.max(12.0)
             };
             let scale = (max_width / points.x).min(target_height / points.y).min(1.0);
             let size = points * scale;

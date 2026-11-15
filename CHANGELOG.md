@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- Replaced the three Reading width presets with a 5–40% margin slider and added an
+  **Equations** size setting for inline and display math.
+- Updated split scrolling to interpolate within multi-line blocks in both directions, so the
+  editor and preview stay on the same source position instead of snapping to block tops.
+- Replaced the View/Editor/Split text segments with eye, pencil, and split icons.
+- Centered list bullets, ordered numbers, and task boxes on the first text line.
+- Moved search to a command-palette-style panel anchored at the top center.
+- Restored the back/forward history buttons and the selected document name in the title bar.
+- Added 2 px more padding around the File/Edit/View/Go/Help menu labels.
+- Made the preview end-stick tolerance account for media that finishes measuring after a
+  scroll.
+
+
 ## 0.14.0 — Pre-1.0 review resolution
 
 - Removed the activity rail and moved the workbench controls into the title bar: back/forward

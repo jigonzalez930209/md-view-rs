@@ -35,11 +35,11 @@ never edits text.
 
 ## Reading layout and typography
 
-Settings → **Reading** has three width presets: **Comfortable** (centered measure with normal
-spacing), **Compact** (wider measure and tighter spacing), and **Full width** (nearly the whole
-editor pane with a 12 px gutter). The same tab sets independent point sizes for body text,
-headings, code, and tables. Inline code and sub/superscripts follow the body size; table cells
-use the table size; fenced code uses the code size.
+Settings → **Reading** has a margin slider from **5%** to **40%** of the pane on each side,
+replacing the old three presets. The same tab sets independent point sizes for body text,
+headings, code, tables, and equations. Inline code and sub/superscripts follow the body size;
+table cells use the table size; fenced code uses the code size; inline and display math use the
+equation size.
 
 ## Modes and scroll
 

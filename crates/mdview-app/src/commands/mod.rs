@@ -298,7 +298,7 @@ impl MdViewApp {
             }
             Command::SetReadingMargins(margins) => {
                 self.prefs
-                    .update(|prefs| prefs.reading.margins = margins.as_setting().to_owned());
+                    .update(|prefs| prefs.reading.margin_percent = margins.percent());
             }
             Command::SetEditorStyle(style) => {
                 let style = style.sanitized();
@@ -312,6 +312,7 @@ impl MdViewApp {
                     prefs.reading.heading_size = typography.headings;
                     prefs.reading.code_size = typography.code;
                     prefs.reading.table_size = typography.tables;
+                    prefs.reading.math_size = typography.math;
                 });
             }
             Command::ToggleShowHidden => {
