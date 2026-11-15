@@ -43,7 +43,7 @@ pub use source_map::{BlockAnchor, PreviewAnchor, SourceMap, validate_map};
 struct Cached {
     key: u64,
     document: MarkdownDocument,
-    footnotes: std::collections::HashMap<String, usize>,
+    footnotes: blocks::Footnotes,
 }
 
 struct BlockScreen {
@@ -426,7 +426,7 @@ impl Preview {
                                 });
                                 top += height + block_gap;
                             }
-                            if let Some(anchor) = blocks::block_anchor(&block.kind) {
+                            for anchor in blocks::block_anchors(block, &cached.footnotes) {
                                 anchor_points.push((anchor, top - height - block_gap));
                             }
                         }

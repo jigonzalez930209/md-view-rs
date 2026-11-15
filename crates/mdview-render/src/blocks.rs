@@ -10,7 +10,7 @@ mod octicon;
 mod quote;
 mod table;
 
-pub(crate) use footnote::{block_anchor, footnote_numbers};
+pub(crate) use footnote::{Footnotes, block_anchors, footnote_numbers};
 
 use mdview_markdown::{Block, BlockKind, ListItem, QuoteKind};
 use mdview_media::MediaKind;
@@ -32,7 +32,7 @@ pub(crate) struct BlockCtx<'a> {
     pub search: Option<&'a str>,
     pub list: ListState,
     /// Footnote numbers by label, in order of first reference.
-    pub footnotes: &'a std::collections::HashMap<String, usize>,
+    pub footnotes: &'a Footnotes,
 }
 
 /// List layout state shared by nested blocks.
@@ -129,7 +129,7 @@ pub(crate) fn show_block(
                 &crate::inline::InlineStyle {
                     typography: ctx.typography,
                     media_sizes: ctx.media_sizes,
-                    footnotes: ctx.footnotes,
+                    footnotes: &ctx.footnotes.numbers,
                 },
                 ctx.search,
             );

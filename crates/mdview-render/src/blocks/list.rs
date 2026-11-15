@@ -81,17 +81,18 @@ fn show_item_blocks(
     // A tight item continues straight into its nested list; a loose item (several
     // paragraphs) keeps the normal paragraph gap.
     let loose = rest.iter().any(|block| !matches!(block.kind, BlockKind::List { .. }));
-    let mut previous_list = matches!(first.kind, BlockKind::List { .. });
     for block in rest {
         let is_list = matches!(block.kind, BlockKind::List { .. });
-        let gap = if loose && !(is_list && !previous_list) {
+        // GitHub: nested lists have no margin (`ul ul { margin: 0 }`).
+        let gap = if is_list {
+            0.0
+        } else if loose {
             block_gap(ctx.typography)
         } else {
             (ctx.typography.body * 0.25).round()
         };
         ui.add_space(gap);
         show_block(ui, block, ctx, media);
-        previous_list = is_list;
     }
     center
 }
@@ -170,19 +171,22 @@ fn alpha(number: u64) -> String {
 fn task_checkbox(ui: &Ui, center_x: f32, center_y: f32, checked: bool, theme: &mdview_theme::Theme, body: f32) {
     let side = (body * 0.93).clamp(12.0, 18.0).round();
     let box_rect = egui::Rect::from_center_size(egui::pos2(center_x, center_y), egui::vec2(side, side));
+    // GitHub renders task boxes in Markdown files as disabled inputs: a light outline,
+    // and a muted gray fill with a light check mark when done.
     let painter = ui.painter();
-    let radius = egui::CornerRadius::same(3);
+    let radius = egui::CornerRadius::same(2);
     if checked {
-        painter.rect_filled(box_rect, radius, theme.accent);
-        let check = egui::Stroke::new(1.6, theme.accent_text);
+        painter.rect_filled(box_rect, radius, theme.text_muted.gamma_multiply(0.55));
+        let check = egui::Stroke::new(1.6, theme.background);
         let point = |x: f32, y: f32| box_rect.min + egui::vec2(side * x, side * y);
         painter.line_segment([point(0.24, 0.52), point(0.43, 0.70)], check);
         painter.line_segment([point(0.43, 0.70), point(0.77, 0.32)], check);
     } else {
+        painter.rect_filled(box_rect, radius, theme.background);
         painter.rect_stroke(
             box_rect,
             radius,
-            egui::Stroke::new(1.0, theme.text_muted),
+            egui::Stroke::new(1.0, theme.text_muted.gamma_multiply(0.45)),
             egui::StrokeKind::Inside,
         );
     }

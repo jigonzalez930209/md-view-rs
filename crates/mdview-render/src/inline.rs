@@ -7,6 +7,7 @@ use mdview_theme::Theme;
 
 use crate::{AnimationStatus, LinkActivation, MediaContext, MediaLightbox, MediaState, PreviewOutput};
 
+mod back_link;
 mod code;
 mod math;
 
@@ -272,6 +273,14 @@ fn show_segment(
             output.anchor = Some(format!("fn-{footnote}"));
         }
         return Some(response.rect);
+    }
+    if let Some(label) = segment
+        .link
+        .as_ref()
+        .and_then(|target| back_link::target(&target.destination))
+    {
+        let row = line_height(typography);
+        return Some(back_link::show(ui, label, size, row, theme.link, output));
     }
     let runs = search
         .map(|query| crate::highlight::highlight_runs(&segment.text, query))

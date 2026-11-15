@@ -18,7 +18,10 @@
   GitHub's 85% code and body-size tables. The layout is compared against GitHub's own
   render (see `docs/github-parity.md`).
 - Formulas scale by font size instead of being squeezed into a fixed box, so fractions,
-  integrals, and matrices render at a readable size. Inline math uses TeX text style.
+  integrals, and matrices keep their full size. The scale is calibrated to GitHub's MathJax
+  output. Inline math uses TeX text style.
+- Task boxes look like GitHub's disabled Markdown checkboxes, footnotes end with a `↩`
+  back link that scrolls to the reference, and nested lists have no extra top margin.
 - Replaced the three Reading width presets with a 5–40% margin slider and added an
   **Equations** size setting for inline and display math.
 - Updated split scrolling to interpolate within multi-line blocks in both directions, so the

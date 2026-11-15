@@ -74,14 +74,60 @@ impl ReadingFace {
 
 /// Register the reading faces. Safe before the first frame; egui skips fonts it
 /// already has, so repeated calls are cheap.
+///
+/// Each face falls back to egui's default proportional chain (UI font, emoji, and
+/// icon fonts), so characters Noto Sans lacks never leave a family without a glyph.
 pub fn add_reading_fonts(ctx: &egui::Context) {
-    for face in [
-        ReadingFace::Regular,
-        ReadingFace::SemiBold,
-        ReadingFace::Bold,
-        ReadingFace::Italic,
-        ReadingFace::BoldItalic,
-    ] {
+    let defaults = egui::FontDefinitions::default();
+    let mut chain = defaults
+        .families
+        .get(&FontFamily::Proportional)
+        .cloned()
+        .unwrap_or_default();
+    // Emoji and symbol fonts egui bundles but may not chain for proportional text
+    // (for example `↩`, which GitHub uses for footnote back links).
+    let monospace = defaults
+        .families
+        .get(&FontFamily::Monospace)
+        .cloned()
+        .unwrap_or_default();
+    let mut extra: Vec<String> = defaults
+        .font_data
+        .keys()
+        .filter(|name| !chain.contains(name) && !monospace.first().is_some_and(|first| first == *name))
+        .cloned()
+        .collect();
+    extra.sort();
+    chain.extend(extra);
+    for name in chain {
+        let Some(data) = defaults.font_data.get(&name) else {
+            continue;
+        };
+        ctx.add_font(FontInsert {
+            name: format!("mdview-reading-fallback-{name}"),
+            data: (**data).clone(),
+            families: FACES
+                .iter()
+                .map(|face| InsertFontFamily {
+                    family: face.family(),
+                    priority: FontPriority::Lowest,
+                })
+                .collect(),
+        });
+    }
+    add_faces(ctx);
+}
+
+const FACES: [ReadingFace; 5] = [
+    ReadingFace::Regular,
+    ReadingFace::SemiBold,
+    ReadingFace::Bold,
+    ReadingFace::Italic,
+    ReadingFace::BoldItalic,
+];
+
+fn add_faces(ctx: &egui::Context) {
+    for face in FACES {
         ctx.add_font(FontInsert {
             name: face.name().to_owned(),
             data: FontData::from_static(face.data()),

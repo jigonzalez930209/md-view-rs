@@ -87,10 +87,13 @@ pub(crate) fn media_reserved_height(kind: MediaKind, width: f32, typography: Rea
     }
 }
 
-/// Font size of a display formula in points. The Math setting is the nominal
-/// equation size; display math uses most of it, like GitHub's MathJax output.
+/// Font size of a display formula in points.
+///
+/// The factors are measured against GitHub's MathJax output at a 14 px body: at the
+/// default Math size (20) display formulas render 98 px wide for
+/// `\int_0^1 x^2 dx = \frac{1}{3}` and inline `E = mc^2` 71 px, as on GitHub.
 pub(crate) fn math_em(typography: ReadingTypography) -> f32 {
-    typography.math * 0.9
+    typography.math * 0.66
 }
 
 /// Scale from display formula raster pixels to points.
@@ -101,7 +104,7 @@ pub(crate) fn math_scale(typography: ReadingTypography) -> f32 {
 /// Scale from inline formula raster pixels to points. Inline math is a little
 /// smaller than display math so its x-height sits close to the body text.
 pub(crate) fn inline_math_scale(typography: ReadingTypography) -> f32 {
-    typography.math * 0.78 / mdview_media::MATH_UNITS_PER_EM
+    typography.math * 0.63 / mdview_media::MATH_UNITS_PER_EM
 }
 
 /// Media source used for an inline formula. Inline math uses TeX text style, so
