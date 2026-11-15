@@ -7,6 +7,29 @@ use ratex_types::color::Color;
 
 use crate::{MediaError, MediaKind, MediaRequest, Raster, rasterize_svg};
 
+/// Raster pixels per em. Formulas are rasterized at one pixel per SVG unit, so a
+/// consumer scales the texture by `font_size / MATH_UNITS_PER_EM` to match text.
+pub const MATH_UNITS_PER_EM: f32 = 40.0;
+
+/// Raster padding around a formula, in pixels at one pixel per SVG unit.
+const MATH_PADDING: f32 = 6.0;
+
+/// Baseline of a formula as a fraction of its raster height, measured from the top.
+///
+/// Inline formulas use it to sit on the text baseline instead of being centered on
+/// the line, the way MathJax aligns inline math on GitHub.
+pub fn math_baseline(tex: &str) -> Option<f32> {
+    let tex = tex.trim();
+    if tex.is_empty() {
+        return None;
+    }
+    let nodes = Parser::new(tex).parse().ok()?;
+    let display = to_display_list(&layout(&nodes, &LayoutOptions::default()));
+    let height = display.height as f32 * MATH_UNITS_PER_EM;
+    let total = (display.height + display.depth) as f32 * MATH_UNITS_PER_EM + MATH_PADDING * 2.0;
+    (total > 0.0).then(|| ((height + MATH_PADDING) / total).clamp(0.0, 1.0))
+}
+
 /// Render a TeX expression to an RGBA raster.
 pub fn render_math(tex: &str, dark: bool, max_width: u32) -> Result<Raster, MediaError> {
     let tex = tex.trim();
@@ -22,8 +45,8 @@ pub fn render_math(tex: &str, dark: bool, max_width: u32) -> Result<Raster, Medi
     let root = layout(&nodes, &options);
     let display = to_display_list(&root);
     let svg_options = SvgOptions {
-        font_size: 40.0,
-        padding: 6.0,
+        font_size: f64::from(MATH_UNITS_PER_EM),
+        padding: f64::from(MATH_PADDING),
         embed_glyphs: true,
         ..SvgOptions::default()
     };
@@ -77,6 +100,16 @@ mod tests {
             assert!(raster.is_consistent());
         }
         assert_eq!(formulas.len(), 100);
+    }
+
+    #[test]
+    fn baseline_sits_above_descenders() {
+        let plain = math_baseline("x").expect("baseline");
+        let fraction = math_baseline("\\frac{1}{2}").expect("baseline");
+        let raster = render_math("x", false, 400).expect("render");
+        assert!(plain > 0.5 && plain < 1.0, "{plain}");
+        assert!(fraction > 0.3 && fraction < 0.8, "{fraction}");
+        assert!(raster.height > 0);
     }
 
     #[test]

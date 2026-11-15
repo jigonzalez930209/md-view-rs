@@ -7,10 +7,14 @@ use mdview_theme::Theme;
 
 use crate::{AnimationStatus, LinkActivation, MediaContext, MediaLightbox, MediaState, PreviewOutput};
 
+mod code;
+mod math;
+
 /// Inline typography plus intrinsic media sizes.
 pub(crate) struct InlineStyle<'a> {
     pub typography: mdview_theme::ReadingTypography,
     pub media_sizes: &'a std::collections::HashMap<String, (f32, f32)>,
+    pub footnotes: &'a std::collections::HashMap<String, usize>,
 }
 
 /// One styled run of inline text.
@@ -173,6 +177,9 @@ fn apply_html(raw: &str, html: &mut HtmlState, style: &Segment, out: &mut Vec<Se
 }
 
 /// Paint one inline sequence in the current layout.
+///
+/// Returns the vertical center of the first painted text row in screen
+/// coordinates. List markers use it to sit on the same line as the text.
 pub(crate) fn show_inlines(
     ui: &mut Ui,
     inlines: &[Inline],
@@ -181,15 +188,43 @@ pub(crate) fn show_inlines(
     mut media: Option<&mut MediaContext<'_>>,
     style: &InlineStyle<'_>,
     search: Option<&str>,
-) {
+) -> Option<f32> {
     let segments = segments(inlines);
-    ui.horizontal_wrapped(|ui| {
-        ui.spacing_mut().item_spacing.x = 0.0;
-        for segment in &segments {
-            let next = media.as_deref_mut();
-            show_segment(ui, segment, theme, output, next, style, search);
-        }
-    });
+    // GitHub's Markdown body uses a 1.5 line height. epaint centers glyphs inside the
+    // line box, so the row center is also the visual center of the text.
+    let body_row = line_height(style.typography);
+    ui.scope(|ui| {
+        ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
+        // The wrapped layout reads its first row height from the parent spacing.
+        ui.spacing_mut().interact_size.y = body_row;
+        ui.horizontal_wrapped(|ui| {
+            let mut first = None;
+            for segment in &segments {
+                let next = media.as_deref_mut();
+                let rect = show_segment(ui, segment, theme, output, next, style, search);
+                if first.is_none()
+                    && let Some(rect) = rect
+                {
+                    // Items in a wrapped row are centered on the row. A label that
+                    // wraps starts with a full body row at its top.
+                    let center = if rect.height() > body_row * 1.5 && !segment.math && !segment.image {
+                        rect.top() + body_row * 0.5
+                    } else {
+                        rect.center().y
+                    };
+                    first = Some(center);
+                }
+            }
+            first
+        })
+        .inner
+    })
+    .inner
+}
+
+/// Body line height for the reading typography.
+pub(crate) fn line_height(typography: mdview_theme::ReadingTypography) -> f32 {
+    (typography.body * 1.5).round()
 }
 
 fn show_segment(
@@ -200,34 +235,53 @@ fn show_segment(
     media: Option<&mut MediaContext<'_>>,
     style: &InlineStyle<'_>,
     search: Option<&str>,
-) {
+) -> Option<egui::Rect> {
     let typography = style.typography;
     let media_sizes = style.media_sizes;
     let size = typography.body;
     if segment.math {
-        show_math(ui, segment, theme, media, typography, media_sizes);
-        return;
+        return Some(math::show_math(ui, segment, theme, media, typography, media_sizes));
     }
     if segment.image {
+        let before = ui.cursor().min;
         show_image(ui, segment, theme, output, media, typography, media_sizes);
-        return;
+        return Some(egui::Rect::from_min_max(before, ui.min_rect().max));
     }
     if let Some(footnote) = &segment.footnote {
-        let text = RichText::new(&segment.text)
-            .color(theme.link)
-            .size((size - 3.0).max(9.0))
-            .strong();
-        let response = ui.add(Label::new(text).sense(Sense::click())).on_hover_text("Footnote");
+        // GitHub renders a footnote reference as a raised, bracketed number.
+        let number = style
+            .footnotes
+            .get(footnote)
+            .map_or_else(|| footnote.clone(), usize::to_string);
+        let galley = ui.painter().layout_no_wrap(
+            format!("[{number}]"),
+            mdview_theme::ReadingFace::Regular.font((size * 0.75).round().max(9.0)),
+            theme.link,
+        );
+        let row = line_height(typography);
+        let (rect, response) = ui.allocate_exact_size(egui::vec2(galley.size().x + 2.0, row), Sense::click());
+        ui.painter().galley(
+            egui::pos2(rect.left() + 1.0, rect.top() + row * 0.08),
+            galley,
+            theme.link,
+        );
+        let response = response
+            .on_hover_text("Footnote")
+            .on_hover_cursor(egui::CursorIcon::PointingHand);
         if response.clicked() {
             output.anchor = Some(format!("fn-{footnote}"));
         }
-        return;
+        return Some(response.rect);
     }
     let runs = search
         .map(|query| crate::highlight::highlight_runs(&segment.text, query))
         .unwrap_or_else(|| vec![(segment.text.clone(), false)]);
+    let mut first = None;
     for (run, matched) in runs {
-        let mut text = styled_text(&run, segment, theme, size);
+        let code = segment.monospace || segment.keyboard;
+        // Every run shares the body line box, so wrapped rows keep GitHub's 1.5 rhythm.
+        let mut text =
+            styled_text(&run, segment, theme, size, typography.code).line_height(Some(line_height(typography)));
         if matched {
             text = text.background_color(theme.selection);
         }
@@ -246,29 +300,31 @@ fn show_segment(
                     kind: target.kind,
                 });
             }
+            first.get_or_insert(response.rect);
+        } else if code {
+            let rect = code::show_code_chip(ui, text, &run, theme, size, typography);
+            first.get_or_insert(rect);
         } else {
-            ui.add(Label::new(text));
+            let rect = ui.add(Label::new(text)).rect;
+            first.get_or_insert(rect);
         }
     }
+    first
 }
 
-fn styled_text(text: &str, segment: &Segment, theme: &Theme, size: f32) -> RichText {
+fn styled_text(text: &str, segment: &Segment, theme: &Theme, size: f32, code: f32) -> RichText {
+    // Bold and italic use the real Noto Sans faces, as GitHub does on Linux.
+    let face = mdview_theme::ReadingFace::from_style(segment.strong, segment.emphasis);
     let mut text = RichText::new(text).size(size).color(theme.text);
-    if segment.strong {
-        text = text.strong();
-    }
-    if segment.emphasis {
-        text = text.italics();
+    if !(segment.monospace || segment.keyboard) {
+        text = text.family(face.family());
     }
     if segment.strike {
         text = text.strikethrough();
     }
     if segment.monospace || segment.keyboard {
-        text = text
-            .monospace()
-            .size((size - 2.0).max(9.0))
-            .background_color(theme.table_header)
-            .color(theme.text);
+        // GitHub sets inline code at 85% of the body on a muted chip.
+        text = text.monospace().size(code::code_size(size, code)).color(theme.text);
     }
     if segment.mark {
         text = text.background_color(theme.selection);
@@ -277,7 +333,8 @@ fn styled_text(text: &str, segment: &Segment, theme: &Theme, size: f32) -> RichT
         text = text.size((size - 2.0).max(9.0));
     }
     if segment.link.is_some() {
-        text = text.color(theme.link).underline();
+        // Links are colored, not underlined, as in GitHub's Markdown body.
+        text = text.color(theme.link);
     }
     text
 }
@@ -393,79 +450,6 @@ fn animation_label(status: AnimationStatus) -> Option<&'static str> {
         AnimationStatus::Playing => Some("Animated"),
         AnimationStatus::Paused => Some("Animation paused"),
         AnimationStatus::Unsupported => Some("Animation not fully supported"),
-    }
-}
-
-fn show_math(
-    ui: &mut Ui,
-    segment: &Segment,
-    theme: &Theme,
-    media: Option<&mut MediaContext<'_>>,
-    typography: mdview_theme::ReadingTypography,
-    media_sizes: &std::collections::HashMap<String, (f32, f32)>,
-) {
-    let math_size = typography.math;
-    let Some(media_context) = media else {
-        ui.label(RichText::new(&segment.text).italics().color(theme.accent));
-        return;
-    };
-    let max_width = ui.available_width().clamp(32.0, 960.0);
-    // Render the formula once at a generous resolution. Display scaling then follows the
-    // reading typography, so split-width changes do not rasterize the same formula again.
-    let request_width = 1024.0;
-    match media_context.load(ui.ctx(), MediaKind::Math, &segment.text, request_width, theme.is_dark()) {
-        MediaState::Loading => {
-            if segment.display_math {
-                let height = crate::layout::reserved_media_height(
-                    MediaKind::Math,
-                    &segment.text,
-                    max_width,
-                    typography,
-                    media_sizes,
-                );
-                ui.allocate_ui_with_layout(
-                    egui::vec2(max_width, height),
-                    egui::Layout::top_down(egui::Align::Center),
-                    |ui| {
-                        ui.add_space((height - 18.0).max(0.0) / 2.0);
-                        ui.spinner();
-                    },
-                );
-            } else {
-                ui.spinner();
-            }
-        }
-        MediaState::Ready(texture) => {
-            let points = texture.size_vec2() / ui.ctx().pixels_per_point().max(1.0);
-            // RaTeX lays formulas out at 40 px. The Math size setting controls the inline
-            // height; display formulas scale up from it so the layout keeps its aspect ratio.
-            let target_height = if segment.display_math {
-                (math_size * 2.4).max(40.0)
-            } else {
-                math_size.max(12.0)
-            };
-            let scale = (max_width / points.x).min(target_height / points.y).min(1.0);
-            let size = points * scale;
-            if segment.display_math {
-                let free = (ui.available_width() - size.x).max(0.0);
-                ui.add_space(free / 2.0);
-            }
-            let (rect, _) = ui.allocate_exact_size(egui::vec2(size.x.max(1.0), target_height), egui::Sense::hover());
-            ui.painter().image(
-                texture.id(),
-                egui::Rect::from_center_size(rect.center(), size),
-                egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-                egui::Color32::WHITE,
-            );
-        }
-        MediaState::Error(error) => {
-            ui.label(
-                RichText::new(format!("{}\n{error}", segment.text))
-                    .italics()
-                    .small()
-                    .color(theme.danger),
-            );
-        }
     }
 }
 

@@ -20,7 +20,7 @@ use thiserror::Error;
 
 pub use cache::{CacheStats, MediaCache};
 pub use image::load_bytes;
-pub use math::render_math;
+pub use math::{MATH_UNITS_PER_EM, math_baseline, render_math};
 pub use mermaid::render_mermaid;
 pub use svg::rasterize_svg;
 pub use svg_anim::{Animation, frame_svg, parse as parse_animation};

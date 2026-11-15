@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Reworked the preview layout to follow GitHub's Markdown body: 1em block spacing, 1.5 line
+  height, GitHub heading ratios with a rule under h1/h2, quotes with a left bar and muted
+  text, colored GFM alerts with icons, borderless code blocks with a hover Copy button,
+  content-width tables with full cell borders and zebra rows, thick horizontal rules,
+  links without underlines, and raised footnote references.
+- List markers now sit on the measured center of the first text row: bullets change shape by
+  depth (disc, circle, square), ordered markers use decimal, lower-roman, and lower-alpha, and
+  numbers share the text baseline.
+- Bundled Noto Sans v2.015 (GitHub's Linux font, SIL OFL 1.1) for preview text, so bold,
+  italic, and semibold headings and table headers use real weights. Inline code is a padded,
+  rounded chip at 85% of the body, and inline formulas sit on the text baseline.
+- GFM alerts draw GitHub's Octicons. Footnotes are numbered in reference order with a top
+  border, as on GitHub. Default code size is now 12 pt and table size 14 pt, matching
+  GitHub's 85% code and body-size tables. The layout is compared against GitHub's own
+  render (see `docs/github-parity.md`).
+- Formulas scale by font size instead of being squeezed into a fixed box, so fractions,
+  integrals, and matrices render at a readable size. Inline math uses TeX text style.
 - Replaced the three Reading width presets with a 5–40% margin slider and added an
   **Equations** size setting for inline and display math.
 - Updated split scrolling to interpolate within multi-line blocks in both directions, so the

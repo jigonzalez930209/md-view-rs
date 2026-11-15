@@ -12,8 +12,14 @@ use crate::{MediaContext, MediaState, Preview};
 
 impl Preview {
     /// Resolve every media request in the document once. Returns `false` while any
-    /// request is still loading, so the caller can avoid painting an unstable layout.
+    /// request is still loading, or the reading fonts are not active yet, so the caller
+    /// can avoid painting an unstable layout.
     pub(crate) fn warm_up_media(&mut self, ui: &egui::Ui, media: Option<&mut MediaContext<'_>>, dark: bool) -> bool {
+        // Reading fonts registered during this pass are active from the next one.
+        if !mdview_theme::install_reading_fonts(ui.ctx()) {
+            ui.ctx().request_repaint();
+            return false;
+        }
         if !self.media_warmup {
             return true;
         }
@@ -98,7 +104,9 @@ fn collect_inlines(inlines: &[Inline], out: &mut Vec<(MediaKind, String)>) {
     for inline in inlines {
         match inline {
             Inline::Image { source, .. } => out.push((MediaKind::Image, source.clone())),
-            Inline::Math { tex, .. } => out.push((MediaKind::Math, tex.clone())),
+            Inline::Math { tex, display } => {
+                out.push((MediaKind::Math, crate::layout::math_source(tex, *display).into_owned()))
+            }
             Inline::Emphasis(children) | Inline::Strong(children) | Inline::Strikethrough(children) => {
                 collect_inlines(children, out)
             }

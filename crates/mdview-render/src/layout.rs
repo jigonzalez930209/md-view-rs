@@ -18,7 +18,11 @@ pub(crate) fn estimate_height(
     let body = typography.body.max(10.0);
     let line_height = body * 1.5;
     match kind {
-        BlockKind::Heading { level, .. } => crate::blocks::heading_size(*level, typography.headings) * 1.45 + 10.0,
+        BlockKind::Heading { level, .. } => {
+            let size = crate::blocks::heading_size(*level, typography.headings);
+            let rule = if *level <= 2 { size * 0.3 + 1.0 } else { 0.0 };
+            body * 0.5 + size * 1.25 + rule
+        }
         BlockKind::Paragraph(inlines) => {
             let text = mdview_markdown::plain_text(inlines);
             let chars_per_line = (width / (body * 0.52)).max(8.0);
@@ -60,7 +64,7 @@ pub(crate) fn estimate_height(
                 .sum::<f32>()
         }
         BlockKind::Table { rows, .. } => 40.0 + rows.len() as f32 * (typography.tables.max(9.0) * 2.6).max(30.0),
-        BlockKind::Rule => 14.0,
+        BlockKind::Rule => body * 1.25,
         BlockKind::FootnoteDefinition { blocks, .. } => {
             34.0 + blocks
                 .iter()
@@ -79,7 +83,35 @@ pub(crate) fn media_reserved_height(kind: MediaKind, width: f32, typography: Rea
     match kind {
         MediaKind::Image | MediaKind::Svg => (width * 0.46).clamp(96.0, 320.0),
         MediaKind::Mermaid => (width * 0.85).clamp(220.0, 560.0),
-        MediaKind::Math => (typography.math * 2.4).max(40.0),
+        MediaKind::Math => math_em(typography) * 2.6,
+    }
+}
+
+/// Font size of a display formula in points. The Math setting is the nominal
+/// equation size; display math uses most of it, like GitHub's MathJax output.
+pub(crate) fn math_em(typography: ReadingTypography) -> f32 {
+    typography.math * 0.9
+}
+
+/// Scale from display formula raster pixels to points.
+pub(crate) fn math_scale(typography: ReadingTypography) -> f32 {
+    math_em(typography) / mdview_media::MATH_UNITS_PER_EM
+}
+
+/// Scale from inline formula raster pixels to points. Inline math is a little
+/// smaller than display math so its x-height sits close to the body text.
+pub(crate) fn inline_math_scale(typography: ReadingTypography) -> f32 {
+    typography.math * 0.78 / mdview_media::MATH_UNITS_PER_EM
+}
+
+/// Media source used for an inline formula. Inline math uses TeX text style, so
+/// fractions and limits stay compact on the line, while display math keeps the
+/// display style.
+pub(crate) fn math_source(tex: &str, display: bool) -> std::borrow::Cow<'_, str> {
+    if display {
+        std::borrow::Cow::Borrowed(tex)
+    } else {
+        std::borrow::Cow::Owned(format!("\\textstyle {tex}"))
     }
 }
 
@@ -110,7 +142,10 @@ pub(crate) fn display_media_height(
     let natural_width = natural_width.max(1.0);
     let natural_height = natural_height.max(1.0);
     match kind {
-        MediaKind::Math => (typography.math * 2.4).max(40.0),
+        MediaKind::Math => {
+            let scale = math_scale(typography).min(width / natural_width);
+            natural_height * scale + math_em(typography) * 0.5
+        }
         MediaKind::Mermaid | MediaKind::Image | MediaKind::Svg => (width / natural_width).min(1.0) * natural_height,
     }
 }
@@ -134,7 +169,14 @@ fn inline_media_height(
                 ));
             }
             Inline::Math { tex, display } if *display => {
-                height = height.max(reserved_media_height(MediaKind::Math, tex, width, typography, sizes));
+                let source = math_source(tex, true);
+                height = height.max(reserved_media_height(
+                    MediaKind::Math,
+                    &source,
+                    width,
+                    typography,
+                    sizes,
+                ));
             }
             Inline::Emphasis(children)
             | Inline::Strong(children)

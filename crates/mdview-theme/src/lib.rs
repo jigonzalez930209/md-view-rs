@@ -8,12 +8,14 @@
 
 mod apply;
 mod contrast;
+mod fonts;
 mod palette;
 
 use egui::{Color32, CornerRadius, Stroke};
 
 pub use apply::{apply, apply_id, apply_theme, effective_id, set_reduced_motion};
 pub use contrast::{contrast_ratio, relative_luminance};
+pub use fonts::{ReadingFace, add_reading_fonts, install_reading_fonts};
 pub use palette::ThemeId;
 
 /// The active color mode.
@@ -286,8 +288,9 @@ impl Default for ReadingTypography {
         Self {
             body: 14.0,
             headings: 28.0,
-            code: 13.0,
-            tables: 13.0,
+            // GitHub: code at 85% of the body, tables at the body size.
+            code: 12.0,
+            tables: 14.0,
             math: 20.0,
         }
     }

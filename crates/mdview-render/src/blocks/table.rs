@@ -15,86 +15,94 @@ pub(super) fn show_table(
 ) {
     let _ = media;
     let available = ui.available_width().max(120.0);
-    let columns = alignments.len().max(1);
-    let spacing = 12.0;
-    let usable = (available - 12.0 - spacing * (columns.saturating_sub(1)) as f32).max(60.0);
-    let mut weights = Vec::with_capacity(columns);
-    for column in 0..columns {
-        let mut chars = head.get(column).map(|cell| text_of(cell).chars().count()).unwrap_or(1);
-        for row in rows {
-            if let Some(cell) = row.get(column) {
-                chars = chars.max(text_of(cell).chars().count().min(48));
-            }
-        }
-        weights.push((chars as f32).clamp(6.0, 42.0));
-    }
-    let total: f32 = weights.iter().sum::<f32>().max(1.0);
-    let widths: Vec<f32> = weights
-        .iter()
-        .map(|weight| (usable * weight / total).max(58.0))
-        .collect();
+    let columns = alignments
+        .len()
+        .max(head.len())
+        .max(rows.iter().map(Vec::len).max().unwrap_or(0))
+        .max(1);
+    let size = ctx.typography.tables;
+    // GitHub: `padding: 6px 13px` (fixed pixels, 14 px text here), 1.5 line height, 1 px borders.
+    let pad_x = (size * 0.93).round();
+    let pad_y = (size * 0.43).round();
+    let line = (size * 1.5).round();
 
     let mut all_rows = Vec::with_capacity(rows.len() + 1);
     all_rows.push(head.to_vec());
     all_rows.extend(rows.iter().cloned());
-    let galleys: Vec<Vec<LaidCell>> = all_rows
-        .iter()
-        .enumerate()
-        .map(|(row, cells)| {
-            cells
-                .iter()
-                .enumerate()
-                .map(|(column, cell)| {
-                    let width = widths.get(column).copied().unwrap_or(64.0) - 12.0;
-                    layout_table_cell(
-                        ui,
-                        cell,
-                        width.max(24.0),
-                        ctx.theme,
-                        row == 0,
-                        ctx.typography.tables,
-                        ctx.search,
-                    )
-                })
-                .collect()
-        })
-        .collect();
+    let layout_rows = |wrap: &dyn Fn(usize) -> f32| -> Vec<Vec<LaidCell>> {
+        all_rows
+            .iter()
+            .enumerate()
+            .map(|(row, cells)| {
+                cells
+                    .iter()
+                    .enumerate()
+                    .map(|(column, cell)| {
+                        layout_table_cell(ui, cell, wrap(column), ctx.theme, (size, line, row == 0), ctx.search)
+                    })
+                    .collect()
+            })
+            .collect()
+    };
+
+    // Tables are as wide as their content (`width: max-content`) up to the column.
+    let natural = layout_rows(&|_| f32::INFINITY);
+    let mut widths = vec![pad_x * 2.0 + 8.0; columns];
+    for row in &natural {
+        for (column, cell) in row.iter().enumerate() {
+            widths[column] = widths[column].max(cell.galley.rect.width().ceil() + pad_x * 2.0);
+        }
+    }
+    let total: f32 = widths.iter().sum();
+    let galleys = if total > available {
+        let minimum = pad_x * 2.0 + size * 3.0;
+        let flexible: f32 = widths
+            .iter()
+            .map(|width| (width - minimum).max(0.0))
+            .sum::<f32>()
+            .max(1.0);
+        let excess = total - available;
+        for width in &mut widths {
+            let share = (*width - minimum).max(0.0) / flexible;
+            *width = (*width - excess * share).max(minimum);
+        }
+        let wrap = widths.clone();
+        layout_rows(&move |column| (wrap.get(column).copied().unwrap_or(64.0) - pad_x * 2.0).max(16.0))
+    } else {
+        natural
+    };
     let heights: Vec<f32> = galleys
         .iter()
-        .map(|row| row.iter().map(|cell| cell.galley.rect.height()).fold(16.0, f32::max) + 8.0)
+        .map(|row| row.iter().map(|cell| cell.galley.rect.height()).fold(line, f32::max) + pad_y * 2.0)
         .collect();
+    let total_width: f32 = widths.iter().sum::<f32>().min(available);
     let total_height: f32 = heights.iter().sum();
-    let (rect, _) = ui.allocate_exact_size(egui::vec2(available, total_height), egui::Sense::hover());
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(total_width, total_height), egui::Sense::hover());
     let painter = ui.painter().clone();
-    painter.rect_filled(rect, 0.0, ctx.theme.background);
+    let border = egui::Stroke::new(1.0, ctx.theme.border);
     let mut y = rect.top();
     for (row, row_galleys) in galleys.iter().enumerate() {
         let row_rect = egui::Rect::from_min_size(egui::pos2(rect.left(), y), egui::vec2(rect.width(), heights[row]));
-        if row == 0 {
-            painter.rect_filled(row_rect, 0.0, ctx.theme.table_header);
-        } else if row % 2 == 0 {
+        // Even body rows get the subtle surface, as in GitHub's `tr:nth-child(2n)`.
+        if row > 0 && row % 2 == 0 {
             painter.rect_filled(row_rect, 0.0, ctx.theme.table_zebra);
         }
         if row > 0 {
-            painter.line_segment(
-                [
-                    egui::pos2(row_rect.left(), row_rect.top()),
-                    egui::pos2(row_rect.right(), row_rect.top()),
-                ],
-                egui::Stroke::new(1.0, ctx.theme.border),
-            );
+            painter.hline(row_rect.x_range(), row_rect.top(), border);
         }
-        let mut x = row_rect.left() + 6.0;
+        let mut x = row_rect.left();
         for (column, cell) in row_galleys.iter().enumerate() {
             let width = widths.get(column).copied().unwrap_or(64.0);
+            let inner = width - pad_x * 2.0;
+            let left = x + pad_x;
             let origin = egui::pos2(
                 match alignments.get(column).copied().unwrap_or_default() {
-                    Alignment::Right => x + width - 12.0 - cell.galley.rect.width(),
-                    Alignment::Center => x + (width - 12.0 - cell.galley.rect.width()) / 2.0,
-                    Alignment::Left | Alignment::None => x,
+                    Alignment::Right => left + inner - cell.galley.rect.width(),
+                    Alignment::Center => left + (inner - cell.galley.rect.width()) / 2.0,
+                    Alignment::Left | Alignment::None => left,
                 }
-                .max(x),
-                row_rect.top() + 4.0,
+                .max(left),
+                row_rect.top() + pad_y,
             );
             painter.galley(origin, cell.galley.clone(), ctx.theme.text);
             let cell_rect = egui::Rect::from_min_size(egui::pos2(x, row_rect.top()), egui::vec2(width, heights[row]));
@@ -124,16 +132,16 @@ pub(super) fn show_table(
                     });
                 }
             }
-            x += width + spacing;
+            x += width;
         }
         y += heights[row];
     }
-    painter.rect_stroke(
-        rect,
-        0.0,
-        egui::Stroke::new(1.0, ctx.theme.border),
-        egui::StrokeKind::Inside,
-    );
+    let mut x = rect.left();
+    for width in widths.iter().take(columns.saturating_sub(1)) {
+        x += width;
+        painter.vline(x, rect.y_range(), border);
+    }
+    painter.rect_stroke(rect, 0.0, border, egui::StrokeKind::Inside);
 }
 
 struct CellLink {
@@ -153,8 +161,7 @@ fn layout_table_cell(
     inlines: &[Inline],
     width: f32,
     theme: &mdview_theme::Theme,
-    header: bool,
-    size: f32,
+    (size, line, header): (f32, f32, bool),
     search: Option<&str>,
 ) -> LaidCell {
     let mut job = egui::text::LayoutJob::default();
@@ -166,10 +173,14 @@ fn layout_table_cell(
         chars += segment.text.chars().count();
         let font = if segment.monospace {
             egui::FontId::monospace((size - 1.0).max(9.0))
-        } else if header || segment.strong {
-            egui::FontId::proportional(size + 0.5)
         } else {
-            egui::FontId::proportional(size)
+            // GitHub table headers are semibold (600); bold runs stay bold.
+            let face = if header && !segment.strong && !segment.emphasis {
+                mdview_theme::ReadingFace::SemiBold
+            } else {
+                mdview_theme::ReadingFace::from_style(header || segment.strong, segment.emphasis)
+            };
+            face.font(size)
         };
         let color = if segment.link.is_some() { theme.link } else { theme.text };
         let runs = search
@@ -189,12 +200,7 @@ fn layout_table_cell(
                     } else {
                         egui::Color32::TRANSPARENT
                     },
-                    italics: segment.emphasis,
-                    underline: if segment.link.is_some() {
-                        egui::Stroke::new(1.0, theme.link)
-                    } else {
-                        egui::Stroke::NONE
-                    },
+                    line_height: Some(line),
                     strikethrough: if segment.strike {
                         egui::Stroke::new(1.0, theme.text)
                     } else {

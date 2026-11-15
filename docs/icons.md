@@ -23,3 +23,10 @@ The workspace tree uses the **VS Code Material Icon Theme** specification, vendo
   `crates/mdview-ui/src/metrics.rs` (`ICON_SMALL` 14, `ICON_MEDIUM` 16, `ICON_LARGE` 20).
 
 The sidebar snapshot is regenerated with `UPDATE_SNAPSHOTS=1 cargo test -p mdview-app --bin mdview`.
+
+## GFM alert icons
+
+The preview draws GitHub's own alert glyphs (`info`, `light-bulb`, `report`, `alert`,
+`stop`) from Primer Octicons (MIT License, Copyright GitHub Inc.). The 16 px path data
+lives in `crates/mdview-render/src/blocks/octicon.rs` and is rasterized with the
+project's SVG rasterizer at the device pixel size.

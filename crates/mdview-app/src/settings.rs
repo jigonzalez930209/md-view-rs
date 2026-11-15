@@ -120,13 +120,14 @@ pub struct ReadingSettings {
 
 impl Default for ReadingSettings {
     fn default() -> Self {
+        let typography = mdview_theme::ReadingTypography::default();
         Self {
             margin_percent: mdview_theme::ReadingMargins::DEFAULT_PERCENT,
-            body_size: 14.0,
-            heading_size: 28.0,
-            code_size: 13.0,
-            table_size: 13.0,
-            math_size: 20.0,
+            body_size: typography.body,
+            heading_size: typography.headings,
+            code_size: typography.code,
+            table_size: typography.tables,
+            math_size: typography.math,
         }
     }
 }

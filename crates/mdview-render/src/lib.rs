@@ -43,6 +43,7 @@ pub use source_map::{BlockAnchor, PreviewAnchor, SourceMap, validate_map};
 struct Cached {
     key: u64,
     document: MarkdownDocument,
+    footnotes: std::collections::HashMap<String, usize>,
 }
 
 struct BlockScreen {
@@ -308,9 +309,12 @@ impl Preview {
             if let Some((line, fraction)) = self.source_map.line_at_offset(self.scroll).or(self.pending_line) {
                 self.pending_line = Some((line, fraction));
             }
+            let document = parse(source);
+            let footnotes = blocks::footnote_numbers(&document.blocks);
             self.cached = Some(Cached {
                 key,
-                document: parse(source),
+                document,
+                footnotes,
             });
             self.media_warmup = true;
             self.source_map = SourceMap::default();
@@ -342,7 +346,7 @@ impl Preview {
         let search_query = self.search_query.clone();
         let mut heights = std::mem::take(&mut self.heights);
         let margin_fraction = self.margins.percent() / 100.0;
-        let (top_gap, bottom_gap, block_gap) = (8.0, 12.0, 6.0);
+        let (top_gap, bottom_gap, block_gap) = (8.0, 12.0, blocks::block_gap(self.typography));
 
         let anchor_before = self.anchor();
         let old_content_height = self.content_height;
@@ -382,6 +386,8 @@ impl Preview {
                             typography: self.typography,
                             media_sizes: &self.media_sizes,
                             search: search_query.as_deref(),
+                            list: blocks::ListState::default(),
+                            footnotes: &cached.footnotes,
                         };
                         let overscan = if cached.document.blocks.len() <= 300 {
                             f32::INFINITY
@@ -420,14 +426,8 @@ impl Preview {
                                 });
                                 top += height + block_gap;
                             }
-                            match &block.kind {
-                                mdview_markdown::BlockKind::Heading { anchor, .. } => {
-                                    anchor_points.push((anchor.clone(), top - height - 6.0));
-                                }
-                                mdview_markdown::BlockKind::FootnoteDefinition { label, .. } => {
-                                    anchor_points.push((format!("fn-{label}"), top - height - 6.0));
-                                }
-                                _ => {}
+                            if let Some(anchor) = blocks::block_anchor(&block.kind) {
+                                anchor_points.push((anchor, top - height - block_gap));
                             }
                         }
                     }

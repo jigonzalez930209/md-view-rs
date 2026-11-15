@@ -69,7 +69,7 @@ fn snapshot_with(name: &str, mode: ThemeMode, margins: ReadingMargins, typograph
     preview.set_reading_style(margins, typography);
     let harness_width = if margins.percent() >= 15.0 { 760.0 } else { 1100.0 };
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(harness_width, 900.0))
+        .with_size(egui::vec2(harness_width, 1_400.0))
         .with_context_setup(move |ctx| {
             apply(ctx, mode);
         })
