@@ -7,6 +7,12 @@ use mdview_theme::Theme;
 
 use crate::{AnimationStatus, LinkActivation, MediaContext, MediaLightbox, MediaState, PreviewOutput};
 
+/// Inline typography plus intrinsic media sizes.
+pub(crate) struct InlineStyle<'a> {
+    pub typography: mdview_theme::ReadingTypography,
+    pub media_sizes: &'a std::collections::HashMap<String, (f32, f32)>,
+}
+
 /// One styled run of inline text.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Segment {
@@ -173,7 +179,7 @@ pub(crate) fn show_inlines(
     theme: &Theme,
     output: &mut PreviewOutput,
     mut media: Option<&mut MediaContext<'_>>,
-    typography: mdview_theme::ReadingTypography,
+    style: &InlineStyle<'_>,
     search: Option<&str>,
 ) {
     let segments = segments(inlines);
@@ -181,7 +187,7 @@ pub(crate) fn show_inlines(
         ui.spacing_mut().item_spacing.x = 0.0;
         for segment in &segments {
             let next = media.as_deref_mut();
-            show_segment(ui, segment, theme, output, next, typography, search);
+            show_segment(ui, segment, theme, output, next, style, search);
         }
     });
 }
@@ -192,16 +198,18 @@ fn show_segment(
     theme: &Theme,
     output: &mut PreviewOutput,
     media: Option<&mut MediaContext<'_>>,
-    typography: mdview_theme::ReadingTypography,
+    style: &InlineStyle<'_>,
     search: Option<&str>,
 ) {
+    let typography = style.typography;
+    let media_sizes = style.media_sizes;
     let size = typography.body;
     if segment.math {
-        show_math(ui, segment, theme, media, typography.math);
+        show_math(ui, segment, theme, media, typography, media_sizes);
         return;
     }
     if segment.image {
-        show_image(ui, segment, theme, output, media);
+        show_image(ui, segment, theme, output, media, typography, media_sizes);
         return;
     }
     if let Some(footnote) = &segment.footnote {
@@ -216,7 +224,7 @@ fn show_segment(
         return;
     }
     let runs = search
-        .map(|query| highlight_runs(&segment.text, query))
+        .map(|query| crate::highlight::highlight_runs(&segment.text, query))
         .unwrap_or_else(|| vec![(segment.text.clone(), false)]);
     for (run, matched) in runs {
         let mut text = styled_text(&run, segment, theme, size);
@@ -274,45 +282,14 @@ fn styled_text(text: &str, segment: &Segment, theme: &Theme, size: f32) -> RichT
     text
 }
 
-/// Split text into plain and query-matching runs, case-insensitively.
-pub(crate) fn highlight_runs(text: &str, query: &str) -> Vec<(String, bool)> {
-    let query = query.trim();
-    if query.is_empty() || text.is_empty() {
-        return vec![(text.to_owned(), false)];
-    }
-    let lower = text.to_lowercase();
-    let needle = query.to_lowercase();
-    let mut runs = Vec::new();
-    let mut start = 0usize;
-    while start < text.len() {
-        let Some(relative) = lower[start..].find(&needle) else {
-            break;
-        };
-        let hit = start + relative;
-        if !text.is_char_boundary(hit) || !text.is_char_boundary(hit + needle.len()) {
-            break;
-        }
-        if hit > start {
-            runs.push((text[start..hit].to_owned(), false));
-        }
-        runs.push((text[hit..hit + needle.len()].to_owned(), true));
-        start = hit + needle.len();
-    }
-    if start < text.len() {
-        runs.push((text[start..].to_owned(), false));
-    }
-    if runs.is_empty() {
-        runs.push((text.to_owned(), false));
-    }
-    runs
-}
-
 fn show_image(
     ui: &mut Ui,
     segment: &Segment,
     theme: &Theme,
     output: &mut PreviewOutput,
     media: Option<&mut MediaContext<'_>>,
+    typography: mdview_theme::ReadingTypography,
+    media_sizes: &std::collections::HashMap<String, (f32, f32)>,
 ) {
     let Some(target) = &segment.link else {
         return;
@@ -336,31 +313,55 @@ fn show_image(
     let status = media_context.provider.animation_status(&key);
     match media_context.provider.resolve(ui.ctx(), &request) {
         MediaState::Loading => {
-            ui.spinner();
-            ui.label(RichText::new(&alt).italics().color(theme.text_muted));
+            let height = crate::layout::reserved_media_height(
+                MediaKind::Image,
+                &target.destination,
+                max_width,
+                typography,
+                media_sizes,
+            );
+            let (rect, _) = ui.allocate_exact_size(egui::vec2(max_width, height), egui::Sense::hover());
+            ui.painter().text(
+                rect.center(),
+                egui::Align2::CENTER_CENTER,
+                &alt,
+                egui::FontId::proportional(12.0),
+                theme.text_muted,
+            );
         }
         MediaState::Ready(texture) => {
             let points = texture.size_vec2() / ui.ctx().pixels_per_point().max(1.0);
-            let scale = (max_width / points.x).min(1.0);
-            let response = ui
-                .vertical(|ui| {
-                    let response = ui
-                        .add(
-                            egui::Image::new(&texture)
-                                .fit_to_exact_size(points * scale)
-                                .sense(Sense::click()),
-                        )
-                        .on_hover_text(if alt.is_empty() {
-                            target.destination.clone()
-                        } else {
-                            alt.clone()
-                        });
-                    if let Some(label) = animation_label(status) {
-                        ui.label(RichText::new(label).small().color(theme.text_muted));
-                    }
-                    response
-                })
-                .inner;
+            let reserved = crate::layout::reserved_media_height(
+                MediaKind::Image,
+                &target.destination,
+                max_width,
+                typography,
+                media_sizes,
+            );
+            let scale = (max_width / points.x).min(reserved / points.y).min(1.0);
+            let size = points * scale;
+            let (rect, response) = ui.allocate_exact_size(egui::vec2(max_width, reserved), egui::Sense::click());
+            let image_rect = egui::Rect::from_center_size(rect.center(), size);
+            ui.painter().image(
+                texture.id(),
+                image_rect,
+                egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                egui::Color32::WHITE,
+            );
+            if let Some(label) = animation_label(status) {
+                ui.painter().text(
+                    egui::pos2(rect.left() + 4.0, rect.bottom() - 4.0),
+                    egui::Align2::LEFT_BOTTOM,
+                    label,
+                    egui::FontId::proportional(10.0),
+                    theme.text_muted,
+                );
+            }
+            let response = response.on_hover_text(if alt.is_empty() {
+                target.destination.clone()
+            } else {
+                alt.clone()
+            });
             media_context
                 .provider
                 .mark_visible(&key, ui.is_rect_visible(response.rect));
@@ -395,7 +396,15 @@ fn animation_label(status: AnimationStatus) -> Option<&'static str> {
     }
 }
 
-fn show_math(ui: &mut Ui, segment: &Segment, theme: &Theme, media: Option<&mut MediaContext<'_>>, math_size: f32) {
+fn show_math(
+    ui: &mut Ui,
+    segment: &Segment,
+    theme: &Theme,
+    media: Option<&mut MediaContext<'_>>,
+    typography: mdview_theme::ReadingTypography,
+    media_sizes: &std::collections::HashMap<String, (f32, f32)>,
+) {
+    let math_size = typography.math;
     let Some(media_context) = media else {
         ui.label(RichText::new(&segment.text).italics().color(theme.accent));
         return;
@@ -406,7 +415,25 @@ fn show_math(ui: &mut Ui, segment: &Segment, theme: &Theme, media: Option<&mut M
     let request_width = 1024.0;
     match media_context.load(ui.ctx(), MediaKind::Math, &segment.text, request_width, theme.is_dark()) {
         MediaState::Loading => {
-            ui.spinner();
+            if segment.display_math {
+                let height = crate::layout::reserved_media_height(
+                    MediaKind::Math,
+                    &segment.text,
+                    max_width,
+                    typography,
+                    media_sizes,
+                );
+                ui.allocate_ui_with_layout(
+                    egui::vec2(max_width, height),
+                    egui::Layout::top_down(egui::Align::Center),
+                    |ui| {
+                        ui.add_space((height - 18.0).max(0.0) / 2.0);
+                        ui.spinner();
+                    },
+                );
+            } else {
+                ui.spinner();
+            }
         }
         MediaState::Ready(texture) => {
             let points = texture.size_vec2() / ui.ctx().pixels_per_point().max(1.0);
@@ -423,7 +450,13 @@ fn show_math(ui: &mut Ui, segment: &Segment, theme: &Theme, media: Option<&mut M
                 let free = (ui.available_width() - size.x).max(0.0);
                 ui.add_space(free / 2.0);
             }
-            ui.add(egui::Image::new(&texture).fit_to_exact_size(size));
+            let (rect, _) = ui.allocate_exact_size(egui::vec2(size.x.max(1.0), target_height), egui::Sense::hover());
+            ui.painter().image(
+                texture.id(),
+                egui::Rect::from_center_size(rect.center(), size),
+                egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                egui::Color32::WHITE,
+            );
         }
         MediaState::Error(error) => {
             ui.label(

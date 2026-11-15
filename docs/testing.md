@@ -30,6 +30,8 @@
   with stable editor offsets and the last preview block visible.
 - Split-end hold: 400 wheel events at the editor end, asserting the editor offset is stable,
   the preview stays at its maximum, and the preview end target is written at most once.
+- Media warm-up: local images, SVG, math, and Mermaid are resolved before the first preview
+  layout; intrinsic sizes reserve stable boxes so no texture load reflows the document.
 - Rendering: inline and display LaTeX, tables with a clickable cell link, local and HTTP
   PNG/SVG, animated SVG, two Mermaid diagrams, syntax-highlighted Rust code, and task
   checkboxes.

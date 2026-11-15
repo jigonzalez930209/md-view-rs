@@ -51,6 +51,28 @@ pub fn rasterize_svg(bytes: &[u8], request: &MediaRequest) -> Result<Raster, Med
     })
 }
 
+/// Natural size of an SVG document before rasterization.
+pub(crate) fn intrinsic_size(bytes: &[u8]) -> Option<(f32, f32)> {
+    if bytes.is_empty() {
+        return None;
+    }
+    let limits = Limits {
+        bytes: MAX_SOURCE_BYTES,
+        depth: MAX_SVG_DEPTH,
+        xml_nodes: 500_000,
+        embedded_bytes: 8 * 1024 * 1024,
+        refuse_entity_markup: true,
+        ..Limits::default()
+    };
+    let options = usvg::Options {
+        fontdb: system_fonts(),
+        ..usvg::Options::default()
+    };
+    let tree = tree::parse(bytes, &limits, &options).ok()?;
+    let size = tree.size();
+    Some((size.width().max(1.0), size.height().max(1.0)))
+}
+
 fn system_fonts() -> Arc<fontdb::Database> {
     static FONTS: OnceLock<Arc<fontdb::Database>> = OnceLock::new();
     FONTS

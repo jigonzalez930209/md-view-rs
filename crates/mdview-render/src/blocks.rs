@@ -21,6 +21,7 @@ pub(crate) struct BlockCtx<'a> {
     pub highlighter: &'a Highlighter,
     pub output: &'a mut PreviewOutput,
     pub typography: mdview_theme::ReadingTypography,
+    pub media_sizes: &'a std::collections::HashMap<String, (f32, f32)>,
     pub search: Option<&'a str>,
 }
 
@@ -76,7 +77,10 @@ pub(crate) fn show_block(
                 ctx.theme,
                 ctx.output,
                 media.as_mut().map(|context| &mut **context),
-                ctx.typography,
+                &crate::inline::InlineStyle {
+                    typography: ctx.typography,
+                    media_sizes: ctx.media_sizes,
+                },
                 ctx.search,
             );
         }
@@ -84,7 +88,7 @@ pub(crate) fn show_block(
             let text = text_of(inlines);
             let size = heading_size(*level, ctx.typography.headings);
             if let Some(query) = ctx.search {
-                for (run, matched) in crate::inline::highlight_runs(&text, query) {
+                for (run, matched) in crate::highlight::highlight_runs(&text, query) {
                     let mut rich = RichText::new(run).size(size).strong().color(ctx.theme.text);
                     if matched {
                         rich = rich.background_color(ctx.theme.selection);
@@ -291,27 +295,28 @@ fn show_media_block(
     let request = media_context.request(ui.ctx(), kind, source, request_width, ctx.theme.is_dark());
     match media_context.provider.resolve(ui.ctx(), &request) {
         MediaState::Loading => {
-            ui.horizontal(|ui| {
-                ui.spinner();
-                ui.label(RichText::new("Rendering...").small().color(ctx.theme.text_muted));
-            });
+            let height = crate::layout::reserved_media_height(kind, source, width, ctx.typography, ctx.media_sizes);
+            let (rect, _) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
+            ui.painter().text(
+                rect.center(),
+                Align2::CENTER_CENTER,
+                "Rendering...",
+                FontId::proportional(12.0),
+                ctx.theme.text_muted,
+            );
             true
         }
         MediaState::Ready(texture) => {
             let points = texture.size_vec2() / ui.ctx().pixels_per_point().max(1.0);
-            // Keep diagram labels legible; below this scale the reader gets a horizontal
-            // scroll area instead of a tiny, unreadable raster. Math follows the Reading
-            // equation size and centers at a readable height.
-            let size = if kind == MediaKind::Math {
-                let target = (ctx.typography.math * 2.4).max(40.0);
-                points * (width / points.x).min(target / points.y).min(1.0)
-            } else {
-                points * (width / points.x).clamp(0.72, 1.0)
-            };
-            let response = egui::ScrollArea::horizontal()
-                .id_salt(("media-block", kind.label(), source.len(), source.as_ptr()))
-                .auto_shrink([false, true])
-                .show(ui, |ui| {
+            // Reserve one stable box per media kind. Both the placeholder and the
+            // finished texture occupy the same height, so lazy rasterization cannot
+            // reflow the document or shift the reader's position.
+            let reserved = crate::layout::reserved_media_height(kind, source, width, ctx.typography, ctx.media_sizes);
+            let scale = (width / points.x).min(reserved / points.y).min(1.0);
+            let size = points * scale;
+            let response = ui
+                .allocate_ui_with_layout(egui::vec2(width, reserved), Layout::top_down(Align::Center), |ui| {
+                    ui.add_space(((reserved - size.y) * 0.5).max(0.0));
                     ui.add(
                         egui::Image::new(&texture)
                             .fit_to_exact_size(size)

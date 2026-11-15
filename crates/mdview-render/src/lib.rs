@@ -16,12 +16,15 @@
 #![deny(missing_docs)]
 
 mod blocks;
+mod highlight;
 mod inline;
 mod layout;
 mod media;
 mod source_map;
+mod warmup;
 
 use layout::{estimate_height, hash};
+use media::PreviewScrollMetrics;
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -50,24 +53,11 @@ struct BlockScreen {
     height: f32,
 }
 
-/// Scroll diagnostics reported by the last preview paint.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct PreviewScrollMetrics {
-    /// Current vertical offset.
-    pub offset: f32,
-    /// Largest valid offset.
-    pub max_offset: f32,
-    /// Viewport height.
-    pub viewport_height: f32,
-    /// Total content height.
-    pub content_height: f32,
-    /// Bottom of the last top-level block.
-    pub last_block_bottom: f32,
-}
-
 /// The Markdown preview widget and its scroll/cache state.
 pub struct Preview {
     cached: Option<Cached>,
+    media_warmup: bool,
+    media_sizes: std::collections::HashMap<String, (f32, f32)>,
     highlighter: Arc<Highlighter>,
     scroll: f32,
     pending_scroll: Option<f32>,
@@ -94,6 +84,8 @@ impl Default for Preview {
     fn default() -> Self {
         Self {
             cached: None,
+            media_warmup: true,
+            media_sizes: std::collections::HashMap::new(),
             highlighter: Highlighter::shared(),
             scroll: 0.0,
             pending_scroll: None,
@@ -309,7 +301,7 @@ impl Preview {
         source: &str,
         theme: &Theme,
         light: bool,
-        media: Option<&mut MediaContext<'_>>,
+        mut media: Option<&mut MediaContext<'_>>,
     ) -> PreviewOutput {
         let key = hash(source);
         if self.cached.as_ref().map(|cached| cached.key) != Some(key) {
@@ -320,6 +312,7 @@ impl Preview {
                 key,
                 document: parse(source),
             });
+            self.media_warmup = true;
             self.source_map = SourceMap::default();
             self.anchors.clear();
             self.heights.clear();
@@ -329,6 +322,19 @@ impl Preview {
         if (outer_width - self.layout_width).abs() > 8.0 {
             self.heights.clear();
             self.layout_width = outer_width;
+            self.media_warmup = true;
+        }
+        if !self.warm_up_media(ui, media.as_deref_mut(), !light) {
+            ui.vertical_centered(|ui| {
+                ui.add_space((ui.available_height() * 0.4).max(24.0));
+                ui.spinner();
+                ui.label(
+                    egui::RichText::new("Rendering media...")
+                        .small()
+                        .color(theme.text_muted),
+                );
+            });
+            return PreviewOutput::default();
         }
         let mut output = PreviewOutput::default();
         let mut block_screens: Vec<BlockScreen> = Vec::new();
@@ -340,8 +346,6 @@ impl Preview {
 
         let anchor_before = self.anchor();
         let old_content_height = self.content_height;
-        let old_max_offset = self.max_offset;
-        let was_at_end = old_max_offset > 0.0 && self.scroll >= old_max_offset - 64.0;
         let mut area = egui::ScrollArea::vertical()
             .id_salt("mdview-markdown-preview")
             .animated(false)
@@ -376,12 +380,17 @@ impl Preview {
                             highlighter: &self.highlighter,
                             output: &mut output,
                             typography: self.typography,
+                            media_sizes: &self.media_sizes,
                             search: search_query.as_deref(),
                         };
-                        let overscan = 320.0;
+                        let overscan = if cached.document.blocks.len() <= 300 {
+                            f32::INFINITY
+                        } else {
+                            900.0
+                        };
                         let mut top = 0.0_f32;
                         for block in &cached.document.blocks {
-                            let estimated = estimate_height(&block.kind, width, self.typography);
+                            let estimated = estimate_height(&block.kind, width, self.typography, &self.media_sizes);
                             let height = heights.get(&block.id).copied().unwrap_or(estimated);
                             let visible = top + height >= viewport.min.y - overscan && top <= viewport.max.y + overscan;
                             if visible {
@@ -459,15 +468,7 @@ impl Preview {
         self.scroll = scroll;
         self.viewport = area_output.inner_rect;
 
-        // If the reader was at the end when an image, diagram, or table finished
-        // measuring, stay pinned to the new end instead of stopping short.
         if !programmatic
-            && ((self.scroll >= max_offset - 64.0 && self.scroll < max_offset - 0.5)
-                || (was_at_end && max_offset > old_max_offset + 0.5))
-        {
-            self.pending_scroll = Some(max_offset);
-            ui.ctx().request_repaint();
-        } else if !programmatic
             && (self.source_map.content_height - old_content_height).abs() > 0.5
             && let Some(anchor) = anchor_before
             && let Some(offset) = anchor.offset(&self.source_map)

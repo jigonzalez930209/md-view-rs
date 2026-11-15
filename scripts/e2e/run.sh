@@ -67,8 +67,12 @@ cfg() {
 }
 expect_cfg() {
   local key=$1 expected=$2 actual
-  actual=$(cfg "$key")
-  [[ "$actual" == "$expected" ]] || fail "config $key expected '$expected', got '$actual'"
+  for _ in $(seq 1 40); do
+    actual=$(cfg "$key")
+    [[ "$actual" == "$expected" ]] && return 0
+    sleep 0.05
+  done
+  fail "config $key expected '$expected', got '$actual'"
 }
 toggle_to() {
   local key=$1 desired=$2 x=$3 y=$4

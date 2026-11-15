@@ -1,6 +1,7 @@
 //! Height estimates for offscreen preview blocks.
 
 use mdview_markdown::{BlockKind, Inline};
+use mdview_media::MediaKind;
 use mdview_theme::ReadingTypography;
 
 /// Estimate the painted height of a block before it is measured.
@@ -8,7 +9,12 @@ use mdview_theme::ReadingTypography;
 /// The estimate uses the reading width and typography so offscreen media-heavy
 /// documents reserve a realistic amount of space. Inline images and display math
 /// are the largest source of underestimation, so they get a block-sized floor.
-pub(crate) fn estimate_height(kind: &BlockKind, width: f32, typography: ReadingTypography) -> f32 {
+pub(crate) fn estimate_height(
+    kind: &BlockKind,
+    width: f32,
+    typography: ReadingTypography,
+    sizes: &std::collections::HashMap<String, (f32, f32)>,
+) -> f32 {
     let body = typography.body.max(10.0);
     let line_height = body * 1.5;
     match kind {
@@ -18,15 +24,26 @@ pub(crate) fn estimate_height(kind: &BlockKind, width: f32, typography: ReadingT
             let chars_per_line = (width / (body * 0.52)).max(8.0);
             let lines = (text.chars().count() as f32 / chars_per_line).ceil().max(1.0);
             let text_height = lines * line_height + 8.0;
-            let media = inline_media_height(inlines, width, typography);
+            let media = inline_media_height(inlines, width, typography, sizes);
             text_height.max(media)
         }
-        BlockKind::Code { text, .. } => 50.0 + text.lines().count().max(1) as f32 * typography.code.max(9.0) * 1.5,
+        BlockKind::Code { language, text, math } => {
+            if *math {
+                reserved_media_height(MediaKind::Math, text, width, typography, sizes)
+            } else if language
+                .as_deref()
+                .is_some_and(|language| language.eq_ignore_ascii_case("mermaid"))
+            {
+                reserved_media_height(MediaKind::Mermaid, text, width, typography, sizes)
+            } else {
+                50.0 + text.lines().count().max(1) as f32 * typography.code.max(9.0) * 1.5
+            }
+        }
         BlockKind::Html(text) => 24.0 + text.lines().count().max(1) as f32 * line_height,
         BlockKind::BlockQuote { blocks, .. } => {
             24.0 + blocks
                 .iter()
-                .map(|block| estimate_height(&block.kind, width, typography))
+                .map(|block| estimate_height(&block.kind, width, typography, sizes))
                 .sum::<f32>()
         }
         BlockKind::List { items, .. } => {
@@ -37,7 +54,7 @@ pub(crate) fn estimate_height(kind: &BlockKind, width: f32, typography: ReadingT
                         + item
                             .blocks
                             .iter()
-                            .map(|block| estimate_height(&block.kind, width - 34.0, typography))
+                            .map(|block| estimate_height(&block.kind, width - 34.0, typography, sizes))
                             .sum::<f32>()
                 })
                 .sum::<f32>()
@@ -47,23 +64,83 @@ pub(crate) fn estimate_height(kind: &BlockKind, width: f32, typography: ReadingT
         BlockKind::FootnoteDefinition { blocks, .. } => {
             34.0 + blocks
                 .iter()
-                .map(|block| estimate_height(&block.kind, width, typography))
+                .map(|block| estimate_height(&block.kind, width, typography, sizes))
                 .sum::<f32>()
         }
     }
 }
 
-fn inline_media_height(inlines: &[Inline], width: f32, typography: ReadingTypography) -> f32 {
+/// Space reserved for a media block before its texture is ready.
+///
+/// The placeholder keeps the content height stable while the background worker
+/// rasterizes images, SVG, math, or Mermaid. Without it, every media block first
+/// measures as a one-line spinner and then jumps to its real height.
+pub(crate) fn media_reserved_height(kind: MediaKind, width: f32, typography: ReadingTypography) -> f32 {
+    match kind {
+        MediaKind::Image | MediaKind::Svg => (width * 0.46).clamp(96.0, 320.0),
+        MediaKind::Mermaid => (width * 0.85).clamp(220.0, 560.0),
+        MediaKind::Math => (typography.math * 2.4).max(40.0),
+    }
+}
+
+/// Height of a media block using the intrinsic size when it is known.
+pub(crate) fn reserved_media_height(
+    kind: MediaKind,
+    source: &str,
+    width: f32,
+    typography: ReadingTypography,
+    sizes: &std::collections::HashMap<String, (f32, f32)>,
+) -> f32 {
+    sizes
+        .get(source)
+        .map(|(natural_width, natural_height)| {
+            display_media_height(kind, *natural_width, *natural_height, width, typography)
+        })
+        .unwrap_or_else(|| media_reserved_height(kind, width, typography))
+}
+
+/// Paint height for a media block with a known intrinsic size.
+pub(crate) fn display_media_height(
+    kind: MediaKind,
+    natural_width: f32,
+    natural_height: f32,
+    width: f32,
+    typography: ReadingTypography,
+) -> f32 {
+    let natural_width = natural_width.max(1.0);
+    let natural_height = natural_height.max(1.0);
+    match kind {
+        MediaKind::Math => (typography.math * 2.4).max(40.0),
+        MediaKind::Mermaid | MediaKind::Image | MediaKind::Svg => (width / natural_width).min(1.0) * natural_height,
+    }
+}
+
+fn inline_media_height(
+    inlines: &[Inline],
+    width: f32,
+    typography: ReadingTypography,
+    sizes: &std::collections::HashMap<String, (f32, f32)>,
+) -> f32 {
     let mut height = 0.0_f32;
     for inline in inlines {
         match inline {
-            Inline::Image { .. } => height = height.max((width * 0.55).clamp(120.0, 360.0)),
-            Inline::Math { display, .. } if *display => height = height.max(typography.math * 2.4),
+            Inline::Image { source, .. } => {
+                height = height.max(reserved_media_height(
+                    MediaKind::Image,
+                    source,
+                    width,
+                    typography,
+                    sizes,
+                ));
+            }
+            Inline::Math { tex, display } if *display => {
+                height = height.max(reserved_media_height(MediaKind::Math, tex, width, typography, sizes));
+            }
             Inline::Emphasis(children)
             | Inline::Strong(children)
             | Inline::Strikethrough(children)
             | Inline::Link { children, .. } => {
-                height = height.max(inline_media_height(children, width, typography));
+                height = height.max(inline_media_height(children, width, typography, sizes));
             }
             _ => {}
         }

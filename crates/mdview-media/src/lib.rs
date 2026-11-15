@@ -49,6 +49,49 @@ pub fn image_kind_for_path(path: &Path) -> MediaKind {
     }
 }
 
+/// Natural display size of a media request before layout scaling.
+///
+/// Images and SVG report their intrinsic pixel size; formulas and diagrams use the
+/// same rasterizer and stable request width as the preview so the reserved box can
+/// match the finished texture.
+pub fn intrinsic_size(kind: MediaKind, source: &str, base: Option<&Path>, dark: bool) -> Option<(f32, f32)> {
+    let lower = source.trim().to_ascii_lowercase();
+    if lower.starts_with("http://") || lower.starts_with("https://") || lower.starts_with("data:") {
+        return None;
+    }
+    let mut request = MediaRequest::new(kind, source);
+    request.base = base.map(Path::to_path_buf);
+    request.max_width = match kind {
+        MediaKind::Image | MediaKind::Svg => 1_600,
+        MediaKind::Math => 1_024,
+        MediaKind::Mermaid => 1_200,
+    };
+    request.max_height = 4_096;
+    request.dark = dark;
+    match kind {
+        MediaKind::Image | MediaKind::Svg => {
+            let bytes = image::read_source(&request).ok()?;
+            let text = String::from_utf8_lossy(&bytes[..bytes.len().min(256)]);
+            if kind == MediaKind::Svg || text.trim_start().starts_with("<svg") || text.trim_start().starts_with("<?xml")
+            {
+                svg::intrinsic_size(&bytes)
+            } else {
+                let reader = ::image::ImageReader::new(std::io::Cursor::new(bytes))
+                    .with_guessed_format()
+                    .ok()?;
+                let (width, height) = reader.into_dimensions().ok()?;
+                Some((width as f32, height as f32))
+            }
+        }
+        MediaKind::Math => render_math(source, dark, 1_024)
+            .ok()
+            .map(|raster| (raster.width as f32, raster.height as f32)),
+        MediaKind::Mermaid => render_mermaid(source, dark, 1_200)
+            .ok()
+            .map(|raster| (raster.width as f32, raster.height as f32)),
+    }
+}
+
 /// The kind of media to produce.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum MediaKind {

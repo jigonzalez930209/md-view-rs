@@ -115,3 +115,18 @@ pub struct PreviewOutput {
     pub lightbox: Option<MediaLightbox>,
     pub(crate) anchors_screen: Vec<(String, f32)>,
 }
+
+/// Scroll diagnostics reported by the last preview paint.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct PreviewScrollMetrics {
+    /// Current vertical offset.
+    pub offset: f32,
+    /// Largest valid offset.
+    pub max_offset: f32,
+    /// Viewport height.
+    pub viewport_height: f32,
+    /// Total content height.
+    pub content_height: f32,
+    /// Bottom of the last top-level block.
+    pub last_block_bottom: f32,
+}

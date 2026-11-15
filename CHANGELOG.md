@@ -16,8 +16,11 @@
 - Right-aligned the Settings section buttons and made the margin slider rail visible with an
   accent fill.
 - Made split-end synchronization idempotent: once both panes are at the end, continued editor
-  wheel input no longer re-sends a programmatic preview scroll, removing the end-of-file
-  flicker. Added exhaustive plan, no-op end-request, wrap, and E2E hold tests.
+  wheel input no longer re-sends a programmatic preview scroll.
+- Warm every media request before the first preview layout and reserve intrinsic image, SVG,
+  math, and Mermaid boxes, so loading a texture cannot reflow the document or flicker while the
+  reader is at the end. Added exhaustive plan, no-op end-request, wrap, media, and E2E hold
+  tests.
 
 
 ## 0.14.0 — Pre-1.0 review resolution

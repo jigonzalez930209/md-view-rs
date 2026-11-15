@@ -173,7 +173,7 @@ fn layout_table_cell(
         };
         let color = if segment.link.is_some() { theme.link } else { theme.text };
         let runs = search
-            .map(|query| crate::inline::highlight_runs(&segment.text, query))
+            .map(|query| crate::highlight::highlight_runs(&segment.text, query))
             .unwrap_or_else(|| vec![(segment.text.clone(), false)]);
         for (run, matched) in runs {
             job.append(
