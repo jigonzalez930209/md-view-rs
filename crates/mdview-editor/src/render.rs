@@ -49,7 +49,10 @@ impl Editor {
         // Keep the content height independent of transient scrollbar allocation. The old
         // `.max(available_height)` made the maximum offset oscillate when the horizontal
         // scrollbar appeared, which looked like flicker at the end of the document.
-        let overscroll = if self.style.scroll_beyond_last_line {
+        // Split view pins the editor and preview ends together; an editor that can
+        // scroll past its last row would go blank while the preview still shows the
+        // end of the document. Keep scroll-beyond for the single-pane editor only.
+        let overscroll = if self.style.scroll_beyond_last_line && !self.split_mode {
             (available_height - row_height - crate::BOTTOM_CLEARANCE).max(0.0)
         } else {
             0.0

@@ -3,7 +3,7 @@
 use eframe::egui;
 
 use crate::app::MdViewApp;
-use crate::split_sync::{lock_error, sync_frame};
+use crate::split_sync::{keep_leader_at_end, lock_error, sync_frame};
 
 impl MdViewApp {
     /// Paint the active tab as an editor and preview split.
@@ -30,6 +30,7 @@ impl MdViewApp {
                 egui::Layout::top_down(egui::Align::Min),
                 |ui| {
                     if let Some(tab) = self.tabs.tab_mut(index) {
+                        tab.editor.set_split_mode(true);
                         tab.editor.set_ignore_input(menu_open);
                         tab.editor.show(ui);
                     }
@@ -61,6 +62,7 @@ impl MdViewApp {
                     egui::Layout::top_down(egui::Align::Min),
                     |ui| {
                         if let Some(tab) = self.tabs.tab_mut(index) {
+                            tab.editor.set_split_mode(true);
                             tab.editor.set_ignore_input(menu_open);
                             tab.editor.show(ui);
                         }
@@ -134,10 +136,51 @@ impl MdViewApp {
         let source = choose_source(editor_scrolled, preview_scrolled, hovered);
         let revision = tab.editor.document().revision();
         let edited = tab.sync_revision.replace(revision).is_some_and(|last| last != revision);
+        let previous_leader = tab.sync_leader;
         tab.sync_leader = follow_leader(source, tab.sync_leader, edited);
         let Some(leader) = tab.sync_leader else {
+            tab.sync_leader_at_end = false;
             return;
         };
+        let leader_max = match leader {
+            Pane::Editor => tab.editor.max_scroll_offset(),
+            Pane::Preview => tab.preview.max_scroll_offset(),
+        };
+        let leader_at_end = match leader {
+            Pane::Editor => tab.editor.is_at_end(),
+            Pane::Preview => tab.preview.is_at_end(),
+        };
+        // A re-layout (zoom, resize, wrap, late media) changes the maximum; an explicit
+        // jump such as Ctrl+Home changes the offset but not the maximum. Only re-pin the
+        // leader to the end when the end itself moved, otherwise a jump to the top would
+        // be pulled back to the end by the sticky-end rule.
+        let max_changed = (leader_max - tab.sync_leader_max).abs() > 0.5;
+        if previous_leader != Some(leader) || source.is_some() {
+            tab.sync_leader_at_end = leader_at_end;
+            tab.sync_leader_max = leader_max;
+        }
+        if edited {
+            tab.sync_leader_at_end = false;
+        }
+        if tab.sync_leader_at_end && !leader_at_end && source.is_none() && !edited {
+            if max_changed
+                && keep_leader_at_end(
+                    &mut tab.editor,
+                    &mut tab.preview,
+                    leader,
+                    tab.sync_leader_at_end,
+                    source,
+                    edited,
+                )
+            {
+                tab.sync_leader_max = leader_max;
+                ctx.request_repaint();
+                return;
+            }
+            tab.sync_leader_at_end = false;
+        }
+        tab.sync_leader_at_end = leader_at_end;
+        tab.sync_leader_max = leader_max;
         let moved = sync_frame(ctx, &mut tab.editor, &mut tab.preview, source, leader);
         let overshoots = tab.editor.overshoot_paints() + tab.preview.overshoot_paints();
         if overshoots > tab.sync_overshoots {

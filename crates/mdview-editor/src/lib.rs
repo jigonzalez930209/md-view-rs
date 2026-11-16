@@ -91,6 +91,7 @@ pub struct Editor {
     pub(crate) viewport_rect: egui::Rect,
     pub(crate) last_frame_time: std::time::Duration,
     pub(crate) highlight_enabled: bool,
+    pub(crate) split_mode: bool,
     pub(crate) ignore_input: bool,
     pub(crate) overshoot_paints: u64,
 }
@@ -142,6 +143,7 @@ impl Editor {
             viewport_rect: egui::Rect::NOTHING,
             last_frame_time: std::time::Duration::ZERO,
             highlight_enabled: true,
+            split_mode: false,
             ignore_input: false,
             overshoot_paints: 0,
         };

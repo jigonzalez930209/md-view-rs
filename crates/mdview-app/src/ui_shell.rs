@@ -317,6 +317,7 @@ impl eframe::App for MdViewApp {
                     mdview_ui::ViewMode::Edit => {
                         let menu_open = self.keyboard_menu.open;
                         let editor = self.tabs.editor_mut();
+                        editor.set_split_mode(false);
                         editor.set_ignore_input(menu_open);
                         editor.show(ui);
                         editor.take_user_scroll();

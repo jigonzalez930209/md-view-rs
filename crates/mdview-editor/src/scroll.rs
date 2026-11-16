@@ -27,6 +27,16 @@ impl Editor {
         self.identity
     }
 
+    /// Clamp the editor's scroll range to the content end.
+    ///
+    /// Split view aligns the editor with a preview that cannot overscroll; allowing
+    /// the editor to scroll the last row to the top would leave it blank while the
+    /// preview still shows the end of the document. The setting stays in effect for
+    /// the single-pane editor.
+    pub fn set_split_mode(&mut self, split: bool) {
+        self.split_mode = split;
+    }
+
     /// Stop the editor from processing keyboard and pointer input for this frame.
     ///
     /// The app sets this while a keyboard overlay (the menu navigator or a dialog)

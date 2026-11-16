@@ -109,6 +109,42 @@ pub(crate) fn sync_frame(
     moved
 }
 
+/// Re-pin a leader that was at its end before a re-layout.
+///
+/// Zoom, a split resize, a wrap change, or late media can move the end of the
+/// scroll range. The leader's stored offset is then short of the new maximum, and
+/// mapping that stale offset to the follower would take both panes away from the
+/// end together. Returns `true` when the leader received a new end request and the
+/// caller should wait one frame before syncing the follower.
+pub(crate) fn keep_leader_at_end(
+    editor: &mut Editor,
+    preview: &mut Preview,
+    leader: Pane,
+    was_at_end: bool,
+    source: Option<Pane>,
+    edited: bool,
+) -> bool {
+    if !was_at_end || source.is_some() || edited {
+        return false;
+    }
+    let at_end = match leader {
+        Pane::Editor => editor.is_at_end(),
+        Pane::Preview => preview.is_at_end(),
+    };
+    if at_end {
+        return false;
+    }
+    match leader {
+        Pane::Editor => {
+            editor.scroll_to_end();
+        }
+        Pane::Preview => {
+            preview.scroll_to_end();
+        }
+    }
+    true
+}
+
 /// Move the follower pane to the leader's mapped offset.
 ///
 /// Returns `true` when the follower received a new target and needs a repaint.

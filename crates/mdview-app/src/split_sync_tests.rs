@@ -58,8 +58,10 @@ fn split_harness_with(wrap: bool) -> (Harness<'static>, Frames, LockError) {
     let mut editor = Editor::new(document);
     editor.set_identity(7);
     editor.set_wrap(wrap);
+    editor.set_split_mode(true);
     let mut preview = Preview::new();
     let mut leader = None;
+    let mut leader_at_end = false;
     let theme = Theme::for_id(ThemeId::GithubLight);
     let frames: Frames = Rc::default();
     let record = frames.clone();
@@ -85,8 +87,22 @@ fn split_harness_with(wrap: bool) -> (Harness<'static>, Frames, LockError) {
                 _ => None,
             };
             let source_pane = choose_source(editor.take_user_scroll(), preview.take_user_scroll(), hovered);
+            let previous_leader = leader;
             leader = follow_leader(source_pane, leader, false);
-            if let Some(pane) = leader {
+            if previous_leader != leader || source_pane.is_some() {
+                leader_at_end = match leader {
+                    Some(Pane::Editor) => editor.is_at_end(),
+                    Some(Pane::Preview) => preview.is_at_end(),
+                    None => false,
+                };
+            }
+            if let Some(pane) = leader
+                && !keep_leader_at_end(&mut editor, &mut preview, pane, leader_at_end, source_pane, false)
+            {
+                leader_at_end = match pane {
+                    Pane::Editor => editor.is_at_end(),
+                    Pane::Preview => preview.is_at_end(),
+                };
                 sync_frame(ui.ctx(), &mut editor, &mut preview, source_pane, pane);
             }
             PREVIEW_VIEWPORT.with(|cell| cell.set(preview.viewport_rect()));

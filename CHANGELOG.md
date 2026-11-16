@@ -6,6 +6,11 @@
   are stored exactly and the editor maximum matches egui's sizes. The E2E split-zoom stage and
   frame tests require a lock error of at most 0.005 points; every settle in the E2E run reports
   0.00.
+- Split view clamps the editor to the real end of its content. With scroll-beyond-last-line on,
+  the editor could scroll its last row to the top and leave the pane blank while the preview
+  still showed the end of the document; zooming or resizing at the end now re-pins the leader
+  to the new end instead of letting both panes fall short. An explicit jump such as Ctrl+Home
+  resets the end pin, so it is not pulled back to the end.
 - The editor keeps both scrollbars allocated. A transient horizontal bar changed the inner
   height by a few points and made the maximum scroll offset oscillate at the end of the
   document; the end is now stable in Edit and Split.

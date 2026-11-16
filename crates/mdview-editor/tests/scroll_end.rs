@@ -124,3 +124,49 @@ fn line_tops_follow_soft_wrap() {
     let tallest = heights.iter().copied().fold(0.0, f32::max);
     assert!(tallest >= shortest * 2.0, "{shortest} / {tallest}");
 }
+
+#[test]
+fn split_mode_clamps_the_editor_to_its_content_end() {
+    let editor = Rc::new(RefCell::new(Editor::new(document())));
+    let handle = editor.clone();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(700.0, 500.0))
+        .build_ui(move |ui| {
+            handle.borrow_mut().show(ui);
+        });
+    harness.run();
+    editor.borrow_mut().set_style(mdview_editor::EditorStyle {
+        scroll_beyond_last_line: true,
+        ..mdview_editor::EditorStyle::default()
+    });
+    editor.borrow_mut().set_split_mode(true);
+    editor.borrow_mut().scroll_to_end();
+    for _ in 0..6 {
+        harness.run();
+    }
+    let split_max = editor.borrow().max_scroll_offset();
+    let split_last_top = editor.borrow().last_row_screen_top();
+    assert!(split_max > 0.0);
+    assert!(editor.borrow().is_at_end());
+    assert!(
+        split_last_top > 20.0,
+        "split editor left blank space below the last row: last row top = {split_last_top}"
+    );
+
+    // The single-pane editor keeps the scroll-beyond-last-line behavior.
+    editor.borrow_mut().set_split_mode(false);
+    harness.run();
+    editor.borrow_mut().scroll_to_end();
+    for _ in 0..6 {
+        harness.run();
+    }
+    let single_max = editor.borrow().max_scroll_offset();
+    assert!(
+        single_max > split_max + 20.0,
+        "single max {single_max} should exceed split max {split_max}"
+    );
+    assert!(
+        editor.borrow().last_row_screen_top().abs() <= 1.0,
+        "single-pane last row did not reach the viewport top"
+    );
+}

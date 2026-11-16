@@ -47,6 +47,10 @@ pub struct DocumentTab {
     pub(crate) sync_overshoots: u64,
     /// Whether the last split frame scrolled or re-synchronized a pane.
     pub(crate) sync_active: bool,
+    /// Whether the split leader was at its end before the last re-layout.
+    pub(crate) sync_leader_at_end: bool,
+    /// The split leader's maximum offset when the end state was recorded.
+    pub(crate) sync_leader_max: f32,
     preview_revision: Option<u64>,
     pub(crate) preview_source: String,
 }
@@ -85,6 +89,8 @@ impl DocumentTab {
             sync_revision: None,
             sync_overshoots: 0,
             sync_active: false,
+            sync_leader_at_end: false,
+            sync_leader_max: 0.0,
             preview_revision: None,
             preview_source: String::new(),
         }
