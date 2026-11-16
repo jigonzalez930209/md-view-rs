@@ -1,0 +1,269 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #0b6bd6; overflow: hidden; font-family: Inter, sans-serif; }
+    #app-stage { position: absolute; inset: 0; overflow: hidden; }
+    .card { position: absolute; width: 980px; height: 490px; border-radius: 20px; overflow: hidden; }
+    .cbg { position: absolute; inset: 0; opacity: 0; }
+    .cam { position: absolute; left: 0; top: 0; width: 1920px; height: 1000px; transform-origin: 0 0; }
+    .g-view, .grp, .g-cmd, .real { position: absolute; left: 0; top: 0; width: 1920px; height: 1000px; }
+    .win { position: absolute; left: 0; top: 0; width: 1920px; height: 1000px; }
+    .fl, .br, .rs { position: absolute; opacity: 0; }
+    .br { border-radius: 6px; }
+    .rs { border: 6px solid #e8336d; }
+    .real { opacity: 0; }
+    .docclip { position: absolute; overflow: hidden; }
+    .doc { position: absolute; left: 0; top: 0; width: 1572px; height: 3744px; }
+    .doc img { position: absolute; left: 0; top: 0; }
+    .grp { clip-path: inset(0 0 100% 0); }
+    .g-cmd { opacity: 0; }
+    .e-08, .e-09, .c-13, .c-14, .c-16, .c-17, .c-17b { opacity: 0; }
+    .mk { position: absolute; border-style: solid; border-color: #e8336d; border-radius: 8px; opacity: 0; }
+    .tg { position: absolute; background: #e8336d; color: #ffffff; font-weight: 800; letter-spacing: -0.01em; line-height: 1; white-space: nowrap; transform-origin: 0 100%; }
+    .scan { position: absolute; left: 0; top: 0; width: 980px; height: 4px; background: #e8336d; opacity: 0; }
+    .edge { position: absolute; background: #ffffff; }
+    .e-top { left: 0; top: 0; width: 100%; height: 4px; transform-origin: 0 50%; }
+    .e-right { right: 0; top: 0; width: 4px; height: 100%; transform-origin: 50% 0; }
+    .e-bottom { left: 0; bottom: 0; width: 100%; height: 4px; transform-origin: 100% 50%; }
+    .e-left { left: 0; top: 0; width: 4px; height: 100%; transform-origin: 50% 100%; }
+    .cap { position: absolute; left: 60px; top: 84px; width: 960px; font-size: 66px; font-weight: 900; letter-spacing: -0.03em; line-height: 1.04; color: #ffffff; }
+    .cap .ln { white-space: nowrap; }
+    .cap span { display: inline-block; }
+  </style>
+  <div id="root" data-composition-id="app" data-width="1080" data-height="1350">
+    <div id="app-stage" data-layout-allow-overflow data-layout-allow-overlap data-layout-allow-occlusion>
+      
+      <div class="card" id="card-light" style="left:50px; top:262px">
+        <div class="cbg" style="background:#ffffff"></div>
+        <div class="cam" id="cam-light">
+          <div class="g-view">
+            <div class="fl fl-menu" style="left:0px; top:0px; width:1920px; height:50px; background:#ffffff"></div><div class="fl fl-side" style="left:0px; top:51px; width:322px; height:914px; background:#f6f8fa"></div><div class="fl fl-tabs" style="left:323px; top:51px; width:1597px; height:49px; background:#f6f8fa"></div><div class="fl fl-doc" style="left:323px; top:101px; width:1597px; height:864px; background:#ffffff"></div><div class="fl fl-status" style="left:0px; top:966px; width:1920px; height:34px; background:#ffffff"></div><div class="br br-menu" style="left:30px; top:15px; width:24px; height:20px; background:#c9d3df"></div><div class="br br-menu" style="left:89px; top:15px; width:30px; height:20px; background:#c9d3df"></div><div class="br br-menu" style="left:153px; top:15px; width:34px; height:20px; background:#c9d3df"></div><div class="br br-menu" style="left:220px; top:15px; width:45px; height:20px; background:#c9d3df"></div><div class="br br-menu" style="left:298px; top:15px; width:24px; height:20px; background:#c9d3df"></div><div class="br br-menu" style="left:356px; top:15px; width:41px; height:20px; background:#c9d3df"></div><div class="br br-menu" style="left:441px; top:15px; width:9px; height:20px; background:#c9d3df"></div><div class="br br-menu" style="left:480px; top:15px; width:9px; height:20px; background:#c9d3df"></div><div class="br br-menu" style="left:905px; top:15px; width:110px; height:20px; background:#c9d3df"></div><div class="br br-menu" style="left:1601px; top:15px; width:20px; height:20px; background:#c9d3df"></div><div class="br br-menu" style="left:1639px; top:15px; width:89px; height:20px; background:#c9d3df"></div><div class="br br-menu" style="left:1775px; top:15px; width:11px; height:20px; background:#c9d3df"></div><div class="br br-menu" style="left:1821px; top:15px; width:13px; height:20px; background:#c9d3df"></div><div class="br br-menu" style="left:1867px; top:15px; width:12px; height:20px; background:#c9d3df"></div><div class="br br-tabs" style="left:349px; top:67px; width:166px; height:18px; background:#c9d3df"></div><div class="br br-tabs" style="left:1652px; top:67px; width:20px; height:18px; background:#c9d3df"></div><div class="br br-tabs" style="left:1708px; top:67px; width:15px; height:18px; background:#c9d3df"></div><div class="br br-tabs" style="left:1761px; top:67px; width:18px; height:18px; background:#c9d3df"></div><div class="br br-tabs" style="left:1805px; top:67px; width:17px; height:18px; background:#c9d3df"></div><div class="br br-tabs" style="left:1840px; top:67px; width:56px; height:18px; background:#c9d3df"></div><div class="br br-side" style="left:15px; top:117px; width:13px; height:11px; background:#c9d3df"></div><div class="br br-side" style="left:70px; top:117px; width:44px; height:11px; background:#c9d3df"></div><div class="br br-side" style="left:33px; top:154px; width:13px; height:11px; background:#c9d3df"></div><div class="br br-side" style="left:88px; top:154px; width:46px; height:11px; background:#c9d3df"></div><div class="br br-side" style="left:51px; top:192px; width:13px; height:11px; background:#c9d3df"></div><div class="br br-side" style="left:106px; top:192px; width:46px; height:11px; background:#c9d3df"></div><div class="br br-side" style="left:69px; top:229px; width:13px; height:11px; background:#c9d3df"></div><div class="br br-side" style="left:124px; top:229px; width:47px; height:11px; background:#c9d3df"></div><div class="br br-side" style="left:87px; top:267px; width:13px; height:11px; background:#c9d3df"></div><div class="br br-side" style="left:142px; top:267px; width:46px; height:11px; background:#c9d3df"></div><div class="br br-side" style="left:150px; top:304px; width:60px; height:15px; background:#c9d3df"></div><div class="br br-side" style="left:122px; top:342px; width:142px; height:15px; background:#c9d3df"></div><div class="br br-side" style="left:124px; top:377px; width:112px; height:17px; background:#c9d3df"></div><div class="br br-side" style="left:151px; top:417px; width:71px; height:15px; background:#c9d3df"></div><div class="br br-side" style="left:122px; top:451px; width:138px; height:19px; background:#c9d3df"></div><div class="br br-side" style="left:103px; top:491px; width:153px; height:16px; background:#c9d3df"></div><div class="br br-side" style="left:105px; top:527px; width:102px; height:16px; background:#c9d3df"></div><div class="br br-side" style="left:86px; top:567px; width:139px; height:11px; background:#c9d3df"></div><div class="br br-side" style="left:85px; top:602px; width:112px; height:17px; background:#c9d3df"></div><div class="br br-side" style="left:96px; top:642px; width:66px; height:11px; background:#c9d3df"></div><div class="br br-side" style="left:68px; top:679px; width:104px; height:15px; background:#c9d3df"></div><div class="br br-side" style="left:79px; top:717px; width:62px; height:11px; background:#c9d3df"></div><div class="br br-side" style="left:50px; top:754px; width:104px; height:11px; background:#c9d3df"></div><div class="br br-side" style="left:60px; top:792px; width:89px; height:15px; background:#c9d3df"></div><div class="br br-side" style="left:31px; top:827px; width:132px; height:16px; background:#c9d3df"></div><div class="br br-doc" style="left:574px; top:150px; width:344px; height:28px; background:#c9d3df"></div><div class="br br-doc" style="left:572px; top:234px; width:917px; height:17px; background:#c9d3df"></div><div class="br br-doc" style="left:572px; top:300px; width:270px; height:29px; background:#c9d3df"></div><div class="br br-doc" style="left:593px; top:389px; width:211px; height:14px; background:#c9d3df"></div><div class="br br-doc" style="left:592px; top:441px; width:116px; height:12px; background:#c9d3df"></div><div class="br br-doc" style="left:636px; top:467px; width:547px; height:14px; background:#c9d3df"></div><div class="br br-doc" style="left:636px; top:493px; width:818px; height:14px; background:#c9d3df"></div><div class="br br-doc" style="left:636px; top:519px; width:536px; height:14px; background:#c9d3df"></div><div class="br br-doc" style="left:616px; top:660px; width:188px; height:14px; background:#c9d3df"></div><div class="br br-doc" style="left:616px; top:686px; width:437px; height:14px; background:#c9d3df"></div><div class="br br-doc" style="left:1071px; top:686px; width:58px; height:14px; background:#c9d3df"></div><div class="br br-doc" style="left:1147px; top:686px; width:102px; height:14px; background:#c9d3df"></div><div class="br br-doc" style="left:592px; top:801px; width:290px; height:14px; background:#c9d3df"></div><div class="br br-doc" style="left:614px; top:827px; width:189px; height:14px; background:#c9d3df"></div><div class="br br-doc" style="left:821px; top:827px; width:82px; height:14px; background:#c9d3df"></div><div class="br br-doc" style="left:592px; top:853px; width:41px; height:10px; background:#c9d3df"></div><div class="br br-doc" style="left:570px; top:934px; width:95px; height:17px; background:#c9d3df"></div><div class="br br-status" style="left:337px; top:978px; width:366px; height:12px; background:#c9d3df"></div><div class="br br-status" style="left:738px; top:978px; width:41px; height:12px; background:#c9d3df"></div><div class="br br-status" style="left:815px; top:978px; width:70px; height:12px; background:#c9d3df"></div><div class="br br-status" style="left:1534px; top:978px; width:37px; height:12px; background:#c9d3df"></div><div class="br br-status" style="left:1606px; top:978px; width:76px; height:12px; background:#c9d3df"></div><div class="br br-status" style="left:1717px; top:978px; width:66px; height:12px; background:#c9d3df"></div><div class="br br-status" style="left:1818px; top:978px; width:15px; height:12px; background:#c9d3df"></div><div class="br br-status" style="left:1867px; top:978px; width:41px; height:12px; background:#c9d3df"></div>
+            <div class="real">
+              <img class="win" src="assets/cap/light/01-view-top.png" alt="MD View reading view, light theme" />
+              <div class="docclip" style="left:323px; top:101px; width:1572px; height:864px">
+                <div class="doc">
+                  <img src="assets/cap/light/doc-tall.png" alt="" style="width:1572px; height:3744px" />
+                  <div class="mk mk-table" style="left:238px; top:878px; width:742px; height:366px; border-width:4.7px"><div class="tg" style="font-size:35.3px; padding:9.4px 16.5px; top:-58.8px; right:-4.7px; border-radius:9.4px 9.4px 0 9.4px">table</div></div><div class="mk mk-tasks" style="left:238px; top:1314px; width:872px; height:100px; border-width:4.7px"><div class="tg" style="font-size:35.3px; padding:9.4px 16.5px; top:-58.8px; right:-4.7px; border-radius:9.4px 9.4px 0 9.4px">task list</div></div><div class="mk mk-latex" style="left:238px; top:1744px; width:770px; height:214px; border-width:4.7px"><div class="tg" style="font-size:35.3px; padding:9.4px 16.5px; top:-58.8px; right:-4.7px; border-radius:9.4px 9.4px 0 9.4px">LaTeX</div></div><div class="mk mk-mermaid" style="left:440px; top:2744px; width:718px; height:104px; border-width:4.7px"><div class="tg" style="font-size:35.3px; padding:9.4px 16.5px; top:-58.8px; right:-4.7px; border-radius:9.4px 9.4px 0 9.4px">mermaid</div></div><div class="mk mk-alert" style="left:238px; top:3396px; width:1120px; height:104px; border-width:4.7px"><div class="tg" style="font-size:35.3px; padding:9.4px 16.5px; top:-58.8px; right:-4.7px; border-radius:9.4px 9.4px 0 9.4px">alert</div></div>
+                </div>
+              </div>
+              <div class="mk mk-explorer" style="left:6px; top:104px; width:312px; height:750px; border-width:4.7px"><div class="tg" style="font-size:35.3px; padding:9.4px 16.5px; top:-58.8px; left:-4.7px; border-radius:9.4px 9.4px 9.4px 0">explorer</div></div>
+            </div>
+            <div class="rs rs-menu" style="left:0px; top:0px; width:1920px; height:50px"></div><div class="rs rs-side" style="left:0px; top:51px; width:322px; height:914px"></div><div class="rs rs-tabs" style="left:323px; top:51px; width:1597px; height:49px"></div><div class="rs rs-doc" style="left:323px; top:101px; width:1597px; height:864px"></div><div class="rs rs-status" style="left:0px; top:966px; width:1920px; height:34px"></div>
+          </div>
+          <div class="grp g-edit">
+            <img class="win e-07" src="assets/cap/light/07-edit-top.png" alt="MD View editor, light theme" />
+            <img class="win e-08" src="assets/cap/light/08b-find-regex.png" alt="Regex find, light theme" />
+            <img class="win e-09" src="assets/cap/light/09-replace.png" alt="Find and replace, light theme" />
+            <div class="mk mk-find" style="left:1258px; top:122px; width:660px; height:136px; border-width:4.0px"><div class="tg" style="font-size:30.0px; padding:8.0px 14.0px; top:-50.0px; left:-4.0px; border-radius:8.0px 8.0px 8.0px 0">regex</div></div>
+          </div>
+          <div class="grp g-split">
+            <img class="win" src="assets/cap/light/11-split-top.png" alt="MD View split view, light theme" />
+            <video id="vid-light" class="clip win" data-start="21.0" data-duration="4.5" data-media-start="0.333" data-track-index="1" muted playsinline src="assets/cap/light/split-scroll.mp4"></video>
+            <div class="mk mk-src" style="left:330px; top:104px; width:784px; height:858px; border-width:8.2px"><div class="tg" style="font-size:61.2px; padding:16.3px 28.6px; top:-102.0px; left:-8.2px; border-radius:16.3px 16.3px 16.3px 0">source</div></div><div class="mk mk-pre" style="left:1120px; top:104px; width:792px; height:858px; border-width:8.2px"><div class="tg" style="font-size:61.2px; padding:16.3px 28.6px; top:-102.0px; left:-8.2px; border-radius:16.3px 16.3px 16.3px 0">preview</div></div>
+          </div>
+          <div class="g-cmd">
+            <img class="win c-13" src="assets/cap/light/13-palette.png" alt="Command palette, light theme" />
+            <img class="win c-14" src="assets/cap/light/14-palette-mode.png" alt="Command palette filtered, light theme" />
+            <img class="win c-16" src="assets/cap/light/16-search.png" alt="Workspace search, light theme" />
+            <img class="win c-17" src="assets/cap/light/17-settings.png" alt="Settings, light theme" />
+            <img class="win c-17b" src="assets/cap/light/17b-settings-themes.png" alt="Theme list, light theme" />
+            <div class="mk mk-pal" style="left:518px; top:198px; width:884px; height:604px; border-width:5.6px"><div class="tg" style="font-size:41.7px; padding:11.1px 19.4px; top:-69.4px; left:-5.6px; border-radius:11.1px 11.1px 11.1px 0">Ctrl+Shift+P</div></div><div class="mk mk-srch" style="left:554px; top:176px; width:814px; height:44px; border-width:5.3px"><div class="tg" style="font-size:40.0px; padding:10.7px 18.7px; top:-66.7px; left:-5.3px; border-radius:10.7px 10.7px 10.7px 0">Ctrl+Shift+F</div></div><div class="mk mk-thm" style="left:1146px; top:346px; width:258px; height:318px; border-width:5.7px"><div class="tg" style="font-size:42.9px; padding:11.4px 20.0px; top:-71.4px; left:-5.7px; border-radius:11.4px 11.4px 11.4px 0">9 themes</div></div>
+          </div>
+        </div>
+        <div class="scan"></div>
+        <div class="edge e-top"></div><div class="edge e-right"></div><div class="edge e-bottom"></div><div class="edge e-left"></div>
+      </div>
+      
+      <div class="card" id="card-dark" style="left:50px; top:772px">
+        <div class="cbg" style="background:#0d1117"></div>
+        <div class="cam" id="cam-dark">
+          <div class="g-view">
+            <div class="fl fl-menu" style="left:0px; top:0px; width:1920px; height:50px; background:#0d1117"></div><div class="fl fl-side" style="left:0px; top:51px; width:322px; height:914px; background:#161b22"></div><div class="fl fl-tabs" style="left:323px; top:51px; width:1597px; height:49px; background:#161b22"></div><div class="fl fl-doc" style="left:323px; top:101px; width:1597px; height:864px; background:#0d1117"></div><div class="fl fl-status" style="left:0px; top:966px; width:1920px; height:34px; background:#0d1117"></div><div class="br br-menu" style="left:30px; top:15px; width:24px; height:20px; background:#30363d"></div><div class="br br-menu" style="left:89px; top:15px; width:30px; height:20px; background:#30363d"></div><div class="br br-menu" style="left:153px; top:15px; width:34px; height:20px; background:#30363d"></div><div class="br br-menu" style="left:220px; top:15px; width:45px; height:20px; background:#30363d"></div><div class="br br-menu" style="left:298px; top:15px; width:24px; height:20px; background:#30363d"></div><div class="br br-menu" style="left:356px; top:15px; width:41px; height:20px; background:#30363d"></div><div class="br br-menu" style="left:441px; top:15px; width:9px; height:20px; background:#30363d"></div><div class="br br-menu" style="left:480px; top:15px; width:9px; height:20px; background:#30363d"></div><div class="br br-menu" style="left:905px; top:15px; width:110px; height:20px; background:#30363d"></div><div class="br br-menu" style="left:1601px; top:15px; width:20px; height:20px; background:#30363d"></div><div class="br br-menu" style="left:1639px; top:15px; width:89px; height:20px; background:#30363d"></div><div class="br br-menu" style="left:1775px; top:15px; width:11px; height:20px; background:#30363d"></div><div class="br br-menu" style="left:1821px; top:15px; width:13px; height:20px; background:#30363d"></div><div class="br br-menu" style="left:1867px; top:15px; width:12px; height:20px; background:#30363d"></div><div class="br br-tabs" style="left:349px; top:67px; width:166px; height:18px; background:#30363d"></div><div class="br br-tabs" style="left:1652px; top:67px; width:20px; height:18px; background:#30363d"></div><div class="br br-tabs" style="left:1708px; top:67px; width:15px; height:18px; background:#30363d"></div><div class="br br-tabs" style="left:1761px; top:67px; width:18px; height:18px; background:#30363d"></div><div class="br br-tabs" style="left:1805px; top:67px; width:17px; height:18px; background:#30363d"></div><div class="br br-tabs" style="left:1840px; top:67px; width:56px; height:18px; background:#30363d"></div><div class="br br-side" style="left:15px; top:117px; width:13px; height:11px; background:#30363d"></div><div class="br br-side" style="left:70px; top:117px; width:44px; height:11px; background:#30363d"></div><div class="br br-side" style="left:33px; top:154px; width:13px; height:11px; background:#30363d"></div><div class="br br-side" style="left:88px; top:154px; width:46px; height:11px; background:#30363d"></div><div class="br br-side" style="left:51px; top:192px; width:13px; height:11px; background:#30363d"></div><div class="br br-side" style="left:106px; top:192px; width:46px; height:11px; background:#30363d"></div><div class="br br-side" style="left:69px; top:229px; width:13px; height:11px; background:#30363d"></div><div class="br br-side" style="left:124px; top:229px; width:47px; height:11px; background:#30363d"></div><div class="br br-side" style="left:87px; top:267px; width:13px; height:11px; background:#30363d"></div><div class="br br-side" style="left:142px; top:267px; width:46px; height:11px; background:#30363d"></div><div class="br br-side" style="left:150px; top:304px; width:60px; height:15px; background:#30363d"></div><div class="br br-side" style="left:122px; top:342px; width:142px; height:15px; background:#30363d"></div><div class="br br-side" style="left:124px; top:377px; width:112px; height:17px; background:#30363d"></div><div class="br br-side" style="left:151px; top:417px; width:71px; height:15px; background:#30363d"></div><div class="br br-side" style="left:122px; top:451px; width:138px; height:19px; background:#30363d"></div><div class="br br-side" style="left:103px; top:491px; width:153px; height:16px; background:#30363d"></div><div class="br br-side" style="left:105px; top:527px; width:102px; height:16px; background:#30363d"></div><div class="br br-side" style="left:86px; top:567px; width:139px; height:11px; background:#30363d"></div><div class="br br-side" style="left:85px; top:602px; width:112px; height:17px; background:#30363d"></div><div class="br br-side" style="left:96px; top:642px; width:66px; height:11px; background:#30363d"></div><div class="br br-side" style="left:68px; top:679px; width:104px; height:15px; background:#30363d"></div><div class="br br-side" style="left:79px; top:717px; width:62px; height:11px; background:#30363d"></div><div class="br br-side" style="left:50px; top:754px; width:104px; height:11px; background:#30363d"></div><div class="br br-side" style="left:60px; top:792px; width:89px; height:15px; background:#30363d"></div><div class="br br-side" style="left:31px; top:827px; width:132px; height:16px; background:#30363d"></div><div class="br br-doc" style="left:574px; top:150px; width:344px; height:28px; background:#30363d"></div><div class="br br-doc" style="left:572px; top:234px; width:917px; height:17px; background:#30363d"></div><div class="br br-doc" style="left:572px; top:300px; width:270px; height:29px; background:#30363d"></div><div class="br br-doc" style="left:593px; top:389px; width:211px; height:14px; background:#30363d"></div><div class="br br-doc" style="left:592px; top:441px; width:116px; height:12px; background:#30363d"></div><div class="br br-doc" style="left:636px; top:467px; width:547px; height:14px; background:#30363d"></div><div class="br br-doc" style="left:636px; top:493px; width:818px; height:14px; background:#30363d"></div><div class="br br-doc" style="left:636px; top:519px; width:536px; height:14px; background:#30363d"></div><div class="br br-doc" style="left:616px; top:660px; width:188px; height:14px; background:#30363d"></div><div class="br br-doc" style="left:616px; top:686px; width:437px; height:14px; background:#30363d"></div><div class="br br-doc" style="left:1071px; top:686px; width:58px; height:14px; background:#30363d"></div><div class="br br-doc" style="left:1147px; top:686px; width:102px; height:14px; background:#30363d"></div><div class="br br-doc" style="left:592px; top:801px; width:290px; height:14px; background:#30363d"></div><div class="br br-doc" style="left:614px; top:827px; width:189px; height:14px; background:#30363d"></div><div class="br br-doc" style="left:821px; top:827px; width:82px; height:14px; background:#30363d"></div><div class="br br-doc" style="left:592px; top:853px; width:41px; height:10px; background:#30363d"></div><div class="br br-doc" style="left:570px; top:934px; width:95px; height:17px; background:#30363d"></div><div class="br br-status" style="left:337px; top:978px; width:366px; height:12px; background:#30363d"></div><div class="br br-status" style="left:738px; top:978px; width:41px; height:12px; background:#30363d"></div><div class="br br-status" style="left:815px; top:978px; width:70px; height:12px; background:#30363d"></div><div class="br br-status" style="left:1534px; top:978px; width:37px; height:12px; background:#30363d"></div><div class="br br-status" style="left:1606px; top:978px; width:76px; height:12px; background:#30363d"></div><div class="br br-status" style="left:1717px; top:978px; width:66px; height:12px; background:#30363d"></div><div class="br br-status" style="left:1818px; top:978px; width:15px; height:12px; background:#30363d"></div><div class="br br-status" style="left:1867px; top:978px; width:41px; height:12px; background:#30363d"></div>
+            <div class="real">
+              <img class="win" src="assets/cap/dark/01-view-top.png" alt="MD View reading view, dark theme" />
+              <div class="docclip" style="left:323px; top:101px; width:1572px; height:864px">
+                <div class="doc">
+                  <img src="assets/cap/dark/doc-tall.png" alt="" style="width:1572px; height:3744px" />
+                  <div class="mk mk-table" style="left:238px; top:878px; width:742px; height:366px; border-width:4.7px"><div class="tg" style="font-size:35.3px; padding:9.4px 16.5px; top:-58.8px; right:-4.7px; border-radius:9.4px 9.4px 0 9.4px">table</div></div><div class="mk mk-tasks" style="left:238px; top:1314px; width:872px; height:100px; border-width:4.7px"><div class="tg" style="font-size:35.3px; padding:9.4px 16.5px; top:-58.8px; right:-4.7px; border-radius:9.4px 9.4px 0 9.4px">task list</div></div><div class="mk mk-latex" style="left:238px; top:1744px; width:770px; height:214px; border-width:4.7px"><div class="tg" style="font-size:35.3px; padding:9.4px 16.5px; top:-58.8px; right:-4.7px; border-radius:9.4px 9.4px 0 9.4px">LaTeX</div></div><div class="mk mk-mermaid" style="left:440px; top:2744px; width:718px; height:104px; border-width:4.7px"><div class="tg" style="font-size:35.3px; padding:9.4px 16.5px; top:-58.8px; right:-4.7px; border-radius:9.4px 9.4px 0 9.4px">mermaid</div></div><div class="mk mk-alert" style="left:238px; top:3396px; width:1120px; height:104px; border-width:4.7px"><div class="tg" style="font-size:35.3px; padding:9.4px 16.5px; top:-58.8px; right:-4.7px; border-radius:9.4px 9.4px 0 9.4px">alert</div></div>
+                </div>
+              </div>
+              <div class="mk mk-explorer" style="left:6px; top:104px; width:312px; height:750px; border-width:4.7px"><div class="tg" style="font-size:35.3px; padding:9.4px 16.5px; top:-58.8px; left:-4.7px; border-radius:9.4px 9.4px 9.4px 0">explorer</div></div>
+            </div>
+            <div class="rs rs-menu" style="left:0px; top:0px; width:1920px; height:50px"></div><div class="rs rs-side" style="left:0px; top:51px; width:322px; height:914px"></div><div class="rs rs-tabs" style="left:323px; top:51px; width:1597px; height:49px"></div><div class="rs rs-doc" style="left:323px; top:101px; width:1597px; height:864px"></div><div class="rs rs-status" style="left:0px; top:966px; width:1920px; height:34px"></div>
+          </div>
+          <div class="grp g-edit">
+            <img class="win e-07" src="assets/cap/dark/07-edit-top.png" alt="MD View editor, dark theme" />
+            <img class="win e-08" src="assets/cap/dark/08b-find-regex.png" alt="Regex find, dark theme" />
+            <img class="win e-09" src="assets/cap/dark/09-replace.png" alt="Find and replace, dark theme" />
+            <div class="mk mk-find" style="left:1258px; top:122px; width:660px; height:136px; border-width:4.0px"><div class="tg" style="font-size:30.0px; padding:8.0px 14.0px; top:-50.0px; left:-4.0px; border-radius:8.0px 8.0px 8.0px 0">regex</div></div>
+          </div>
+          <div class="grp g-split">
+            <img class="win" src="assets/cap/dark/11-split-top.png" alt="MD View split view, dark theme" />
+            <video id="vid-dark" class="clip win" data-start="21.0" data-duration="4.5" data-media-start="0.3" data-track-index="2" muted playsinline src="assets/cap/dark/split-scroll.mp4"></video>
+            <div class="mk mk-src" style="left:330px; top:104px; width:784px; height:858px; border-width:8.2px"><div class="tg" style="font-size:61.2px; padding:16.3px 28.6px; top:-102.0px; left:-8.2px; border-radius:16.3px 16.3px 16.3px 0">source</div></div><div class="mk mk-pre" style="left:1120px; top:104px; width:792px; height:858px; border-width:8.2px"><div class="tg" style="font-size:61.2px; padding:16.3px 28.6px; top:-102.0px; left:-8.2px; border-radius:16.3px 16.3px 16.3px 0">preview</div></div>
+          </div>
+          <div class="g-cmd">
+            <img class="win c-13" src="assets/cap/dark/13-palette.png" alt="Command palette, dark theme" />
+            <img class="win c-14" src="assets/cap/dark/14-palette-mode.png" alt="Command palette filtered, dark theme" />
+            <img class="win c-16" src="assets/cap/dark/16-search.png" alt="Workspace search, dark theme" />
+            <img class="win c-17" src="assets/cap/dark/17-settings.png" alt="Settings, dark theme" />
+            <img class="win c-17b" src="assets/cap/dark/17b-settings-themes.png" alt="Theme list, dark theme" />
+            <div class="mk mk-pal" style="left:518px; top:198px; width:884px; height:604px; border-width:5.6px"><div class="tg" style="font-size:41.7px; padding:11.1px 19.4px; top:-69.4px; left:-5.6px; border-radius:11.1px 11.1px 11.1px 0">Ctrl+Shift+P</div></div><div class="mk mk-srch" style="left:554px; top:176px; width:814px; height:44px; border-width:5.3px"><div class="tg" style="font-size:40.0px; padding:10.7px 18.7px; top:-66.7px; left:-5.3px; border-radius:10.7px 10.7px 10.7px 0">Ctrl+Shift+F</div></div><div class="mk mk-thm" style="left:1146px; top:346px; width:258px; height:318px; border-width:5.7px"><div class="tg" style="font-size:42.9px; padding:11.4px 20.0px; top:-71.4px; left:-5.7px; border-radius:11.4px 11.4px 11.4px 0">9 themes</div></div>
+          </div>
+        </div>
+        <div class="scan"></div>
+        <div class="edge e-top"></div><div class="edge e-right"></div><div class="edge e-bottom"></div><div class="edge e-left"></div>
+      </div>
+      <div class="cap" id="cap0"><div class="ln"><span>Markdown,</span></div><div class="ln"><span>drawn</span> <span>natively.</span></div></div><div class="cap" id="cap1"><div class="ln"><span>Your</span> <span>folder</span> <span>is</span></div><div class="ln"><span>the</span> <span>workspace.</span></div></div><div class="cap" id="cap2"><div class="ln"><span>GitHub</span> <span>tables</span></div><div class="ln"><span>and</span> <span>task</span> <span>lists.</span></div></div><div class="cap" id="cap3"><div class="ln"><span>LaTeX,</span> <span>rendered</span></div><div class="ln"><span>as</span> <span>real</span> <span>math.</span></div></div><div class="cap" id="cap4"><div class="ln"><span>Mermaid</span> <span>diagrams,</span></div><div class="ln"><span>no</span> <span>browser.</span></div></div><div class="cap" id="cap5"><div class="ln"><span>Alerts,</span> <span>quotes</span></div><div class="ln"><span>and</span> <span>footnotes.</span></div></div><div class="cap" id="cap6"><div class="ln"><span>A</span> <span>real</span> <span>editor</span></div><div class="ln"><span>underneath.</span></div></div><div class="cap" id="cap7"><div class="ln"><span>Regex</span> <span>find</span></div><div class="ln"><span>and</span> <span>replace.</span></div></div><div class="cap" id="cap8"><div class="ln"><span>Source</span> <span>and</span> <span>preview,</span></div><div class="ln"><span>scrolling</span> <span>in</span> <span>sync.</span></div></div><div class="cap" id="cap9"><div class="ln"><span>Every</span> <span>command,</span></div><div class="ln"><span>one</span> <span>keystroke.</span></div></div><div class="cap" id="cap10"><div class="ln"><span>Search</span> <span>the</span></div><div class="ln"><span>whole</span> <span>workspace.</span></div></div><div class="cap" id="cap11"><div class="ln"><span>Nine</span> <span>themes.</span></div><div class="ln"><span>Light</span> <span>or</span> <span>dark.</span></div></div>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const tl = gsap.timeline({ paused: true });
+      gsap.set(".cam", { x: 19.6, y: 0.0, scale: 0.49 });
+      gsap.set(".doc", { y: 0 });
+      gsap.set(".cap", { opacity: 0 });
+      gsap.set("#cap0", { opacity: 1 });
+      tl.to("#cap0", { opacity: 0, filter: "blur(8px)", duration: 0.12, ease: "power2.in" }, 2.88);
+      tl.set("#cap1", { opacity: 1 }, 3.0);
+      tl.fromTo("#cap1 span", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power2.out", stagger: 0.06 }, 3.0);
+      tl.to("#cap1", { opacity: 0, filter: "blur(8px)", duration: 0.12, ease: "power2.in" }, 5.38);
+      tl.set("#cap2", { opacity: 1 }, 5.5);
+      tl.fromTo("#cap2 span", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power2.out", stagger: 0.06 }, 5.5);
+      tl.to("#cap2", { opacity: 0, filter: "blur(8px)", duration: 0.12, ease: "power2.in" }, 7.88);
+      tl.set("#cap3", { opacity: 1 }, 8.0);
+      tl.fromTo("#cap3 span", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power2.out", stagger: 0.06 }, 8.0);
+      tl.to("#cap3", { opacity: 0, filter: "blur(8px)", duration: 0.12, ease: "power2.in" }, 10.38);
+      tl.set("#cap4", { opacity: 1 }, 10.5);
+      tl.fromTo("#cap4 span", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power2.out", stagger: 0.06 }, 10.5);
+      tl.to("#cap4", { opacity: 0, filter: "blur(8px)", duration: 0.12, ease: "power2.in" }, 12.88);
+      tl.set("#cap5", { opacity: 1 }, 13.0);
+      tl.fromTo("#cap5 span", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power2.out", stagger: 0.06 }, 13.0);
+      tl.to("#cap5", { opacity: 0, filter: "blur(8px)", duration: 0.12, ease: "power2.in" }, 14.88);
+      tl.set("#cap6", { opacity: 1 }, 15.0);
+      tl.fromTo("#cap6 span", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power2.out", stagger: 0.06 }, 15.0);
+      tl.to("#cap6", { opacity: 0, filter: "blur(8px)", duration: 0.12, ease: "power2.in" }, 17.38);
+      tl.set("#cap7", { opacity: 1 }, 17.5);
+      tl.fromTo("#cap7 span", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power2.out", stagger: 0.06 }, 17.5);
+      tl.to("#cap7", { opacity: 0, filter: "blur(8px)", duration: 0.12, ease: "power2.in" }, 20.38);
+      tl.set("#cap8", { opacity: 1 }, 20.5);
+      tl.fromTo("#cap8 span", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power2.out", stagger: 0.06 }, 20.5);
+      tl.to("#cap8", { opacity: 0, filter: "blur(8px)", duration: 0.12, ease: "power2.in" }, 25.38);
+      tl.set("#cap9", { opacity: 1 }, 25.5);
+      tl.fromTo("#cap9 span", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power2.out", stagger: 0.06 }, 25.5);
+      tl.to("#cap9", { opacity: 0, filter: "blur(8px)", duration: 0.12, ease: "power2.in" }, 27.88);
+      tl.set("#cap10", { opacity: 1 }, 28.0);
+      tl.fromTo("#cap10 span", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power2.out", stagger: 0.06 }, 28.0);
+      tl.to("#cap10", { opacity: 0, filter: "blur(8px)", duration: 0.12, ease: "power2.in" }, 30.38);
+      tl.set("#cap11", { opacity: 1 }, 30.5);
+      tl.fromTo("#cap11 span", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power2.out", stagger: 0.06 }, 30.5);
+      tl.to("#cap11", { opacity: 0, filter: "blur(8px)", duration: 0.12, ease: "power2.in" }, 32.88);
+      tl.fromTo(".e-top", { scaleX: 0 }, { scaleX: 1, duration: 0.12, ease: "power2.in" }, 0.0);
+      tl.fromTo(".e-right", { scaleY: 0 }, { scaleY: 1, duration: 0.12, ease: "none" }, 0.12);
+      tl.fromTo(".e-bottom", { scaleX: 0 }, { scaleX: 1, duration: 0.12, ease: "none" }, 0.24);
+      tl.fromTo(".e-left", { scaleY: 0 }, { scaleY: 1, duration: 0.12, ease: "power2.out" }, 0.36);
+      tl.set(".cbg", { opacity: 1 }, 0.5);
+      tl.set(".card", { boxShadow: "0 30px 70px rgba(3,25,60,0.45), 0 8px 20px rgba(3,25,60,0.3)" }, 0.5);
+      tl.to(".edge", { opacity: 0, duration: 0.2 }, 0.55);
+      tl.set(".rs-menu", { opacity: 1 }, 0.60);
+      tl.fromTo(".rs-menu", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.12, ease: "power2.out" }, 0.60);
+      tl.set(".fl-menu", { opacity: 1 }, 0.70);
+      tl.set(".rs-side", { opacity: 1 }, 0.75);
+      tl.fromTo(".rs-side", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.12, ease: "power2.out" }, 0.75);
+      tl.set(".fl-side", { opacity: 1 }, 0.85);
+      tl.set(".rs-tabs", { opacity: 1 }, 0.90);
+      tl.fromTo(".rs-tabs", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.12, ease: "power2.out" }, 0.90);
+      tl.set(".fl-tabs", { opacity: 1 }, 1.00);
+      tl.set(".rs-doc", { opacity: 1 }, 1.05);
+      tl.fromTo(".rs-doc", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.12, ease: "power2.out" }, 1.05);
+      tl.set(".fl-doc", { opacity: 1 }, 1.15);
+      tl.set(".rs-status", { opacity: 1 }, 1.20);
+      tl.fromTo(".rs-status", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.12, ease: "power2.out" }, 1.20);
+      tl.set(".fl-status", { opacity: 1 }, 1.30);
+      tl.set(".br-menu", { opacity: 1, stagger: 0.012 }, 1.3);
+      tl.set(".br-tabs", { opacity: 1, stagger: 0.02 }, 1.42);
+      tl.set(".br-side", { opacity: 1, stagger: 0.012 }, 1.52);
+      tl.set(".br-doc", { opacity: 1, stagger: 0.016 }, 1.85);
+      tl.set(".br-status", { opacity: 1, stagger: 0.02 }, 2.15);
+      tl.to(".real", { opacity: 1, duration: 0.25, ease: "power1.inOut" }, 2.3);
+      tl.to(".rs", { opacity: 0, duration: 0.25 }, 2.3);
+      tl.set(".br, .fl", { opacity: 0 }, 2.6);
+      tl.to(".cam", { ...{ x: 0.4, y: -180.0, scale: 0.85 }, duration: 0.6, ease: "power3.inOut" }, 3.0);
+      tl.set(".mk-explorer", { opacity: 1 }, 3.65);
+      tl.fromTo(".mk-explorer", { clipPath: "inset(0 100% 100% 0)" }, { clipPath: "inset(-200px -200px -200px -200px)", duration: 0.25, ease: "power2.out" }, 3.65);
+      tl.fromTo(".mk-explorer .tg", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.6)" }, 3.75);
+      tl.to(".mk-explorer", { opacity: 0, duration: 0.15, ease: "power1.in" }, 5.35);
+      tl.to(".cam", { ...{ x: -459.45, y: -180.0, scale: 0.85 }, duration: 0.6, ease: "power3.inOut" }, 5.5);
+      tl.to(".doc", { y: -715, duration: 0.8, ease: "power2.inOut" }, 5.5);
+      tl.set(".mk-table", { opacity: 1 }, 6.35);
+      tl.fromTo(".mk-table", { clipPath: "inset(0 100% 100% 0)" }, { clipPath: "inset(-200px -200px -200px -200px)", duration: 0.25, ease: "power2.out" }, 6.35);
+      tl.fromTo(".mk-table .tg", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.6)" }, 6.45);
+      tl.set(".mk-tasks", { opacity: 1 }, 6.70);
+      tl.fromTo(".mk-tasks", { clipPath: "inset(0 100% 100% 0)" }, { clipPath: "inset(-200px -200px -200px -200px)", duration: 0.25, ease: "power2.out" }, 6.70);
+      tl.fromTo(".mk-tasks .tg", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.6)" }, 6.80);
+      tl.to(".doc", { y: -1421, duration: 0.8, ease: "power2.inOut" }, 8.0);
+      tl.set(".mk-latex", { opacity: 1 }, 8.85);
+      tl.fromTo(".mk-latex", { clipPath: "inset(0 100% 100% 0)" }, { clipPath: "inset(-200px -200px -200px -200px)", duration: 0.25, ease: "power2.out" }, 8.85);
+      tl.fromTo(".mk-latex .tg", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.6)" }, 8.95);
+      tl.to(".doc", { y: -2551, duration: 0.8, ease: "power2.inOut" }, 10.5);
+      tl.set(".mk-mermaid", { opacity: 1 }, 11.35);
+      tl.fromTo(".mk-mermaid", { clipPath: "inset(0 100% 100% 0)" }, { clipPath: "inset(-200px -200px -200px -200px)", duration: 0.25, ease: "power2.out" }, 11.35);
+      tl.fromTo(".mk-mermaid .tg", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.6)" }, 11.45);
+      tl.to(".doc", { y: -2880, duration: 0.8, ease: "power2.inOut" }, 13.0);
+      tl.set(".mk-alert", { opacity: 1 }, 13.85);
+      tl.fromTo(".mk-alert", { clipPath: "inset(0 100% 100% 0)" }, { clipPath: "inset(-200px -200px -200px -200px)", duration: 0.25, ease: "power2.out" }, 13.85);
+      tl.fromTo(".mk-alert .tg", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.6)" }, 13.95);
+      tl.to(".mk-table", { opacity: 0, duration: 0.15, ease: "power1.in" }, 7.85);
+      tl.to(".mk-tasks", { opacity: 0, duration: 0.15, ease: "power1.in" }, 7.85);
+      tl.to(".mk-latex", { opacity: 0, duration: 0.15, ease: "power1.in" }, 10.35);
+      tl.to(".mk-mermaid", { opacity: 0, duration: 0.15, ease: "power1.in" }, 12.85);
+      tl.to(".mk-alert", { opacity: 0, duration: 0.15, ease: "power1.in" }, 14.85);
+      tl.fromTo(".g-edit", { clipPath: "inset(0 0 100% 0)" }, { clipPath: "inset(0 0 0% 0)", duration: 0.4, ease: "none" }, 15.0);
+      tl.set(".scan", { opacity: 1, y: 0 }, 15.0);
+      tl.to(".scan", { y: 486, duration: 0.4, ease: "none" }, 15.0);
+      tl.set(".scan", { opacity: 0 }, 15.40);
+      tl.to(".cam", { ...{ x: 19.6, y: 0.0, scale: 0.49 }, duration: 0.6, ease: "power3.inOut" }, 15.0);
+      tl.to(".cam", { ...{ x: -940.0, y: -45.0, scale: 1.0 }, duration: 0.6, ease: "power3.inOut" }, 17.5);
+      tl.set(".e-08", { opacity: 1 }, 17.5);
+      tl.set(".mk-find", { opacity: 1 }, 18.10);
+      tl.fromTo(".mk-find", { clipPath: "inset(0 100% 100% 0)" }, { clipPath: "inset(-200px -200px -200px -200px)", duration: 0.25, ease: "power2.out" }, 18.10);
+      tl.fromTo(".mk-find .tg", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.6)" }, 18.20);
+      tl.set(".e-09", { opacity: 1 }, 19.0);
+      tl.to(".mk-find", { opacity: 0, duration: 0.15, ease: "power1.in" }, 20.35);
+      tl.fromTo(".g-split", { clipPath: "inset(0 0 100% 0)" }, { clipPath: "inset(0 0 0% 0)", duration: 0.4, ease: "none" }, 20.5);
+      tl.set(".scan", { opacity: 1, y: 0 }, 20.5);
+      tl.to(".scan", { y: 486, duration: 0.4, ease: "none" }, 20.5);
+      tl.set(".scan", { opacity: 0 }, 20.90);
+      tl.to(".cam", { ...{ x: 19.6, y: 0.0, scale: 0.49 }, duration: 0.6, ease: "power3.inOut" }, 20.5);
+      tl.set(".mk-src", { opacity: 1 }, 21.20);
+      tl.fromTo(".mk-src", { clipPath: "inset(0 100% 100% 0)" }, { clipPath: "inset(-200px -200px -200px -200px)", duration: 0.25, ease: "power2.out" }, 21.20);
+      tl.fromTo(".mk-src .tg", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.6)" }, 21.30);
+      tl.set(".mk-pre", { opacity: 1 }, 21.45);
+      tl.fromTo(".mk-pre", { clipPath: "inset(0 100% 100% 0)" }, { clipPath: "inset(-200px -200px -200px -200px)", duration: 0.25, ease: "power2.out" }, 21.45);
+      tl.fromTo(".mk-pre .tg", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.6)" }, 21.55);
+      tl.to(".mk-src", { opacity: 0, duration: 0.15, ease: "power1.in" }, 25.35);
+      tl.to(".mk-pre", { opacity: 0, duration: 0.15, ease: "power1.in" }, 25.35);
+      tl.set(".g-cmd", { opacity: 1 }, 25.5);
+      tl.set(".c-13", { opacity: 1 }, 25.5);
+      tl.to(".cam", { ...{ x: -201.2, y: -107.8, scale: 0.72 }, duration: 0.5, ease: "power3.inOut" }, 25.5);
+      tl.set(".mk-pal", { opacity: 1 }, 25.90);
+      tl.fromTo(".mk-pal", { clipPath: "inset(0 100% 100% 0)" }, { clipPath: "inset(-200px -200px -200px -200px)", duration: 0.25, ease: "power2.out" }, 25.90);
+      tl.fromTo(".mk-pal .tg", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.6)" }, 26.00);
+      tl.set(".c-14", { opacity: 1 }, 26.5);
+      tl.set(".mk-pal", { opacity: 0 }, 26.5);
+      tl.set(".c-16", { opacity: 1 }, 28.0);
+      tl.to(".cam", { ...{ x: -230.0, y: -77.5, scale: 0.75 }, duration: 0.5, ease: "power3.inOut" }, 28.0);
+      tl.set(".mk-srch", { opacity: 1 }, 28.40);
+      tl.fromTo(".mk-srch", { clipPath: "inset(0 100% 100% 0)" }, { clipPath: "inset(-200px -200px -200px -200px)", duration: 0.25, ease: "power2.out" }, 28.40);
+      tl.fromTo(".mk-srch .tg", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.6)" }, 28.50);
+      tl.to(".mk-srch", { opacity: 0, duration: 0.15, ease: "power1.in" }, 30.35);
+      tl.set(".c-17", { opacity: 1 }, 30.5);
+      tl.to(".cam", { ...{ x: -182.0, y: -105.0, scale: 0.7 }, duration: 0.5, ease: "power3.inOut" }, 30.5);
+      tl.set(".c-17b", { opacity: 1 }, 31.5);
+      tl.set(".mk-thm", { opacity: 1 }, 31.60);
+      tl.fromTo(".mk-thm", { clipPath: "inset(0 100% 100% 0)" }, { clipPath: "inset(-200px -200px -200px -200px)", duration: 0.25, ease: "power2.out" }, 31.60);
+      tl.fromTo(".mk-thm .tg", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.6)" }, 31.70);
+      tl.to(".cam", { opacity: 0, duration: 0.25, ease: "power1.in" }, 32.72);
+      window.__timelines["app"] = tl;
+    })();
+  </script>
+</template>
