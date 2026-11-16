@@ -263,6 +263,19 @@ impl TabSet {
     pub fn set_mode(&mut self, index: usize, mode: ViewMode) {
         if let Some(tab) = self.tabs.get_mut(index) {
             tab.set_mode(mode);
+            if matches!(tab.mode, ViewMode::Edit | ViewMode::Split) && !tab.is_viewer() {
+                tab.editor.request_focus();
+            }
+        }
+    }
+
+    /// Give the active editor keyboard focus when it is visible.
+    pub fn focus_active_editor(&mut self) {
+        if let Some(tab) = self.tabs.get_mut(self.active)
+            && matches!(tab.mode, ViewMode::Edit | ViewMode::Split)
+            && !tab.is_viewer()
+        {
+            tab.editor.request_focus();
         }
     }
 
@@ -278,6 +291,7 @@ impl TabSet {
     pub fn set_active(&mut self, index: usize) {
         if index < self.tabs.len() {
             self.active = index;
+            self.focus_active_editor();
         }
     }
 
@@ -294,6 +308,7 @@ impl TabSet {
             && let Some(index) = self.find_path(path)
         {
             self.active = index;
+            self.focus_active_editor();
             return index;
         }
         if self.tabs.len() == 1 && pristine_untitled(&self.tabs[0]) {
@@ -303,6 +318,7 @@ impl TabSet {
         self.apply_view(&mut tab);
         self.tabs.push(tab);
         self.active = self.tabs.len() - 1;
+        self.focus_active_editor();
         self.active
     }
 
@@ -312,6 +328,7 @@ impl TabSet {
         self.apply_view(&mut tab);
         self.tabs.push(tab);
         self.active = self.tabs.len() - 1;
+        self.focus_active_editor();
         self.active
     }
 

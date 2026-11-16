@@ -193,6 +193,7 @@ impl Editor {
         }
         if close {
             self.find.open = false;
+            self.focus_requested = true;
         }
     }
 

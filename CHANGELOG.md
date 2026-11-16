@@ -11,6 +11,9 @@
   still showed the end of the document; zooming or resizing at the end now re-pins the leader
   to the new end instead of letting both panes fall short. An explicit jump such as Ctrl+Home
   resets the end pin, so it is not pulled back to the end.
+- Entering Editor or Split mode, activating a tab, and closing find or go-to-line now give the
+  editor keyboard focus. Arrow keys, typing, and copy/paste work immediately without clicking
+  the text pane first.
 - The editor keeps both scrollbars allocated. A transient horizontal bar changed the inner
   height by a few points and made the maximum scroll offset oscillate at the end of the
   document; the end is now stable in Edit and Split.

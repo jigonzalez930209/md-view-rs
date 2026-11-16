@@ -105,11 +105,13 @@ impl Editor {
         }
         if close {
             self.goto.reset();
+            self.focus_requested = true;
             return;
         }
         if submit && let Ok(line) = self.goto.text.trim().parse::<usize>() {
             self.goto_line(line);
             self.goto.reset();
+            self.focus_requested = true;
         }
     }
 }

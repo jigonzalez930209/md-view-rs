@@ -508,8 +508,8 @@ key ctrl+shift+p
 type_text "Edit mode"
 key Enter
 sleep 0.8
-click 640 400
-sleep 0.5
+# Entering Edit mode must focus the editor: move and type without clicking the pane.
+key ctrl+End
 type_text "E2E "
 sleep 1.0
 shot "14a-editor-typed"

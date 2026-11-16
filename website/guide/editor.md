@@ -17,6 +17,10 @@ The tab bar has **View**, **Editor**, and **Split** segments:
 Images and code files open in their supported presentation; modes that do not apply are disabled
 for that tab.
 
+Entering **Editor** or **Split** mode, activating a tab, and closing the find or go-to-line panel
+all return keyboard focus to the editor. Arrow keys, typing, undo, and copy/paste work immediately
+without clicking the text pane first.
+
 ## Syntax highlighting
 
 `mdview-syntax` uses syntect's Oniguruma engine with two-face's matching syntax dumps. The first

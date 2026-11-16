@@ -64,6 +64,7 @@ and a horizontal rule.
 | Search | document and workspace scopes, grouped results, cancellable worker, preview highlighting | `search::tests`; E2E workspace search, activation, and back history |
 | Find overlay | floating find/replace with icon toggles, counts, and no viewport shift | E2E find overlay screenshot; editor tests |
 | Editor style | font size, line height, scroll beyond last line, indent guides, whitespace, matching gutter | `style::tests`; E2E editor settings and scroll-end tests |
+| Editor focus | Entering Editor/Split, activating a tab, and closing find/goto focus the editor; arrows, typing, and copy/paste work without a click | E2E types after Edit mode without clicking; editor focus tests |
 | Scroll ends | stable editor offset and sticky preview bottom with media/tables | `scroll_end.rs` tests; E2E split-end diagnostics |
 | Tables | weighted columns fill the reading width, header surface, zebra rows, separators, and clickable links inside cells | `preview-*` snapshots; E2E opens `docs/guide.md` from a table link |
 | Editor and preview sync | Rope editor, split view, block-anchor bidirectional scroll, end-aware mapping | workspace tests, split snapshots, E2E scroll stress and `scroll_end.rs` |

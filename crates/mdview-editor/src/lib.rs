@@ -4,6 +4,7 @@
 //! only the visible rows and handles keyboard, mouse, and IME input. The Markdown preview and the
 //! application shell consume read-only status from this crate.
 
+mod actions;
 mod controls;
 mod find;
 mod goto;
@@ -92,6 +93,7 @@ pub struct Editor {
     pub(crate) last_frame_time: std::time::Duration,
     pub(crate) highlight_enabled: bool,
     pub(crate) split_mode: bool,
+    pub(crate) focus_requested: bool,
     pub(crate) ignore_input: bool,
     pub(crate) overshoot_paints: u64,
 }
@@ -144,6 +146,7 @@ impl Editor {
             last_frame_time: std::time::Duration::ZERO,
             highlight_enabled: true,
             split_mode: false,
+            focus_requested: false,
             ignore_input: false,
             overshoot_paints: 0,
         };
@@ -291,12 +294,14 @@ impl Editor {
         self.find.open = true;
         self.find.replace = replace;
         self.find.focus_query = true;
+        self.focus_requested = false;
     }
 
     /// Open the go-to-line dialog.
     pub fn open_goto(&mut self) {
         self.goto.open = true;
         self.goto.focus = true;
+        self.focus_requested = false;
     }
 
     /// Select a character range.
