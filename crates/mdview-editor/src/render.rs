@@ -64,21 +64,24 @@ impl Editor {
             // animation overshoots at the end of the document and looks like flicker.
             .animated(false)
             .id_salt(("editor_scroll", self.identity));
-        let mut programmatic = false;
+        let mut requested = None;
         if let Some(offset) = self.restore_scroll.take() {
-            area = area.vertical_scroll_offset(offset);
-            programmatic = true;
+            requested = Some(offset);
         }
         if let Some((line, fraction)) = self.pending_line.take() {
             let row = self.line_to_row(line);
-            area = area.vertical_scroll_offset((row as f32 + fraction) * row_height);
-            programmatic = true;
+            requested = Some((row as f32 + fraction) * row_height);
         }
         if std::mem::take(&mut self.pending_end) {
-            area = area.vertical_scroll_offset((content_height - available_height).max(0.0));
-            programmatic = true;
+            requested = Some((content_height - available_height).max(0.0));
         }
+        let programmatic = requested.is_some();
+        if let Some(offset) = requested {
+            area = area.vertical_scroll_offset(offset);
+        }
+        let mut painted_offset = 0.0_f32;
         let output = area.show_viewport(ui, |ui, viewport| {
+            painted_offset = viewport.min.y;
             let (painted, painter) =
                 ui.allocate_painter(Vec2::new(content_width, content_height), Sense::click_and_drag());
             let origin = painted.rect.min;
@@ -277,7 +280,19 @@ impl Editor {
             self.last_scroll_at = std::time::Instant::now();
         }
         self.scroll_y = new_scroll;
-        self.last_max_offset = (content_height - output.inner_rect.height()).max(0.0);
+        // Use the sizes egui clamps with (rounded to the pixel grid), so a target at this
+        // maximum is stored exactly and split sync never chases a sub-pixel residue.
+        self.last_max_offset = (output.content_size.y - output.inner_rect.height()).max(0.0);
+        // egui lays out with the offset it had before this pass and clamps it only at the
+        // end, so a zoom, resize, or out-of-range request can paint one pass past the end.
+        // Discard that pass so it is never shown; egui repaints it in range immediately.
+        if crate::scroll::overshot(painted_offset, &output.state, self.last_max_offset) {
+            ui.ctx().request_discard("editor painted past its scroll end");
+            if !ui.ctx().will_discard() {
+                // Out of passes: this frame is shown past the end.
+                self.overshoot_paints += 1;
+            }
+        }
         self.last_bottom_clearance = crate::BOTTOM_CLEARANCE;
         self.last_last_row_top = total_rows.saturating_sub(1) as f32 * row_height - new_scroll;
         self.last_row_height = row_height;

@@ -39,6 +39,14 @@ pub struct DocumentTab {
     pub missing: bool,
     /// Fraction of the split used by the preview (0.2–0.8).
     pub split_ratio: f32,
+    /// The split pane the user scrolled last; the other pane follows it.
+    pub(crate) sync_leader: Option<crate::split::Pane>,
+    /// The document revision seen by the last split sync, to detect edits.
+    pub(crate) sync_revision: Option<u64>,
+    /// Overshoot paints already reported for this tab's panes.
+    pub(crate) sync_overshoots: u64,
+    /// Whether the last split frame scrolled or re-synchronized a pane.
+    pub(crate) sync_active: bool,
     preview_revision: Option<u64>,
     pub(crate) preview_source: String,
 }
@@ -73,6 +81,10 @@ impl DocumentTab {
             conflict: false,
             missing: false,
             split_ratio: 0.5,
+            sync_leader: None,
+            sync_revision: None,
+            sync_overshoots: 0,
+            sync_active: false,
             preview_revision: None,
             preview_source: String::new(),
         }

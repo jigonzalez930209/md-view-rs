@@ -26,6 +26,7 @@ mod settings;
 mod sidebar;
 mod single_instance;
 mod split;
+mod split_sync;
 mod tab_bar;
 mod tabs;
 mod ui_shell;

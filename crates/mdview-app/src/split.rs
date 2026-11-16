@@ -3,6 +3,7 @@
 use eframe::egui;
 
 use crate::app::MdViewApp;
+use crate::split_sync::{lock_error, sync_frame};
 
 impl MdViewApp {
     /// Paint the active tab as an editor and preview split.
@@ -104,6 +105,11 @@ impl MdViewApp {
         }
     }
 
+    /// Keep the follower pane locked to the pane the user scrolled last.
+    ///
+    /// egui applies wheel and scrollbar input at the end of a scroll area's frame, so
+    /// the leader's stored offset is what it paints next frame. Setting the follower's
+    /// offset now makes both panes paint matching positions in that same frame.
     fn sync_split_scroll(&mut self, ctx: &egui::Context, index: usize, hovered: Option<Pane>) {
         if !self.prefs.get().editor.sync_scroll {
             return;
@@ -123,53 +129,37 @@ impl MdViewApp {
             );
         }
         let source = choose_source(editor_scrolled, preview_scrolled, hovered);
-        let editor_position = tab.editor.first_visible_line_fraction();
-        let preview_position = tab.preview.source_map().line_at_offset(tab.preview.scroll_offset());
-        let action = plan_sync(
-            source,
-            tab.editor.is_at_end(),
-            tab.preview.is_at_end(),
-            editor_position,
-            preview_position,
-        );
-        let moved = match action {
-            SyncAction::PreviewEnd => {
-                log::debug!("split sync editor->preview end");
-                tab.preview.scroll_to_end()
-            }
-            SyncAction::PreviewLine(line, fraction) => {
-                log::debug!(
-                    "split sync editor->preview line={line} fraction={fraction:.3} editor_y={:.1} preview_y={:.1}",
-                    tab.editor.scroll_offset(),
-                    tab.preview.scroll_offset()
-                );
-                tab.preview.scroll_to_line(line, fraction)
-            }
-            SyncAction::EditorEnd => {
-                let metrics = tab.preview.scroll_metrics();
-                log::debug!(
-                    "preview scroll end offset={:.1} max={:.1} last_bottom={:.1} content={:.1}",
-                    metrics.offset,
-                    metrics.max_offset,
-                    metrics.last_block_bottom,
-                    metrics.content_height
-                );
-                log::debug!("split sync preview->editor end");
-                tab.editor.scroll_to_end()
-            }
-            SyncAction::EditorLine(line, fraction) => {
-                log::debug!(
-                    "split sync preview->editor line={line} fraction={fraction:.3} editor_y={:.1} preview_y={:.1}",
-                    tab.editor.scroll_offset(),
-                    tab.preview.scroll_offset()
-                );
-                tab.editor.scroll_to_line(line, fraction)
-            }
-            SyncAction::Hold => false,
+        let revision = tab.editor.document().revision();
+        let edited = tab.sync_revision.replace(revision).is_some_and(|last| last != revision);
+        tab.sync_leader = follow_leader(source, tab.sync_leader, edited);
+        let Some(leader) = tab.sync_leader else {
+            return;
         };
-        if moved {
-            ctx.request_repaint();
+        let moved = sync_frame(ctx, &mut tab.editor, &mut tab.preview, source, leader);
+        let overshoots = tab.editor.overshoot_paints() + tab.preview.overshoot_paints();
+        if overshoots > tab.sync_overshoots {
+            log::debug!(
+                "split overshoot paints={} editor={} preview={}",
+                overshoots - tab.sync_overshoots,
+                tab.editor.overshoot_paints(),
+                tab.preview.overshoot_paints()
+            );
+            tab.sync_overshoots = overshoots;
         }
+        // Report the lock once the panes come to rest, for E2E and field diagnostics.
+        let active = moved || source.is_some();
+        if tab.sync_active && !active {
+            log::debug!(
+                "split settled leader={leader:?} error={:.2} zoom={:.2} editor={:.2}/{:.2} preview={:.2}/{:.2}",
+                lock_error(&tab.editor, &tab.preview, leader).unwrap_or(f32::NAN),
+                ctx.zoom_factor(),
+                tab.editor.scroll_offset(),
+                tab.editor.max_scroll_offset(),
+                tab.preview.scroll_offset(),
+                tab.preview.max_scroll_offset()
+            );
+        }
+        tab.sync_active = active;
     }
 
     fn preview_pane(
@@ -241,51 +231,17 @@ pub(crate) enum Pane {
     Preview,
 }
 
-/// The next programmatic scroll to apply in a split frame.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum SyncAction {
-    /// Scroll the preview to its maximum offset.
-    PreviewEnd,
-    /// Scroll the preview to a source line and intra-line fraction.
-    PreviewLine(usize, f32),
-    /// Scroll the editor to its maximum offset.
-    EditorEnd,
-    /// Scroll the editor to a source line and intra-line fraction.
-    EditorLine(usize, f32),
-    /// Neither pane needs a programmatic scroll.
-    Hold,
-}
-
-/// Decide the next sync action. A pane already at its end never re-sends the
-/// same target, which is what caused repeated programmatic paints and flicker
-/// when the user kept scrolling the editor after both panes reached the end.
-pub(crate) fn plan_sync(
-    source: Option<Pane>,
-    editor_at_end: bool,
-    preview_at_end: bool,
-    editor_position: (usize, f32),
-    preview_position: Option<(usize, f32)>,
-) -> SyncAction {
-    match source {
-        Some(Pane::Editor) if editor_at_end => {
-            if preview_at_end {
-                SyncAction::Hold
-            } else {
-                SyncAction::PreviewEnd
-            }
-        }
-        Some(Pane::Editor) => SyncAction::PreviewLine(editor_position.0, editor_position.1),
-        Some(Pane::Preview) if preview_at_end => {
-            if editor_at_end {
-                SyncAction::Hold
-            } else {
-                SyncAction::EditorEnd
-            }
-        }
-        Some(Pane::Preview) => preview_position
-            .map(|(line, fraction)| SyncAction::EditorLine(line, fraction))
-            .unwrap_or(SyncAction::Hold),
-        None => SyncAction::Hold,
+/// The pane whose offset drives the other one this frame.
+///
+/// A pane scrolled by the user this frame leads; otherwise the last leader keeps
+/// leading, so the follower re-locks after re-layouts (zoom, split resize, media
+/// measured late) instead of drifting. An edit makes the editor lead, so preview
+/// re-layouts never move the editor under the cursor while typing.
+pub(crate) fn follow_leader(source: Option<Pane>, sticky: Option<Pane>, edited: bool) -> Option<Pane> {
+    match (source, edited) {
+        (Some(pane), _) => Some(pane),
+        (None, true) => Some(Pane::Editor),
+        (None, false) => sticky,
     }
 }
 
@@ -324,75 +280,27 @@ mod tests {
     }
 
     #[test]
-    fn end_targets_do_not_repeat_when_both_panes_are_at_the_end() {
+    fn the_last_leader_keeps_leading_between_scrolls() {
+        assert_eq!(follow_leader(None, Some(Pane::Editor), false), Some(Pane::Editor));
+        assert_eq!(follow_leader(None, Some(Pane::Preview), false), Some(Pane::Preview));
+        assert_eq!(follow_leader(None, None, false), None);
         assert_eq!(
-            plan_sync(Some(Pane::Editor), true, true, (10, 1.0), Some((10, 1.0))),
-            SyncAction::Hold
+            follow_leader(Some(Pane::Preview), Some(Pane::Editor), false),
+            Some(Pane::Preview)
         );
         assert_eq!(
-            plan_sync(Some(Pane::Preview), true, true, (10, 1.0), Some((10, 1.0))),
-            SyncAction::Hold
-        );
-    }
-
-    #[test]
-    fn an_end_in_one_pane_targets_the_other_pane() {
-        assert_eq!(
-            plan_sync(Some(Pane::Editor), true, false, (10, 1.0), Some((9, 0.5))),
-            SyncAction::PreviewEnd
-        );
-        assert_eq!(
-            plan_sync(Some(Pane::Preview), false, true, (8, 0.0), Some((20, 1.0))),
-            SyncAction::EditorEnd
+            follow_leader(Some(Pane::Editor), Some(Pane::Preview), false),
+            Some(Pane::Editor)
         );
     }
 
     #[test]
-    fn regular_scrolls_map_lines_in_both_directions() {
+    fn an_edit_hands_the_lead_to_the_editor() {
+        assert_eq!(follow_leader(None, Some(Pane::Preview), true), Some(Pane::Editor));
+        assert_eq!(follow_leader(None, None, true), Some(Pane::Editor));
         assert_eq!(
-            plan_sync(Some(Pane::Editor), false, false, (7, 0.25), Some((3, 0.5))),
-            SyncAction::PreviewLine(7, 0.25)
-        );
-        assert_eq!(
-            plan_sync(Some(Pane::Preview), false, false, (7, 0.25), Some((3, 0.5))),
-            SyncAction::EditorLine(3, 0.5)
-        );
-        assert_eq!(
-            plan_sync(Some(Pane::Preview), false, false, (7, 0.25), None),
-            SyncAction::Hold
-        );
-    }
-
-    #[test]
-    fn the_plan_never_rewrites_an_end_that_is_already_reached() {
-        for source in [None, Some(Pane::Editor), Some(Pane::Preview)] {
-            for editor_at_end in [false, true] {
-                for preview_at_end in [false, true] {
-                    for positions in [(Some((3, 0.2)), Some((8, 0.6))), (None, None)] {
-                        let action = plan_sync(
-                            source,
-                            editor_at_end,
-                            preview_at_end,
-                            positions.0.unwrap_or((0, 0.0)),
-                            positions.1,
-                        );
-                        if action == SyncAction::PreviewEnd {
-                            assert!(!preview_at_end, "{source:?} {editor_at_end} {preview_at_end}");
-                        }
-                        if action == SyncAction::EditorEnd {
-                            assert!(!editor_at_end, "{source:?} {editor_at_end} {preview_at_end}");
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn no_source_holds_even_at_the_end() {
-        assert_eq!(
-            plan_sync(None, true, true, (10, 1.0), Some((10, 1.0))),
-            SyncAction::Hold
+            follow_leader(Some(Pane::Preview), Some(Pane::Preview), true),
+            Some(Pane::Preview)
         );
     }
 }

@@ -91,6 +91,7 @@ pub struct Editor {
     pub(crate) viewport_rect: egui::Rect,
     pub(crate) last_frame_time: std::time::Duration,
     pub(crate) highlight_enabled: bool,
+    pub(crate) overshoot_paints: u64,
 }
 
 impl Editor {
@@ -140,6 +141,7 @@ impl Editor {
             viewport_rect: egui::Rect::NOTHING,
             last_frame_time: std::time::Duration::ZERO,
             highlight_enabled: true,
+            overshoot_paints: 0,
         };
         editor.highlight_enabled = editor.highlight_budget_allows();
         editor.ensure_layout();

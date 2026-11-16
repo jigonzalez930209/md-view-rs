@@ -164,6 +164,7 @@ impl MdViewApp {
 
         mdview_theme::apply_theme(&cc.egui_ctx, theme_id, follow_system);
         cc.egui_ctx.set_zoom_factor(snapshot.appearance.zoom.clamp(0.8, 2.0));
+        crate::split_sync::configure_passes(&cc.egui_ctx);
         let media = snapshot.media.clone();
         app.media.set_policy(MediaPolicy {
             remote_images: media.remote_images,

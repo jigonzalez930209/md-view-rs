@@ -30,6 +30,9 @@
   with stable editor offsets and the last preview block visible.
 - Split-end hold: 400 wheel events at the editor end, asserting the editor offset is stable,
   the preview stays at its maximum, and the preview end target is written at most once.
+- Split zoom: at zoom 1.3 (stacked split) and 0.9 (side by side), each pane is scrolled to the
+  end; the `split settled` log must show both panes at their maximum with a lock error within
+  0.05 points, and no `split overshoot` (a frame painted past a pane's end) may be logged.
 - Media warm-up: local images, SVG, math, and Mermaid are resolved before the first preview
   layout; intrinsic sizes reserve stable boxes so no texture load reflows the document.
 - Rendering: inline and display LaTeX, tables with a clickable cell link, local and HTTP
@@ -71,6 +74,22 @@ Visual snapshots live next to the crates:
 - `crates/mdview-render/tests/snapshots/` — preview, media, split, and themes
 
 Run `UPDATE_SNAPSHOTS=1 cargo test --workspace` to refresh them after intentional UI changes.
+
+Split synchronization has frame-level tests in `crates/mdview-app/src/split_sync_tests.rs`. They
+drive real editor and preview widgets with wheel events past the end of the document and assert
+that neither pane ever moves against the wheel or past its maximum, that the follower holds still
+at the end, and that a preview leader re-locks the editor after a soft-wrap re-layout. A
+painted-position test reads the final paragraph's rectangle from the widget tree on every frame
+and fails if it is ever painted above its resting place and snaps back; the previous line-based
+sync fails it with a 334-point one-frame jump. A zoom test applies the app zoom factor the way
+the window experiences it (constant pixels, so fewer or more points) at 0.8–1.6 with either pane
+leading, and asserts the panes stay locked within 0.05 points and reach both ends together. A
+rendered-pixel test renders every frame with wgpu while zooming at the end (soft wrap on and off,
+either pane leading) and requires both panes to be pixel-identical to the settled frame from the
+first frame after each zoom, and the frames to come to rest; without the discarded passes it
+fails with a 65-pixel one-frame jump. Every frame test also asserts that no frame is shown painted
+past a pane's end (`overshoot_paints`). The pure
+offset map in `split_sync.rs` has continuity, monotonicity, round-trip, and range tests.
 
 ## Disk-backed temporary storage
 

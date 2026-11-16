@@ -69,3 +69,30 @@ fn media_heavy_preview_reaches_the_last_block() {
     assert!(metrics.last_block_bottom <= metrics.content_height + 0.5, "{metrics:?}");
     assert!(metrics.offset >= metrics.max_offset - 1.0, "{metrics:?}");
 }
+
+#[test]
+fn sync_targets_past_the_end_are_clamped_and_not_repeated() {
+    let source = (0..80)
+        .map(|index| format!("Paragraph {index} with some text.\n\n"))
+        .collect::<String>();
+    let theme = Theme::light();
+    let preview = Rc::new(RefCell::new(Preview::default()));
+    let handle = preview.clone();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(600.0, 400.0))
+        .build_ui(move |ui| {
+            handle.borrow_mut().show(ui, &source, &theme, true);
+        });
+    harness.run();
+    let max = preview.borrow().max_scroll_offset();
+    assert!(max > 0.0);
+    // An unclamped target would be painted past the end for one frame (flicker).
+    assert!(preview.borrow_mut().sync_scroll_to(max + 5_000.0));
+    harness.run();
+    assert!((preview.borrow().scroll_offset() - max).abs() < 0.5);
+    assert!(preview.borrow().is_at_end());
+    assert!(!preview.borrow_mut().sync_scroll_to(max + 5_000.0));
+    assert!(!preview.borrow_mut().sync_scroll_to(f32::INFINITY));
+    // Line targets past the end are clamped too.
+    assert!(!preview.borrow_mut().scroll_to_line(158, 1.0));
+}

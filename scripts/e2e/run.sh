@@ -550,7 +550,7 @@ echo "== render pass =="
 x wheelup 640 400 200
 sleep 1.5
 shot "20-render-top"
-click 420 369
+click 422 473
 wait_title "guide.md"
 key ctrl+p
 type_text "logo.svg"
@@ -784,6 +784,59 @@ log_has "editor scroll end mode=split wrap=false"
 after_end=$(grep -c 'split sync editor->preview end' "$LOGS/mdview.log" || true)
 (( after_end - before_end <= 1 )) || fail "preview end target was rewritten while the editor stayed at the end"
 shot "30a-split-end-hold"
+
+echo "== split zoom: both ends reached together, locked, no overshoot paint =="
+# Zoom keeps the window size in pixels, so the split area in points changes: at 1.3 the
+# split stacks the editor over the preview, at 0.9 it stays side by side.
+assert_split_settled() {
+  python3 - "$LOGS/mdview.log" "$1" "$2" <<'PY' || fail "split zoom $2 with $1 leading is not locked at both ends"
+import re
+import sys
+text = open(sys.argv[1], encoding="utf-8").read()
+leader, zoom = sys.argv[2], float(sys.argv[3])
+pattern = (r"split settled leader=(\w+) error=([0-9.]+) zoom=([0-9.]+) "
+           r"editor=([0-9.]+)/([0-9.]+) preview=([0-9.]+)/([0-9.]+)")
+matches = re.findall(pattern, text)
+if not matches:
+    raise SystemExit("no split settled line")
+name, error, actual_zoom, e, e_max, p, p_max = matches[-1]
+error, actual_zoom, e, e_max, p, p_max = map(float, (error, actual_zoom, e, e_max, p, p_max))
+print(f"split zoom={actual_zoom} leader={name} error={error} editor={e}/{e_max} preview={p}/{p_max}")
+assert name == leader, name
+assert abs(actual_zoom - zoom) < 0.01, actual_zoom
+assert error <= 0.05, error
+assert e_max > 0 and p_max > 0
+assert abs(e - e_max) <= 0.05 and abs(p - p_max) <= 0.05, (e, e_max, p, p_max)
+PY
+}
+before_over=$(grep -c 'split overshoot' "$LOGS/mdview.log" || true)
+for zoom in 1.3 0.9; do
+  key ctrl+0
+  if [[ $zoom == 1.3 ]]; then
+    key ctrl+equal; key ctrl+equal; key ctrl+equal
+    EP=(650 230); PP=(650 540)
+  else
+    key ctrl+minus
+    EP=(420 400); PP=(800 400)
+  fi
+  sleep 0.8
+  click "${EP[@]}"
+  key ctrl+Home
+  sleep 0.6
+  x wheel "${EP[@]}" 400
+  sleep 1.4
+  assert_split_settled Editor "$zoom"
+  shot "30b-split-zoom-$zoom-editor"
+  x wheelup "${PP[@]}" 600
+  x wheel "${PP[@]}" 400
+  sleep 1.4
+  assert_split_settled Preview "$zoom"
+  shot "30c-split-zoom-$zoom-preview"
+done
+key ctrl+0
+sleep 0.5
+after_over=$(grep -c 'split overshoot' "$LOGS/mdview.log" || true)
+[[ "$before_over" == "$after_over" ]] || fail "a split pane painted past its end (flicker)"
 
 echo "== external conflict and reload =="
 key ctrl+shift+p

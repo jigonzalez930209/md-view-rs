@@ -67,6 +67,7 @@ and a horizontal rule.
 | Scroll ends | stable editor offset and sticky preview bottom with media/tables | `scroll_end.rs` tests; E2E split-end diagnostics |
 | Tables | weighted columns fill the reading width, header surface, zebra rows, separators, and clickable links inside cells | `preview-*` snapshots; E2E opens `docs/guide.md` from a table link |
 | Editor and preview sync | Rope editor, split view, block-anchor bidirectional scroll, end-aware mapping | workspace tests, split snapshots, E2E scroll stress and `scroll_end.rs` |
+| Split zoom and end stability | Continuous invertible offset map, sticky leader, clamped and discarded out-of-range passes, exact end and zoom re-lock | `split_sync` unit and frame tests (rendered-pixel zoom test), `scroll_end.rs`, E2E split-zoom stage with zero `split overshoot` |
 | 120 Hz scrolling | block-virtualized preview, release frame-budget gate | `cargo xtask perf`; release E2E `over_8.33ms=0` |
 | Diagnostics | two rotating 512 KiB logs, 1 MiB hard cap | E2E log-size assertion and `docs/logging.md` |
 

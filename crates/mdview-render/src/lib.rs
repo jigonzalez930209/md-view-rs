@@ -21,11 +21,13 @@ mod html;
 mod inline;
 mod layout;
 mod media;
+mod scroll;
 mod source_map;
 mod warmup;
 
 use layout::{estimate_height, hash};
 use media::PreviewScrollMetrics;
+use scroll::overshot;
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -80,6 +82,7 @@ pub struct Preview {
     layout_width: f32,
     painted_blocks: usize,
     last_frame_time: std::time::Duration,
+    overshoot_paints: u64,
 }
 
 impl Default for Preview {
@@ -108,6 +111,7 @@ impl Default for Preview {
             layout_width: 0.0,
             painted_blocks: 0,
             last_frame_time: std::time::Duration::ZERO,
+            overshoot_paints: 0,
         }
     }
 }
@@ -116,105 +120,6 @@ impl Preview {
     /// Build a new preview.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// The last painted scroll offset in points.
-    pub fn scroll_offset(&self) -> f32 {
-        self.scroll
-    }
-
-    /// The largest valid scroll offset from the last paint.
-    pub fn max_scroll_offset(&self) -> f32 {
-        self.max_offset
-    }
-
-    /// Diagnostics for E2E assertions and the status bar.
-    pub fn scroll_metrics(&self) -> PreviewScrollMetrics {
-        PreviewScrollMetrics {
-            offset: self.scroll,
-            max_offset: self.max_offset,
-            viewport_height: self.viewport.height(),
-            content_height: self.content_height,
-            last_block_bottom: self
-                .source_map
-                .blocks
-                .last()
-                .map(|block| block.top + block.height)
-                .unwrap_or(0.0),
-        }
-    }
-
-    /// Request a scroll offset on the next paint.
-    pub fn set_scroll_offset(&mut self, offset: f32) {
-        self.pending_scroll = Some(offset.max(0.0));
-    }
-
-    /// Scroll to the maximum offset on the next paint.
-    ///
-    /// Returns `false` when the preview is already at the end.
-    pub fn scroll_to_end(&mut self) -> bool {
-        if self.is_at_end() {
-            return false;
-        }
-        self.end_requested = true;
-        self.pending_scroll = Some(if self.max_offset > 0.0 {
-            self.max_offset
-        } else {
-            f32::MAX
-        });
-        true
-    }
-
-    /// Consume a completed end request from `End` or split synchronization.
-    pub fn take_end_request(&mut self) -> bool {
-        if self.end_requested && self.is_at_end() {
-            self.end_requested = false;
-            true
-        } else {
-            false
-        }
-    }
-
-    /// Whether the preview is at the end of its scrollable range.
-    pub fn is_at_end(&self) -> bool {
-        self.max_offset > 0.0 && self.scroll >= self.max_offset - 2.0
-    }
-
-    /// Whether the user scrolled this frame, consuming the flag.
-    pub fn take_user_scroll(&mut self) -> bool {
-        std::mem::take(&mut self.user_scrolled)
-    }
-
-    /// The preview viewport rectangle from the last paint.
-    pub fn viewport_rect(&self) -> egui::Rect {
-        self.viewport
-    }
-
-    /// Scroll to a zero-based source line, preserving an intra-line fraction.
-    ///
-    /// Returns `false` when the preview is already at that offset.
-    pub fn scroll_to_line(&mut self, line: usize, fraction: f32) -> bool {
-        if let Some(offset) = self.source_map.offset_for_line(line, fraction) {
-            if (offset - self.scroll).abs() <= 1.0 {
-                return false;
-            }
-            self.pending_scroll = Some(offset);
-        } else {
-            self.pending_line = Some((line, fraction));
-        }
-        true
-    }
-
-    /// Scroll to a heading or footnote anchor.
-    pub fn scroll_to_anchor(&mut self, anchor: &str) -> bool {
-        self.pending_anchor = Some(anchor.to_owned());
-        if let Some(offset) = self.anchors.get(anchor).copied() {
-            self.pending_scroll = Some(offset);
-            self.pending_anchor = None;
-            true
-        } else {
-            false
-        }
     }
 
     /// The heading and footnote anchors from the last paint.
@@ -349,6 +254,7 @@ impl Preview {
         let (top_gap, bottom_gap) = (8.0, 12.0);
 
         let anchor_before = self.anchor();
+        let was_at_end = self.is_at_end();
         let old_content_height = self.content_height;
         let mut area = egui::ScrollArea::vertical()
             .id_salt("mdview-markdown-preview")
@@ -359,7 +265,9 @@ impl Preview {
             area = area.vertical_scroll_offset(offset);
         }
 
+        let mut painted_offset = 0.0_f32;
         let area_output: ScrollAreaOutput<()> = area.show_viewport(ui, |ui, viewport| {
+            painted_offset = viewport.min.y;
             ui.set_width(ui.available_width());
             ui.add_space(top_gap);
             let available = ui.available_width();
@@ -457,6 +365,16 @@ impl Preview {
         let max_offset = (area_output.content_size.y - area_output.inner_rect.height()).max(0.0);
         self.content_height = self.source_map.content_height;
         self.max_offset = max_offset;
+        // egui lays out with the offset it had before this pass and clamps it only at the
+        // end, so a zoom, resize, or out-of-range request can paint one pass past the end.
+        // Discard that pass so it is never shown; egui repaints it in range immediately.
+        if overshot(painted_offset, &area_output.state, max_offset) {
+            ui.ctx().request_discard("preview painted past its scroll end");
+            if !ui.ctx().will_discard() {
+                // Out of passes: this frame is shown past the end.
+                self.overshoot_paints += 1;
+            }
+        }
 
         let mut anchor_map = BTreeMap::new();
         for (anchor, y) in &output.anchors_screen {
@@ -469,19 +387,32 @@ impl Preview {
         self.scroll = scroll;
         self.viewport = area_output.inner_rect;
 
-        if !programmatic
-            && (self.source_map.content_height - old_content_height).abs() > 0.5
-            && let Some(anchor) = anchor_before
-            && let Some(offset) = anchor.offset(&self.source_map)
-            && (offset - self.scroll).abs() > 0.5
-        {
-            self.pending_scroll = Some(offset);
-            ui.ctx().request_repaint();
+        // Every follow-up target below comes from the layout just painted, so it is clamped
+        // to that layout's range: egui would paint an out-of-range request for one frame
+        // before clamping it, which flickers after a zoom or resize at the end.
+        let clamp = |offset: f32| offset.clamp(0.0, max_offset);
+        if !programmatic && (self.source_map.content_height - old_content_height).abs() > 0.5 {
+            // A re-layout (zoom, resize, late media) keeps the reader's place; a preview
+            // that was at its end stays at the new end.
+            let target = if was_at_end {
+                Some(max_offset)
+            } else {
+                anchor_before.and_then(|anchor| anchor.offset(&self.source_map))
+            };
+            if let Some(offset) = target.map(clamp)
+                && (offset - self.scroll).abs() > 0.5
+            {
+                self.pending_scroll = Some(offset);
+                // This pass shows the new layout at the old offset (short of or past the
+                // end after a zoom). Discard it so the corrected pass is what is shown.
+                ui.ctx().request_discard("preview re-layout moved its scroll anchor");
+                ui.ctx().request_repaint();
+            }
         }
         if let Some((line, fraction)) = self.pending_line.take()
             && let Some(offset) = self.source_map.offset_for_line(line, fraction)
         {
-            self.pending_scroll = Some(offset);
+            self.pending_scroll = Some(clamp(offset));
             ui.ctx().request_repaint();
         }
         if let Some(anchor) = &output.anchor {
@@ -490,7 +421,7 @@ impl Preview {
         if let Some(anchor) = self.pending_anchor.clone()
             && let Some(offset) = self.anchors.get(&anchor).copied()
         {
-            self.pending_scroll = Some(offset);
+            self.pending_scroll = Some(clamp(offset));
             self.pending_anchor = None;
             ui.ctx().request_repaint();
         }

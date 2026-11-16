@@ -3,6 +3,18 @@
 use crate::Editor;
 use crate::render::rows_for;
 
+/// Offsets closer than this (in points) count as already synchronized: a twentieth of
+/// a pixel at 1x, invisible, but above egui's pixel-grid rounding so no target loops.
+const SYNC_TOLERANCE: f32 = 0.05;
+
+/// Whether a pass painted past the scrollable end by accident.
+///
+/// Trackpad rubber-banding paints past the end on purpose and keeps the stored offset
+/// unclamped; only a pass whose stored offset egui clamped back into range overshot.
+pub(crate) fn overshot(painted: f32, state: &egui::scroll_area::State, max_offset: f32) -> bool {
+    painted > max_offset + 0.5 && state.unclamped_offset().y <= max_offset + 0.5
+}
+
 impl Editor {
     /// Give the editor a stable identity for its scroll area.
     pub fn set_identity(&mut self, identity: u64) {
@@ -23,6 +35,52 @@ impl Editor {
     pub fn set_scroll_offset(&mut self, offset: f32) {
         self.restore_scroll = Some(offset.max(0.0));
         self.programmatic_scroll = true;
+    }
+
+    /// Scroll to a content-space offset for split synchronization.
+    ///
+    /// The target is clamped to the scrollable range from the last paint. An
+    /// out-of-range request would be painted unclamped for one frame and then
+    /// snap back, which shows as flicker at the end of the document. Returns
+    /// `false` when the editor is already at the clamped target.
+    pub fn sync_scroll_to(&mut self, offset: f32) -> bool {
+        let target = offset.clamp(0.0, self.last_max_offset.max(0.0));
+        // egui stores an explicit offset exactly, so a tight tolerance settles in one
+        // frame and leaves no visible gap between the panes.
+        if !target.is_finite() || (target - self.scroll_y).abs() <= SYNC_TOLERANCE {
+            return false;
+        }
+        self.pending_line = None;
+        self.pending_end = false;
+        self.restore_scroll = Some(target);
+        self.programmatic_scroll = true;
+        true
+    }
+
+    /// How many frames were shown painted past the scrollable end.
+    ///
+    /// A pass that paints past the end (after a zoom, a resize, or an out-of-range
+    /// request) is discarded and repainted in range before it is shown; only a pass
+    /// that could not be discarded counts. Such a frame is visible as flicker.
+    pub fn overshoot_paints(&self) -> u64 {
+        self.overshoot_paints
+    }
+
+    /// The content-space top of every logical line in the last wrap layout.
+    ///
+    /// The returned vector has `line_count + 1` entries; the last one is the
+    /// bottom of the final line.
+    pub fn line_tops(&self) -> Vec<f32> {
+        let row_height = self.last_row_height.max(1.0);
+        let lines = self.document.line_count();
+        let mut tops = Vec::with_capacity(lines + 1);
+        let mut rows = 0usize;
+        tops.push(0.0);
+        for line in 0..lines {
+            rows += rows_for(self.display_widths.get(line).copied().unwrap_or(0), self.last_columns);
+            tops.push(rows as f32 * row_height);
+        }
+        tops
     }
 
     /// The first logical line in the visible viewport.
