@@ -4,9 +4,11 @@ H2 (`0.2.0`) is complete and verified locally on Linux. The macOS, Windows, and 
 screen-reader checks in this file are deliberately deferred to the `1.0.0` publication gate;
 they do not block work on the remaining milestones.
 
-Hosted CI/CD is intentionally disabled until `1.0.0`. Run these checks locally when preparing
-the 1.0 release and record the results in the release checklist in
-[`ROADMAP.md`](../ROADMAP.md).
+Hosted CI/CD is enabled for the release candidate: the tag-driven workflow in
+`.github/workflows/release.yml` publishes the Linux, macOS, and Windows assets, and
+`.github/workflows/docs.yml` deploys the VitePress documentation. The manual macOS/Windows and
+screen-reader checks below remain deferred to the final 1.0.0 gate; the RC desktop builds are
+unsigned.
 
 ## Visual snapshots
 
