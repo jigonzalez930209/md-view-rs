@@ -77,3 +77,6 @@ media finishes measuring. The per-tab ratio is restored with the session.
 Files larger than 10 MB or 200,000 lines load on a worker with progress and cancellation. The
 editor stays virtualized, wrap is disabled, and syntax highlighting is turned off so scrolling and
 typing stay inside the frame budget.
+
+For everyday editing, use a release build. Debug builds are unoptimized and are not a
+representative measure of typing, highlighting, or preview latency.

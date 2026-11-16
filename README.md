@@ -40,6 +40,10 @@ cargo build --locked
 cargo run -p mdview-app -- README.md
 ```
 
+Use `cargo run --release -p mdview-app -- README.md` when evaluating typing,
+syntax-highlighting, or preview performance. Debug builds are unoptimized and are not a
+representative measure of editor latency.
+
 The acceptance workspace and feature map live in
 [`examples/v1-workspace`](examples/v1-workspace) and [`docs/feature-matrix.md`](docs/feature-matrix.md).
 
