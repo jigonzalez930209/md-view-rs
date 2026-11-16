@@ -24,7 +24,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.97.1
+      # rust-cache keys only on "Linux", not the distro. Without a separate prefix this
+      # job restores build scripts compiled by CI on ubuntu-latest (glibc 2.39), which
+      # cannot run on ubuntu-22.04.
       - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: v0-rust-ubuntu-22.04
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny
