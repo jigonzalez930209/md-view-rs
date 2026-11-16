@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 
-use egui_kittest::Harness;
+use egui_kittest::{Harness, SnapshotOptions};
 use mdview_media::{MediaRequest, Raster};
 use mdview_render::{MediaProvider, MediaState, Preview};
 use mdview_theme::{Theme, ThemeMode, apply};
@@ -94,7 +94,10 @@ fn snapshot(name: &str, mode: ThemeMode) {
             );
         });
     harness.run();
-    harness.snapshot(name);
+    // The media fixtures combine text, formulas, SVG, and Mermaid on the GitHub-hosted
+    // software rasterizer. That stack differs from the local GPU by a few thousand
+    // anti-aliasing pixels; allow that only here, while the editor/preview snapshots stay strict.
+    harness.snapshot_options(name, &SnapshotOptions::new().max_failed_pixels(2_500));
 }
 
 #[test]
