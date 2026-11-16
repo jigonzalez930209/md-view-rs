@@ -2317,7 +2317,7 @@ checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
 name = "mdview-app"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "chardetng",
  "craft-atomic",
@@ -2359,7 +2359,7 @@ dependencies = [
 
 [[package]]
 name = "mdview-editor"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "egui",
  "egui_kittest",
@@ -2370,7 +2370,7 @@ dependencies = [
 
 [[package]]
 name = "mdview-i18n"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "craft-i18n",
  "log",
@@ -2378,14 +2378,14 @@ dependencies = [
 
 [[package]]
 name = "mdview-markdown"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "pulldown-cmark",
 ]
 
 [[package]]
 name = "mdview-media"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "blake3",
  "craft-docpath",
@@ -2407,7 +2407,7 @@ dependencies = [
 
 [[package]]
 name = "mdview-model"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "encoding_rs",
  "ropey",
@@ -2415,7 +2415,7 @@ dependencies = [
 
 [[package]]
 name = "mdview-render"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "egui",
  "egui_kittest",
@@ -2431,7 +2431,7 @@ dependencies = [
 
 [[package]]
 name = "mdview-syntax"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "syntect",
  "two-face",
@@ -2439,7 +2439,7 @@ dependencies = [
 
 [[package]]
 name = "mdview-theme"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "craft-ui",
  "egui",
@@ -2447,7 +2447,7 @@ dependencies = [
 
 [[package]]
 name = "mdview-ui"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "craft-i18n",
  "egui",
@@ -2464,7 +2464,7 @@ dependencies = [
 
 [[package]]
 name = "mdview-workspace"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "ignore",
  "notify",
@@ -5772,7 +5772,7 @@ checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 
 [[package]]
 name = "xtask"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "flate2",
  "resvg",
