@@ -85,6 +85,10 @@ pub(super) fn edit_menu(ui: &mut Ui, t: &dyn Fn(&str) -> String, command: &mut O
         *command = Some(Command::GotoLine);
         ui.close();
     }
+    if ui.button(t("Insert LaTeX Block")).clicked() {
+        *command = Some(Command::InsertLatexBlock);
+        ui.close();
+    }
     ui.separator();
     if ui.button(t("Command Palette…")).clicked() {
         *command = Some(Command::CommandPalette);

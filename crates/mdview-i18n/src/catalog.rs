@@ -58,6 +58,7 @@ pub(crate) const SPANISH: &str = concat!(
     "\tFind\tBuscar\n",
     "\tReplace\tReemplazar\n",
     "\tGo to Line\tIr a la línea\n",
+    "\tInsert LaTeX Block\tInsertar bloque de LaTeX\n",
     "\tWord wrap\tAjuste de línea\n",
     "\tLine numbers\tNúmeros de línea\n",
     "\tReopen with Encoding\tReabrir con codificación\n",

@@ -14,6 +14,9 @@
 - Entering Editor or Split mode, activating a tab, and closing find or go-to-line now give the
   editor keyboard focus. Arrow keys, typing, and copy/paste work immediately without clicking
   the text pane first.
+- Added **Insert LaTeX Block** to the Edit menu, command palette, keyboard menu, and
+  `Ctrl/Cmd+Shift+M`. It inserts a display-math block on its own lines and puts the cursor
+  inside it.
 - The editor keeps both scrollbars allocated. A transient horizontal bar changed the inner
   height by a few points and made the maximum scroll offset oscillate at the end of the
   document; the end is now stable in Edit and Split.

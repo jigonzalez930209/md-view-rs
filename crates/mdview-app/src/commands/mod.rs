@@ -212,6 +212,15 @@ impl MdViewApp {
                 self.ensure_edit_mode(ctx);
                 self.tabs.editor_mut().open_goto();
             }
+            Command::InsertLatexBlock => {
+                if self.tabs.active().is_viewer() {
+                    return;
+                }
+                self.ensure_edit_mode(ctx);
+                let editor = self.tabs.editor_mut();
+                editor.insert_latex_block();
+                editor.request_focus();
+            }
             Command::ToggleWrap => {
                 let wrap = !self.tabs.editor().status().wrap;
                 let line_numbers = self.tabs.editor().status().line_numbers;

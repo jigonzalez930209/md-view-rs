@@ -43,6 +43,20 @@ document and workspace search share the same top-center panel anchored to the wi
 
 `Ctrl/Cmd+G` opens the line prompt. Enter a one-based line number to move the cursor and center it.
 
+## LaTeX blocks
+
+`Ctrl/Cmd+Shift+M`, **Edit → Insert LaTeX Block**, or the command palette inserts a display-math
+block on its own lines and places the cursor inside it:
+
+```markdown
+$$
+E = mc^2
+$$
+```
+
+The preview renders the block with the reading view's equation size. Inline math uses a single
+`$…$` pair.
+
 ## Quick Open and the palette
 
 `Ctrl/Cmd+P` opens workspace Quick Open. `Ctrl/Cmd+Shift+P` opens the command palette with every

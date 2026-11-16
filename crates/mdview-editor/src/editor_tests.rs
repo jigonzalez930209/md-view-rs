@@ -68,3 +68,21 @@ fn matching_brackets_are_found_in_both_directions() {
     editor.ensure_brackets();
     assert_eq!(editor.bracket_match, Some((start, end)));
 }
+
+#[test]
+fn latex_block_is_inserted_on_its_own_lines() {
+    let mut editor = editor("alpha\nbeta\n");
+    editor.move_cursor_to(5);
+    editor.insert_latex_block();
+    assert_eq!(editor.document().snapshot(), "alpha\n$$\n\n$$\nbeta\n");
+    assert_eq!(editor.document().line_col(editor.cursor()), (2, 0));
+}
+
+#[test]
+fn latex_block_pushes_existing_text_to_a_new_line() {
+    let mut editor = editor("alpha\nbeta\n");
+    editor.move_cursor_to(6);
+    editor.insert_latex_block();
+    assert_eq!(editor.document().snapshot(), "alpha\n$$\n\n$$\nbeta\n");
+    assert_eq!(editor.document().line_col(editor.cursor()), (2, 0));
+}

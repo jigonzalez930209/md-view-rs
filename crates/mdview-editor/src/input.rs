@@ -254,7 +254,7 @@ impl Editor {
         }
     }
 
-    fn replace_selection(&mut self, text: &str) {
+    pub(crate) fn replace_selection(&mut self, text: &str) {
         let (start, end) = self.selection();
         if start != end {
             self.document.delete_range(start, end);

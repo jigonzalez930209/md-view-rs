@@ -222,6 +222,10 @@ pub fn show_menu(ui: &mut Ui, state: MenuState<'_>) -> Option<Command> {
                 command = Some(Command::GotoLine);
                 ui.close();
             }
+            if ui.button(t("Insert LaTeX Block")).clicked() {
+                command = Some(Command::InsertLatexBlock);
+                ui.close();
+            }
         });
 
         ui.menu_button(t("View"), |ui| {

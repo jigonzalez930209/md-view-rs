@@ -98,6 +98,8 @@ pub enum Command {
     Replace,
     /// Open the go-to-line dialog.
     GotoLine,
+    /// Insert a display LaTeX block at the cursor.
+    InsertLatexBlock,
     /// Toggle soft wrap.
     ToggleWrap,
     /// Toggle line numbers.

@@ -62,6 +62,7 @@ impl MdViewApp {
                     ("Find", mdview_ui::Command::Find),
                     ("Replace", mdview_ui::Command::Replace),
                     ("Go to Line", mdview_ui::Command::GotoLine),
+                    ("Insert LaTeX Block", mdview_ui::Command::InsertLatexBlock),
                     ("Edit mode", mdview_ui::Command::SetMode(mdview_ui::ViewMode::Edit)),
                     ("Reading view", mdview_ui::Command::SetMode(mdview_ui::ViewMode::View)),
                     ("Split view", mdview_ui::Command::SetMode(mdview_ui::ViewMode::Split)),

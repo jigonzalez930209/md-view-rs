@@ -88,6 +88,8 @@ impl MdViewApp {
             self.handle_command(ctx, Command::Replace);
         } else if self.consume_shortcut(ctx, "Cmd+G") {
             self.handle_command(ctx, Command::GotoLine);
+        } else if self.consume_shortcut(ctx, "Cmd+Shift+M") {
+            self.handle_command(ctx, Command::InsertLatexBlock);
         } else if self.consume_shortcut(ctx, "Cmd+Shift+E") {
             self.handle_command(ctx, Command::SetMode(mdview_ui::ViewMode::Split));
         } else if self.consume_shortcut(ctx, "Cmd+E") {
