@@ -6,6 +6,9 @@
   are stored exactly and the editor maximum matches egui's sizes. The E2E split-zoom stage and
   frame tests require a lock error of at most 0.005 points; every settle in the E2E run reports
   0.00.
+- The editor keeps both scrollbars allocated. A transient horizontal bar changed the inner
+  height by a few points and made the maximum scroll offset oscillate at the end of the
+  document; the end is now stable in Edit and Split.
 
 ## 1.0.0-rc.1 — 2026-11-16
 

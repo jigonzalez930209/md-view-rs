@@ -60,6 +60,10 @@ impl Editor {
         let mut geometry = None;
         let mut area = ScrollArea::both()
             .auto_shrink([false, false])
+            // A transient horizontal scrollbar changes the inner height by a few points,
+            // which makes the maximum offset oscillate at the end of the document. Keep
+            // both bars allocated so the maximum is stable.
+            .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
             // Programmatic split-sync targets must not animate toward the target: the
             // animation overshoots at the end of the document and looks like flicker.
             .animated(false)
