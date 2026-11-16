@@ -24,6 +24,11 @@ fn rpm_version() -> String {
     VERSION.replace('-', "~")
 }
 
+/// Release asset name: GitHub normalizes `~` in asset names, so use a dot in file names.
+fn release_version() -> String {
+    VERSION.replace('-', ".")
+}
+
 /// Build the Linux package set and update manifest.
 pub fn run(no_build: bool) -> Result<(), String> {
     icons::generate()?;
@@ -43,9 +48,9 @@ pub fn run(no_build: bool) -> Result<(), String> {
     let tarball = format!("mdview-{VERSION}-linux-{arch}.tar.gz");
     tar_gz(&stage, &PathBuf::from("dist").join(&tarball))?;
 
-    let deb = format!("mdview_{}_amd64.deb", debian_version());
+    let deb = format!("mdview_{}_amd64.deb", release_version());
     let deb_path = debian(&stage, Path::new("dist"), &deb, arch)?;
-    let rpm_name = format!("mdview-{}-1.{}.rpm", rpm_version(), rpm_arch(arch));
+    let rpm_name = format!("mdview-{}-1.{}.rpm", release_version(), rpm_arch(arch));
     let rpm_path = rpm(&stage, Path::new("dist"), arch)?;
     let appimage = appdir(&stage, arch)?;
     let mut artifacts = vec![
@@ -184,7 +189,7 @@ fn rpm(stage: &Path, dist: &Path, arch: &str) -> Result<PathBuf, String> {
         .filter_map(Result::ok)
         .find(|entry| entry.path().extension().is_some_and(|extension| extension == "rpm"))
         .ok_or_else(|| "rpmbuild produced no rpm".to_owned())?;
-    let output = dist.join(entry.file_name());
+    let output = dist.join(format!("mdview-{}-1.{}.rpm", release_version(), rpm_arch(arch)));
     fs::copy(entry.path(), &output).map_err(|error| error.to_string())?;
     Ok(output)
 }

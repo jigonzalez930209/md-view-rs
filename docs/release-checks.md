@@ -100,9 +100,9 @@ Run these local checks before tagging a release:
 - [ ] `cargo xtask package` produces the tarball, `.deb`, `.rpm`, AppDir, AppImage when the tool is
       available, `SHA256SUMS`, `sbom.cdx.json`, and `latest.json`.
 - [ ] `cargo xtask release-check` reports every manifest asset and input.
-- [ ] `dpkg-deb -x dist/mdview_1.0.0~rc.0_amd64.deb /tmp/mdview-deb` then
+- [ ] `dpkg-deb -x dist/mdview_1.0.0.rc.0_amd64.deb /tmp/mdview-deb` then
       `/tmp/mdview-deb/usr/bin/mdview --version` prints `1.0.0-rc.0`.
-- [ ] `rpm -qlp dist/mdview-1.0.0~rc.0-1.x86_64.rpm` lists the binary, desktop, MIME, metainfo, and
+- [ ] `rpm -qlp dist/mdview-1.0.0.rc.0-1.x86_64.rpm` lists the binary, desktop, MIME, metainfo, and
       hicolor icons.
 - [ ] `dist/MD-View-1.0.0-rc.0-x86_64.AppImage --appimage-extract-and-run --version` prints `1.0.0-rc.0`.
       If the system temporary filesystem is quota-limited, prefix the command with

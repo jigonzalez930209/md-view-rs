@@ -17,16 +17,16 @@ Choose one of the published assets:
 | Asset | Use |
 |---|---|
 | `mdview-1.0.0-rc.0-linux-x86_64.tar.gz` | Portable tree; extract and run `usr/bin/mdview`. |
-| `mdview_1.0.0~rc.0_amd64.deb` | Debian and Ubuntu package. |
-| `mdview-1.0.0~rc.0-1.x86_64.rpm` | Fedora, openSUSE, and other RPM distributions. |
+| `mdview_1.0.0.rc.0_amd64.deb` | Debian and Ubuntu package. |
+| `mdview-1.0.0.rc.0-1.x86_64.rpm` | Fedora, openSUSE, and other RPM distributions. |
 | `MD-View-1.0.0-rc.0-x86_64.AppImage` | Single-file image for most desktop distributions. |
 
 ```sh
 # Debian / Ubuntu
-sudo dpkg -i mdview_1.0.0~rc.0_amd64.deb
+sudo dpkg -i mdview_1.0.0.rc.0_amd64.deb
 
 # Fedora / RPM
-sudo rpm -i mdview-1.0.0~rc.0-1.x86_64.rpm
+sudo rpm -i mdview-1.0.0.rc.0-1.x86_64.rpm
 
 # AppImage
 chmod +x MD-View-1.0.0-rc.0-x86_64.AppImage

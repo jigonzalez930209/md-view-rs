@@ -137,6 +137,12 @@ jobs:
         run: |
           cd release-assets
           rm -f SHA256SUMS latest.json
+          for file in *; do
+            normalized="${file//\~/.}"
+            if [ "$file" != "$normalized" ]; then
+              mv "$file" "$normalized"
+            fi
+          done
           sha256sum * | sort > SHA256SUMS
           python3 - <<'PY'
           import hashlib, json, os
