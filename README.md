@@ -1,10 +1,29 @@
 # MD View
 
 A native Markdown, text, and code editor for Windows, macOS, and Linux, built with Rust and egui.
+No webview, no browser engine, and no JavaScript runtime.
 
-The workbench places the explorer directly under the menu bar and keeps document tabs in the editor column, with Cursor-style active tabs. Standalone image files open through the read-only viewer plugin API, and Settings → Reading provides a 5–40% margin slider plus independent body, heading, code, table, and equation sizes. The pre-1.0 acceptance workspace and feature map are in
-[`examples/v1-workspace`](examples/v1-workspace) and
-[`docs/feature-matrix.md`](docs/feature-matrix.md). The project is at the `0.14.0` pre-1.0 milestone: a native shell with document tabs, a lazy folder tree, debounced filesystem watching, session restore, conflict handling, a virtualized code editor, syntax highlighting, regex find/replace, encoding detection, mixed-EOL preservation, background large-file loading, atomic saves, and English/Spanish UI. Markdown files open in a token-styled reading view with GFM tables, tasks, footnotes, alerts, safe HTML, internal links, source mapping, and Edit/Reading modes. Split view keeps the editor and preview synchronized with block anchors. The reading view embeds local and cached remote images, static and animated SVG, LaTeX math, and native Mermaid diagrams, with a zoomable lightbox. The shell uses a desktop title bar with File/Edit/View/Go/Help menus, document history, document/workspace search, animated document tabs with a View/Editor/Split control, and a VS Code Material Icon Theme workspace tree; settings and prompts are modal dialogs. The Markdown preview is block-virtualized for large documents. Nine themes, settings tabs, command palette, workspace Quick Open, text scaling, rotating diagnostics capped at 1 MiB, and accessibility polish are in place. Local packaging produces AppImage, deb, RPM, portable tarballs, icons, SBOM, checksums, and an update manifest; signed Windows/macOS artifacts and hosted distribution remain release-operator steps described in [docs/release.md](docs/release.md).
+[![CI](https://github.com/jigonzalez930209/md-view-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/jigonzalez930209/md-view-rs/actions/workflows/ci.yml)
+[![Docs](https://github.com/jigonzalez930209/md-view-rs/actions/workflows/docs.yml/badge.svg)](https://jigonzalez930209.github.io/md-view-rs/)
+[![Release](https://img.shields.io/github/v/release/jigonzalez930209/md-view-rs?include_prereleases)](https://github.com/jigonzalez930209/md-view-rs/releases)
+
+**Documentation:** <https://jigonzalez930209.github.io/md-view-rs/>
+
+## What it is
+
+MD View opens a folder as a workspace and a tab per document. It renders CommonMark and GFM itself:
+GitHub-style tables, tasks, alerts, footnotes, safe HTML, syntax-colored code, LaTeX math, Mermaid
+diagrams, local and cached remote images, and animated SVG. The editor is virtualized and uses
+syntect with Oniguruma, regex find/replace, go-to-line, encoding and EOL detection, mixed-EOL
+preservation, and a large-file mode.
+
+The explorer follows the active tab, expands its folders, and marks the file in the tree. Documents
+opened outside the workspace appear in a fixed **External files** group. View, Edit, and Split modes
+share a block-accurate source map, and nine themes cover light, dark, and system-follow modes.
+
+The 1.0.0-rc.0 release candidate ships Linux packages (AppImage, deb, RPM, tarball), macOS DMG/zip,
+and Windows MSI/zip. macOS and Windows RC builds are unsigned; signing and notarization remain the
+final 1.0.0 release-operator steps. See [`docs/release.md`](docs/release.md).
 
 ## Build
 
@@ -13,21 +32,37 @@ Requirements:
 - Rust 1.97.1 (see `rust-toolchain.toml`)
 - Linux: the usual egui/winit build dependencies for X11 or Wayland
 - macOS and Windows: the platform toolchains required by eframe/winit
+- A C compiler for the Oniguruma syntax engine
 
 ```sh
 cargo build --locked
 cargo run -p mdview-app -- README.md
 ```
 
+The acceptance workspace and feature map live in
+[`examples/v1-workspace`](examples/v1-workspace) and [`docs/feature-matrix.md`](docs/feature-matrix.md).
+
+## Documentation site
+
+The VitePress site is in [`website/`](website) and is deployed to GitHub Pages by
+`.github/workflows/docs.yml`.
+
+```sh
+cd website
+npm ci
+npm run dev
+npm run build
+```
+
 ## Repository rules
 
-Read [AGENT.md](AGENT.md) before changing code. It defines the English-only repository policy, commit format, 500-line file limit, crate boundaries, and progress-tracking rule.
+Read [AGENT.md](AGENT.md) before changing code. It defines the English-only repository policy, commit
+format, 500-line file limit, crate boundaries, and progress-tracking rule.
 
 ## Status
 
-The project is at the `0.14.0` pre-1.0 milestone. The implementation status, evidence, and
-remaining `1.0.0` gates are maintained in [`ROADMAP.md`](ROADMAP.md); the current acceptance
-workspace is [`examples/v1-workspace`](examples/v1-workspace). Hosted CI is in
+The project is at the `1.0.0-rc.0` release candidate. Implementation status, evidence, and the
+remaining `1.0.0` gates are maintained in [`ROADMAP.md`](ROADMAP.md). Hosted CI is in
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) and the local gate is `cargo xtask ci`.
 
 ```sh
@@ -38,23 +73,6 @@ cargo xtask check-file-length
 cargo build --release -p mdview-app --locked
 ```
 
-Packaging and update commands:
+## License
 
-```sh
-cargo xtask icons
-cargo xtask package
-cargo xtask release-check
-cargo xtask perf
-cargo xtask e2e
-```
-
-The local pipeline writes AppImage, deb, RPM, portable tarball, icons, `SHA256SUMS`, an SBOM, and
-an update manifest to `dist/`. Platform signing and install checks are documented in
-[`docs/release.md`](docs/release.md).
-
-Testing and diagnostics are documented in [`docs/testing.md`](docs/testing.md) and
-[`docs/logging.md`](docs/logging.md). Viewer extension points are in
-[`docs/plugins.md`](docs/plugins.md). The roadmap is the source of truth for scope. The deferred
-1.0 platform checks are in
-[`docs/release-checks.md`](docs/release-checks.md). Open pre-1.0 findings and the UX backlog
-are tracked in [`docs/pre-1.0-review.md`](docs/pre-1.0-review.md).
+MIT or Apache-2.0, at your option.

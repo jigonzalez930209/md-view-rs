@@ -73,6 +73,8 @@ pub(crate) const SPANISH: &str = concat!(
     "\tRefresh\tActualizar\n",
     "\tShow hidden files\tMostrar archivos ocultos\n",
     "\tRespect .gitignore\tRespetar .gitignore\n",
+    "\tExternal files\tArchivos externos\n",
+    "\tExternal files can only be renamed.\tLos archivos externos solo se pueden renombrar.\n",
     "\tOpen\tAbrir\n",
     "\tReveal\tMostrar en el gestor de archivos\n",
     "\tRename…\tCambiar nombre…\n",

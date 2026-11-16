@@ -16,13 +16,32 @@ Latest result on the Linux development machine:
 
 ```text
 120Hz frame budget (120 frames):
-editor  p50=0.239 ms p95=0.366 ms
-preview p50=1.333 ms p95=1.963 ms
-combined p50=1.583 ms p95=2.290 ms max=2.415 ms
+editor  p50=0.240 ms p95=0.421 ms
+preview p50=1.051 ms p95=1.573 ms
+combined p50=1.289 ms p95=1.938 ms max=2.283 ms
 ```
 
 The release test asserts `combined p95 <= 8.33 ms`. Debug builds use a relaxed assertion so the
 normal suite remains usable.
+
+## Cold syntax compilation
+
+Syntect compiles a language's contexts and regular expressions on first use. The original
+`regex-fancy` backend made that one-time cost large enough to freeze the UI when switching from a
+Markdown reading view to another file type:
+
+| First TypeScript highlight | `regex-fancy` | `regex-onig` |
+|---|---:|---:|
+| Debug build | 2,848 ms | 33 ms |
+| Release build | 254 ms | 18 ms |
+
+Highlighting now uses syntect's Oniguruma engine and two-face's matching `syntect-onig` syntax
+dumps. The compiled state is shared by the editor and preview, so later files of the same language
+reuse it. A debug switch from a Markdown preview to a code tab now completes its first editor paint
+in about 80 ms (including the one-time monospace glyph atlas) and a release switch stays around
+16 ms. Editor and preview snapshot tests confirm the colors are unchanged. The measurement can be
+reproduced by timing the first `Highlighter::highlight` call for
+`examples/v1-workspace/level1/level2/level3/level4/component.tsx`.
 
 ## Full-application telemetry
 

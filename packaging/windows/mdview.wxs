@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="MD View" Manufacturer="MD View" Version="0.14.0" UpgradeCode="9D8B7C3A-5E5A-4E65-9A73-2E6C2D2B6F10" Scope="perUser">
+  <Package Name="MD View" Manufacturer="MD View" Version="1.0.0" UpgradeCode="9D8B7C3A-5E5A-4E65-9A73-2E6C2D2B6F10" Scope="perUser">
     <MajorUpgrade DowngradeErrorMessage="A newer version of MD View is already installed." />
     <MediaTemplate EmbedCab="yes" />
     <StandardDirectory Id="ProgramFilesFolder">

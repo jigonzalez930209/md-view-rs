@@ -37,6 +37,8 @@ pub trait ViewerInstance {
     fn name(&self) -> &'static str;
     /// Paint the document and report application-level actions.
     fn show(&mut self, ui: &mut egui::Ui, context: &mut ViewerContext<'_>) -> ViewerOutput;
+    /// Update the backing path after an in-app rename.
+    fn rename_path(&mut self, _path: &Path) {}
 }
 
 /// A factory for one family of read-only documents.

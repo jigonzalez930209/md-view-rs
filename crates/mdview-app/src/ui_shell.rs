@@ -50,6 +50,8 @@ impl MdViewApp {
             return;
         }
         let mut events = Vec::new();
+        let active = self.active_document_path();
+        let external = self.external_document_paths();
         let panel = egui::Panel::left("workspace_sidebar")
             .resizable(true)
             .default_size(self.sidebar.width)
@@ -63,10 +65,14 @@ impl MdViewApp {
                     events = self.sidebar.show(
                         ui,
                         workspace,
-                        &self.translations,
-                        self.lang,
-                        &mut self.icons,
-                        self.theme == mdview_theme::ThemeMode::Light,
+                        crate::sidebar::SidebarView {
+                            translations: &self.translations,
+                            lang: self.lang,
+                            icons: &mut self.icons,
+                            light: self.theme == mdview_theme::ThemeMode::Light,
+                            active: active.as_deref(),
+                            external: &external,
+                        },
                     );
                 }
             });

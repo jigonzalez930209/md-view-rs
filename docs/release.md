@@ -1,4 +1,4 @@
-# Distribution, associations, and updates (`0.14.0`)
+# Distribution, associations, and updates (`1.0.0-rc.0`)
 
 ## Local packaging pipeline
 
@@ -44,12 +44,12 @@ both `LICENSE-MIT` and `LICENSE-APACHE`.
 ### Linux install
 
 ```sh
-sudo dpkg -i dist/mdview_0.14.0_amd64.deb
+sudo dpkg -i dist/mdview_1.0.0~rc.0_amd64.deb
 # or
-sudo rpm -i dist/mdview-0.14.0-1.x86_64.rpm
+sudo rpm -i dist/mdview-1.0.0~rc.0-1.x86_64.rpm
 # or
-chmod +x dist/MD-View-0.14.0-x86_64.AppImage
-./dist/MD-View-0.14.0-x86_64.AppImage
+chmod +x dist/MD-View-1.0.0-rc.0-x86_64.AppImage
+./dist/MD-View-1.0.0-rc.0-x86_64.AppImage
 ```
 
 The packages install:
@@ -109,10 +109,21 @@ package.
    after the current process exits. Dirty documents block installation until saved or discarded.
    The app never silently replaces its own binary.
 
-If no URL is configured, the dialog explains how to set one. The placeholder manifest URL in
-`latest.json` must be replaced by the actual release host before shipping a public update channel.
-Package-manager actions that need privilege use `pkexec`; a cancelled authentication prompt is
-reported and leaves the downloaded file in place.
+If no URL is configured, the dialog explains how to set one. The release workflow writes
+`latest.json` with the GitHub release asset URLs. Package-manager actions that need privilege use
+`pkexec`; a cancelled authentication prompt is reported and leaves the downloaded file in place.
+
+## Hosted release and documentation workflows
+
+`.github/workflows/release.yml` runs on `v*` tags and can be dispatched manually. It builds:
+
+- Linux packages in `ubuntu-22.04` (tarball, deb, RPM, AppImage);
+- an unsigned macOS arm64 `.app` inside a DMG and zip in `macos-14`;
+- an unsigned Windows x86_64 MSI and portable zip in `windows-latest`.
+
+The publish job downloads every artifact, writes a combined `SHA256SUMS` and `latest.json`, and
+creates or updates the GitHub release. `.github/workflows/docs.yml` builds the VitePress site in
+`website/` and deploys it to GitHub Pages on every relevant `main` push or manual dispatch.
 
 ## Signing and release gates
 
@@ -123,5 +134,5 @@ The repository does not store certificates, keys, or tokens. A signed release ne
 - GPG key for Debian/RPM repositories and Flathub verification for Flatpak.
 
 `cargo xtask release-check` verifies the local artifact set, SHA-256 values, SBOM, manifest, and
-packaging inputs. It does not contact a network or a release host. Hosted CI/CD remains disabled
-until the `1.0.0` release gate, as required by `AGENT.md`.
+packaging inputs. It does not contact a network or a release host. The 1.0.0-rc.0 release is
+published unsigned; signing and notarization remain the final 1.0.0 release-operator steps.

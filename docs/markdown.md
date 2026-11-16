@@ -1,4 +1,4 @@
-# Markdown support (`0.14.0`)
+# Markdown support (`1.0.0-rc.0`)
 
 MD View parses Markdown with `pulldown-cmark` (CommonMark 0.31 + GFM) into a spanned AST. The
 document buffer in the editor is always the source of truth; the reading view is derived and

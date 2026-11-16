@@ -194,6 +194,42 @@ mod tests {
                 .contains("Plain")
         );
     }
+
+    #[test]
+    fn a_cold_typescript_highlight_does_not_freeze_the_ui() {
+        let highlighter = Highlighter::new();
+        let source = r#"type LevelProps = {
+  depth: number;
+  name: string;
+};
+
+export function Level({ depth, name }: LevelProps) {
+  return (
+    <li data-depth={depth}>
+      <strong>{name}</strong>
+    </li>
+  );
+}
+"#;
+        let started = std::time::Instant::now();
+        let highlighted = highlighter.highlight(source, Some(Path::new("component.tsx")), true);
+        let elapsed = started.elapsed();
+        assert!(
+            highlighted.lines.iter().flatten().any(|span| span.color.is_some()),
+            "the cold highlight produced no colors"
+        );
+        // `regex-fancy` took about 2.8 s in debug and 254 ms in release for this grammar.
+        // `regex-onig` takes about 33 ms and 18 ms respectively.
+        let budget = if cfg!(debug_assertions) {
+            std::time::Duration::from_millis(2_000)
+        } else {
+            std::time::Duration::from_millis(100)
+        };
+        assert!(
+            elapsed <= budget,
+            "the first TypeScript highlight took {elapsed:?}, exceeding {budget:?}"
+        );
+    }
 }
 
 #[cfg(test)]

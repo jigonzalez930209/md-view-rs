@@ -59,6 +59,7 @@ and a horizontal rule.
 | Tab close affordance | Close button stays visible while the pointer is anywhere on the tab | tab-bar snapshot and hover interaction |
 | List alignment | Bullets, numbers, and task boxes are vertically centered on the first text line | `preview-*` snapshots |
 | Workbench layout | Explorer under the menu, no activity rail, tabs in the editor column, title-bar history/search/document name | E2E initial/search/back screenshots; `sidebar`/`tab-bar`/`header` 1×/2× snapshots |
+| Explorer selection | The active tab expands, scrolls to, and marks its file; open files outside the workspace appear in a fixed **External files** group where only rename is available | `sidebar-external` snapshot; `active_workspace_file_expands_its_ancestors`; manual external-tab check |
 | View modes | View/Editor/Split icon segmented control; unsupported modes disabled for images and code | E2E segmented-mode stage; `tab-bar` snapshots |
 | Search | document and workspace scopes, grouped results, cancellable worker, preview highlighting | `search::tests`; E2E workspace search, activation, and back history |
 | Find overlay | floating find/replace with icon toggles, counts, and no viewport shift | E2E find overlay screenshot; editor tests |

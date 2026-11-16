@@ -313,6 +313,9 @@ impl TabSet {
             && let Some(tab) = self.tabs.get_mut(index)
         {
             tab.editor.document_mut().set_path(to.to_path_buf());
+            if let Some(viewer) = tab.viewer.as_mut() {
+                viewer.rename_path(to);
+            }
             tab.missing = false;
             return true;
         }

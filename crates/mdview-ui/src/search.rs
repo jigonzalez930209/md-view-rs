@@ -161,45 +161,82 @@ pub fn show_search(ctx: &Context, view: SearchView<'_>) -> Option<SearchAction> 
                         ui.label(RichText::new(error).small().color(ui.visuals().error_fg_color));
                     }
                     ui.separator();
-                    ScrollArea::vertical()
-                        .max_height(320.0)
-                        .auto_shrink([false, true])
-                        .show(ui, |ui| {
-                            for (index, hit) in view.hits.iter().enumerate() {
-                                if let Some(group) = &hit.group {
-                                    ui.add_space(3.0);
-                                    ui.label(
-                                        RichText::new(group)
-                                            .size(10.5)
-                                            .strong()
-                                            .color(ui.visuals().weak_text_color()),
-                                    );
-                                }
-                                let selected = index == view.selected;
-                                let response = ui.add(
-                                    egui::Button::new(RichText::new(&hit.title).size(12.0).color(if selected {
-                                        ui.visuals().selection.stroke.color
-                                    } else {
-                                        ui.visuals().text_color()
-                                    }))
-                                    .fill(if selected {
-                                        ui.visuals().selection.bg_fill
-                                    } else {
-                                        egui::Color32::TRANSPARENT
-                                    })
-                                    .stroke(egui::Stroke::NONE)
-                                    .min_size(egui::vec2(ui.available_width(), 0.0)),
-                                );
-                                if !hit.detail.is_empty() {
-                                    ui.label(RichText::new(&hit.detail).small().color(ui.visuals().weak_text_color()));
-                                }
-                                if response.clicked() {
-                                    action = Some(SearchAction::Activate(index));
-                                }
-                                ui.add_space(1.0);
-                            }
+                    if !view.hits.is_empty() {
+                        // Grow the results list with the window so long documents are browsable
+                        // without a tiny fixed viewport. The popover keeps a safe bottom margin.
+                        let results_height = results_height(screen.height());
+                        let results_rect = egui::Rect::from_min_size(
+                            ui.cursor().min,
+                            egui::vec2(ui.available_width(), results_height),
+                        );
+                        // Reserve the full results height so the surrounding Area grows even when
+                        // it was first measured with fewer hits.
+                        ui.scope_builder(egui::UiBuilder::new().max_rect(results_rect), |ui| {
+                            ScrollArea::vertical()
+                                .max_height(results_height)
+                                .auto_shrink([false, true])
+                                .show(ui, |ui| {
+                                    for (index, hit) in view.hits.iter().enumerate() {
+                                        if let Some(group) = &hit.group {
+                                            ui.add_space(3.0);
+                                            ui.label(
+                                                RichText::new(group)
+                                                    .size(10.5)
+                                                    .strong()
+                                                    .color(ui.visuals().weak_text_color()),
+                                            );
+                                        }
+                                        let selected = index == view.selected;
+                                        let response = ui.add(
+                                            egui::Button::new(RichText::new(&hit.title).size(12.0).color(
+                                                if selected {
+                                                    ui.visuals().selection.stroke.color
+                                                } else {
+                                                    ui.visuals().text_color()
+                                                },
+                                            ))
+                                            .fill(if selected {
+                                                ui.visuals().selection.bg_fill
+                                            } else {
+                                                egui::Color32::TRANSPARENT
+                                            })
+                                            .stroke(egui::Stroke::NONE)
+                                            .min_size(egui::vec2(ui.available_width(), 0.0)),
+                                        );
+                                        if !hit.detail.is_empty() {
+                                            ui.label(
+                                                RichText::new(&hit.detail)
+                                                    .small()
+                                                    .color(ui.visuals().weak_text_color()),
+                                            );
+                                        }
+                                        if response.clicked() {
+                                            action = Some(SearchAction::Activate(index));
+                                        }
+                                        ui.add_space(1.0);
+                                    }
+                                });
                         });
+                    }
                 });
         });
     action
+}
+
+/// Height reserved for the scrollable result list, leaving room for the header and bottom margin.
+fn results_height(screen_height: f32) -> f32 {
+    (screen_height - 240.0).clamp(180.0, 720.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::results_height;
+
+    #[test]
+    fn results_grow_with_the_window_and_stay_bounded() {
+        assert_eq!(results_height(420.0), 180.0);
+        assert_eq!(results_height(720.0), 480.0);
+        assert_eq!(results_height(900.0), 660.0);
+        assert_eq!(results_height(2_000.0), 720.0);
+    }
 }

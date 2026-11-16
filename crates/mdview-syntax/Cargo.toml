@@ -8,7 +8,7 @@ publish.workspace = true
 
 [dependencies]
 syntect.workspace = true
-two-face = { version = "0.5", default-features = false, features = ["syntect-fancy"] }
+two-face = { version = "0.5", default-features = false, features = ["syntect-onig"] }
 
 [lints]
 workspace = true

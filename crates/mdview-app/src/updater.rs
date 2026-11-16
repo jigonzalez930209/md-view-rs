@@ -1,5 +1,6 @@
 //! Manual update checking, download, and checksum verification.
 
+use std::cmp::Ordering;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver};
@@ -208,26 +209,49 @@ pub fn parse_manifest(text: &str) -> Result<UpdateManifest, String> {
 
 /// Compare dotted versions. Pre-release suffixes sort before their release.
 pub fn version_is_newer(offered: &str, current: &str) -> bool {
-    let offered = numeric_parts(offered);
-    let current = numeric_parts(current);
-    for index in 0..offered.len().max(current.len()) {
-        let left = *offered.get(index).unwrap_or(&0);
-        let right = *current.get(index).unwrap_or(&0);
+    let (offered_core, offered_pre) = parse_version(offered);
+    let (current_core, current_pre) = parse_version(current);
+    for index in 0..offered_core.len().max(current_core.len()) {
+        let left = *offered_core.get(index).unwrap_or(&0);
+        let right = *current_core.get(index).unwrap_or(&0);
         if left != right {
             return left > right;
         }
     }
-    false
+    match (offered_pre.is_empty(), current_pre.is_empty()) {
+        (false, true) => false,
+        (true, false) => true,
+        (false, false) => compare_prerelease(&offered_pre, &current_pre) == Ordering::Greater,
+        (true, true) => false,
+    }
 }
 
-fn numeric_parts(version: &str) -> Vec<u64> {
-    version
-        .split(['-', '+'])
-        .next()
-        .unwrap_or(version)
-        .split('.')
-        .map(|part| part.parse::<u64>().unwrap_or(0))
-        .collect()
+fn parse_version(version: &str) -> (Vec<u64>, Vec<&str>) {
+    let without_build = version.split('+').next().unwrap_or(version);
+    let (core, prerelease) = match without_build.split_once('-') {
+        Some((core, prerelease)) => (core, Some(prerelease)),
+        None => (without_build, None),
+    };
+    let core = core.split('.').map(|part| part.parse::<u64>().unwrap_or(0)).collect();
+    let prerelease = prerelease
+        .map(|value| value.split('.').filter(|part| !part.is_empty()).collect())
+        .unwrap_or_default();
+    (core, prerelease)
+}
+
+fn compare_prerelease(left: &[&str], right: &[&str]) -> Ordering {
+    for (left, right) in left.iter().zip(right) {
+        let order = match (left.parse::<u64>(), right.parse::<u64>()) {
+            (Ok(left), Ok(right)) => left.cmp(&right),
+            (Ok(_), Err(_)) => Ordering::Less,
+            (Err(_), Ok(_)) => Ordering::Greater,
+            (Err(_), Err(_)) => left.cmp(right),
+        };
+        if order != Ordering::Equal {
+            return order;
+        }
+    }
+    left.len().cmp(&right.len())
 }
 
 /// Verify a SHA-256 digest in constant-ish time over the digest bytes.
@@ -287,6 +311,17 @@ mod tests {
         assert!(!version_is_newer("0.8.0", "0.9.0"));
         assert!(!version_is_newer("0.9.0", "0.9.0"));
         assert!(version_is_newer("1.0.0", "0.99.9"));
+    }
+
+    #[test]
+    fn prerelease_versions_sort_before_the_release() {
+        assert!(version_is_newer("1.0.0-rc.1", "1.0.0-rc.0"));
+        assert!(version_is_newer("1.0.0-rc.0", "0.14.0"));
+        assert!(version_is_newer("1.0.0", "1.0.0-rc.0"));
+        assert!(!version_is_newer("1.0.0-rc.0", "1.0.0"));
+        assert!(!version_is_newer("1.0.0-rc.0", "1.0.0-rc.0"));
+        assert!(version_is_newer("1.0.0-rc.10", "1.0.0-rc.2"));
+        assert!(version_is_newer("1.0.0-beta", "1.0.0-alpha"));
     }
 
     #[test]

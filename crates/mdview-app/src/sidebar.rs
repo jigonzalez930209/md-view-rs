@@ -3,13 +3,17 @@
 //! The panel mirrors the VS Code explorer: a section header with compact file actions, a lazy tree
 //! with Material file and folder icons, and modal create/rename/delete flows. The application only
 //! shows this panel when a folder is loaded.
+//!
+//! Open documents that live outside the workspace are listed in a synthetic folder at the end of
+//! the tree. It is not a real directory: it cannot be renamed, deleted, or used as a parent for
+//! new entries, and its files can only be renamed.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use eframe::egui;
 use mdview_i18n::Translations;
-use mdview_ui::{ConfirmPrompt, MaterialIcons, NamePrompt, PromptAction, compact_menu, menu_item};
-use mdview_workspace::{Entry, Workspace};
+use mdview_ui::{ConfirmPrompt, MaterialIcons, NamePrompt, PromptAction};
+use mdview_workspace::Workspace;
 
 use crate::workspace_ops;
 
@@ -17,6 +21,10 @@ use crate::workspace_ops;
 mod sidebar_dialogs;
 #[path = "sidebar_keyboard.rs"]
 mod sidebar_keyboard;
+#[path = "sidebar_tree.rs"]
+mod sidebar_tree;
+use sidebar_tree::icon_button;
+use sidebar_tree::{Action, EntryRole, TreeCtx};
 
 /// Something the application must react to.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -29,15 +37,31 @@ pub enum SidebarEvent {
     Deleted(PathBuf),
 }
 
-enum CreateKind {
+pub(super) enum CreateKind {
     File,
     Folder,
 }
 
-struct CreateDialog {
-    kind: CreateKind,
-    parent: PathBuf,
-    name: String,
+pub(super) struct CreateDialog {
+    pub(super) kind: CreateKind,
+    pub(super) parent: PathBuf,
+    pub(super) name: String,
+}
+
+/// Everything the explorer needs for one frame.
+pub struct SidebarView<'a> {
+    /// Translator.
+    pub translations: &'a Translations,
+    /// Active language.
+    pub lang: craft_i18n::Lang,
+    /// Icon cache.
+    pub icons: &'a mut MaterialIcons,
+    /// Whether the light theme is active.
+    pub light: bool,
+    /// Path of the file in the active tab.
+    pub active: Option<&'a Path>,
+    /// Open files outside the workspace, already sorted for display.
+    pub external: &'a [PathBuf],
 }
 
 /// Persistent explorer state.
@@ -47,11 +71,13 @@ pub struct Sidebar {
     pub width: f32,
     pub show_hidden: bool,
     pub respect_gitignore: bool,
-    selected: Option<PathBuf>,
-    renaming: Option<(PathBuf, String)>,
-    creating: Option<CreateDialog>,
-    deleting: Option<PathBuf>,
-    error: Option<String>,
+    pub(super) selected: Option<PathBuf>,
+    pub(super) last_active: Option<PathBuf>,
+    pub(super) scroll_to_selected: bool,
+    pub(super) renaming: Option<(PathBuf, String)>,
+    pub(super) creating: Option<CreateDialog>,
+    pub(super) deleting: Option<PathBuf>,
+    pub(super) error: Option<String>,
 }
 
 impl Sidebar {
@@ -63,6 +89,8 @@ impl Sidebar {
             show_hidden,
             respect_gitignore,
             selected: None,
+            last_active: None,
+            scroll_to_selected: false,
             renaming: None,
             creating: None,
             deleting: None,
@@ -80,6 +108,11 @@ impl Sidebar {
         self.open = true;
     }
 
+    /// Force the next frame to re-sync the active row after the tree is replaced.
+    pub(super) fn reset_active(&mut self) {
+        self.last_active = None;
+    }
+
     /// Start renaming a path from a command or shortcut.
     pub fn begin_rename(&mut self, path: PathBuf) {
         let name = path
@@ -94,19 +127,36 @@ impl Sidebar {
         self.deleting = Some(path);
     }
 
+    /// Keep the tree selection on the active tab and reveal its ancestors.
+    ///
+    /// The selection only follows a *change* of active tab, so clicking a folder does not get
+    /// overwritten on the next frame.
+    fn sync_active(&mut self, workspace: &mut Workspace, active: Option<&Path>) {
+        if self.last_active.as_deref() == active {
+            return;
+        }
+        self.last_active = active.map(Path::to_path_buf);
+        self.selected = active.map(Path::to_path_buf);
+        self.scroll_to_selected = active.is_some();
+        if let Some(path) = active {
+            expand_to_path(workspace, path);
+        }
+    }
+
     /// Draw the explorer and return the application-level events.
-    pub fn show(
-        &mut self,
-        ui: &mut egui::Ui,
-        workspace: &mut Workspace,
-        translations: &Translations,
-        lang: craft_i18n::Lang,
-        icons: &mut MaterialIcons,
-        light: bool,
-    ) -> Vec<SidebarEvent> {
+    pub fn show(&mut self, ui: &mut egui::Ui, workspace: &mut Workspace, view: SidebarView<'_>) -> Vec<SidebarEvent> {
+        let SidebarView {
+            translations,
+            lang,
+            icons,
+            light,
+            active,
+            external,
+        } = view;
         let t = |source: &str| translations.t(lang, source);
         let mut events = Vec::new();
         let mut actions = Vec::new();
+        self.sync_active(workspace, active);
 
         let root_name = workspace.root_entry().name.to_uppercase();
         ui.add_space(3.0);
@@ -152,24 +202,31 @@ impl Sidebar {
             ui.add_space(2.0);
         }
         let focus_id = ui.scope_id().with("tree_focus");
+        let mut scroll_to_selected = self.scroll_to_selected;
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             ui.add_space(2.0);
             let root = workspace.root_entry().clone();
+            let mut ctx = TreeCtx {
+                actions: &mut actions,
+                icons,
+                light,
+                focus_id,
+                active,
+                scroll_to_selected: &mut scroll_to_selected,
+            };
             if let Some(children) = &root.children {
-                let mut ctx = TreeCtx {
-                    actions: &mut actions,
-                    icons,
-                    light,
-                    focus_id,
-                };
                 for child in children {
-                    self.entry(ui, child, 0, &mut ctx, &t);
+                    self.entry(ui, child, 0, &mut ctx, &t, EntryRole::Workspace);
                 }
+            }
+            if !external.is_empty() {
+                self.external_folder(ui, external, &mut ctx, &t);
             }
             ui.add_space(12.0);
         });
+        self.scroll_to_selected = false;
         if ui.memory(|memory| memory.has_focus(focus_id)) {
-            self.keyboard_navigation(ui, workspace, focus_id, &mut actions);
+            self.keyboard_navigation(ui, workspace, focus_id, &mut actions, external);
         }
 
         if !actions.is_empty() {
@@ -239,262 +296,33 @@ impl Sidebar {
         self.dialogs(ui.ctx(), workspace, &mut events, &t);
         events
     }
+}
 
-    fn entry(
-        &mut self,
-        ui: &mut egui::Ui,
-        entry: &Entry,
-        depth: usize,
-        ctx: &mut TreeCtx<'_>,
-        t: &dyn Fn(&str) -> String,
-    ) {
-        let selected = self.selected.as_deref() == Some(entry.path.as_path());
-        let width = ui.available_width();
-        let (rect, _) = ui.allocate_exact_size(egui::vec2(width, 21.0), egui::Sense::hover());
-        let hovered = ui.rect_contains_pointer(rect);
-        let fill = if selected {
-            ui.visuals().selection.bg_fill
-        } else if hovered {
-            ui.visuals().widgets.hovered.weak_bg_fill
-        } else {
-            egui::Color32::TRANSPARENT
-        };
-        ui.painter().rect_filled(rect, egui::CornerRadius::same(4), fill);
-
-        let inner = rect.shrink2(egui::vec2(5.0, 0.0));
-        ui.scope_builder(
-            egui::UiBuilder::new()
-                .max_rect(inner)
-                .layout(egui::Layout::left_to_right(egui::Align::Center)),
-            |ui| {
-                ui.style_mut().interaction.selectable_labels = false;
-                ui.spacing_mut().item_spacing.x = 4.0;
-                ui.add_space((depth as f32) * 12.0 + 2.0);
-                if entry.is_dir {
-                    let arrow = if entry.expanded {
-                        "chevron-down"
-                    } else {
-                        "chevron-right"
-                    };
-                    draw_glyph(ui, ctx.icons, arrow, 14.0);
-                } else {
-                    ui.add_space(12.0);
-                }
-                let icon = if entry.is_dir {
-                    ctx.icons.folder_icon(&entry.name, entry.expanded, false, ctx.light)
-                } else {
-                    ctx.icons.file_icon(&entry.path, ctx.light)
-                };
-                ctx.icons.draw(ui, &icon, ctx.light, 16.0);
-                ui.add(
-                    egui::Label::new(
-                        egui::RichText::new(&entry.name)
-                            .size(12.5)
-                            .color(ui.visuals().text_color()),
-                    )
-                    .truncate(),
-                );
-            },
-        );
-
-        let response = ui
-            .interact(
-                rect,
-                ui.scope_id().with(("tree_row", entry.path.as_os_str())),
-                egui::Sense::click(),
-            )
-            .on_hover_cursor(egui::CursorIcon::Default);
-        if response.clicked() {
-            self.selected = Some(entry.path.clone());
-            ui.memory_mut(|memory| memory.request_focus(ctx.focus_id));
+/// Expand every workspace ancestor of `path` so the active row can be revealed.
+fn expand_to_path(workspace: &mut Workspace, path: &Path) {
+    let root = workspace.root().to_path_buf();
+    if !path.starts_with(&root) {
+        return;
+    }
+    let mut directories = Vec::new();
+    let mut current = path.parent();
+    while let Some(directory) = current {
+        if !directory.starts_with(&root) {
+            break;
         }
-        if entry.is_dir {
-            if response.clicked() {
-                ctx.actions.push(Action::Toggle(entry.path.clone()));
-            }
-            if response.secondary_clicked() {
-                log::debug!(
-                    "explorer context menu path={} y={:.1}",
-                    entry.path.display(),
-                    response.rect.bottom() + 1.0
-                );
-            }
-            egui::Popup::context_menu(&response)
-                .at_position(egui::pos2(response.rect.left(), response.rect.bottom() + 1.0))
-                .show(|ui| {
-                    compact_menu(ui);
-                    ui.set_min_width(196.0);
-                    if menu_item(ui, ctx.icons, "file-plus", &t("New file"), None, false) {
-                        ctx.actions.push(Action::NewFile(entry.path.clone()));
-                        ui.close();
-                    }
-                    if menu_item(ui, ctx.icons, "folder-plus", &t("New folder"), None, false) {
-                        ctx.actions.push(Action::NewFolder(entry.path.clone()));
-                        ui.close();
-                    }
-                    if menu_item(ui, ctx.icons, "eye", &t("Reveal"), None, false) {
-                        ctx.actions.push(Action::Reveal(entry.path.clone()));
-                        ui.close();
-                    }
-                    ui.separator();
-                    if menu_item(ui, ctx.icons, "edit", &t("Rename…"), Some("F2"), false) {
-                        ctx.actions.push(Action::Rename(entry.path.clone()));
-                        ui.close();
-                    }
-                    if menu_item(ui, ctx.icons, "close", &t("Delete…"), None, true) {
-                        ctx.actions.push(Action::Delete(entry.path.clone()));
-                        ui.close();
-                    }
-                });
-            if entry.expanded
-                && let Some(children) = &entry.children
-            {
-                for child in children {
-                    self.entry(ui, child, depth + 1, ctx, t);
-                }
-            }
-        } else if response.clicked() {
-            ctx.actions.push(Action::Open(entry.path.clone()));
+        directories.push(directory.to_path_buf());
+        if directory == root {
+            break;
         }
-        if !entry.is_dir {
-            if response.secondary_clicked() {
-                log::debug!(
-                    "explorer context menu path={} y={:.1}",
-                    entry.path.display(),
-                    response.rect.bottom() + 1.0
-                );
-            }
-            egui::Popup::context_menu(&response)
-                .at_position(egui::pos2(response.rect.left(), response.rect.bottom() + 1.0))
-                .show(|ui| {
-                    compact_menu(ui);
-                    ui.set_min_width(196.0);
-                    if menu_item(ui, ctx.icons, "eye", &t("Open"), Some("Enter"), false) {
-                        ctx.actions.push(Action::Open(entry.path.clone()));
-                        ui.close();
-                    }
-                    if menu_item(ui, ctx.icons, "history", &t("Reveal"), None, false) {
-                        ctx.actions.push(Action::Reveal(entry.path.clone()));
-                        ui.close();
-                    }
-                    ui.separator();
-                    if menu_item(ui, ctx.icons, "edit", &t("Rename…"), Some("F2"), false) {
-                        ctx.actions.push(Action::Rename(entry.path.clone()));
-                        ui.close();
-                    }
-                    if menu_item(ui, ctx.icons, "close", &t("Delete…"), None, true) {
-                        ctx.actions.push(Action::Delete(entry.path.clone()));
-                        ui.close();
-                    }
-                });
+        current = directory.parent();
+    }
+    for directory in directories.into_iter().rev() {
+        if directory != root {
+            workspace.expand(&directory);
         }
     }
-}
-
-fn draw_glyph(ui: &mut egui::Ui, icons: &mut MaterialIcons, icon: &str, size: f32) {
-    if let Some(texture) = icons.ui_texture(ui.ctx(), icon) {
-        ui.add(
-            egui::Image::new(&texture)
-                .fit_to_exact_size(egui::vec2(size, size))
-                .tint(ui.visuals().weak_text_color()),
-        );
-    } else {
-        ui.add_space(size);
-    }
-}
-
-fn icon_button(ui: &mut egui::Ui, icons: &mut MaterialIcons, icon: &str, tooltip: &str) -> bool {
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(21.0, 21.0), egui::Sense::click());
-    if response.is_pointer_button_down_on() || response.hovered() {
-        let fill = if response.is_pointer_button_down_on() {
-            ui.visuals().widgets.active.weak_bg_fill
-        } else {
-            ui.visuals().widgets.hovered.weak_bg_fill
-        };
-        ui.painter().rect_filled(rect, egui::CornerRadius::same(4), fill);
-    }
-    if let Some(texture) = icons.ui_texture(ui.ctx(), icon) {
-        ui.painter().image(
-            texture.id(),
-            rect.shrink(2.5),
-            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-            ui.visuals().text_color(),
-        );
-    }
-    response.on_hover_text(tooltip).clicked()
-}
-
-struct TreeCtx<'a> {
-    actions: &'a mut Vec<Action>,
-    icons: &'a mut MaterialIcons,
-    light: bool,
-    focus_id: egui::Id,
-}
-
-enum Action {
-    Toggle(PathBuf),
-    Open(PathBuf),
-    NewFile(PathBuf),
-    NewFolder(PathBuf),
-    Rename(PathBuf),
-    Delete(PathBuf),
-    Reveal(PathBuf),
-    RefreshRoot,
-    CollapseAll,
 }
 
 #[cfg(test)]
-mod tests {
-    use egui_kittest::Harness;
-    use mdview_i18n::{LanguagePreference, Translations};
-
-    use super::*;
-
-    #[test]
-    fn explorer_is_visible_only_with_a_folder() {
-        let mut sidebar = Sidebar::new(260.0, false, true);
-        assert!(sidebar.should_show(true));
-        assert!(!sidebar.should_show(false));
-        sidebar.open = false;
-        assert!(!sidebar.should_show(true));
-        sidebar.reveal();
-        assert!(sidebar.should_show(true));
-    }
-
-    fn sidebar_snapshot_with(name: &str, pixels_per_point: f32) {
-        let temp = tempfile::tempdir().expect("temp dir");
-        let dir = temp.path().join("project");
-        std::fs::create_dir(&dir).expect("project");
-        std::fs::create_dir(dir.join("src")).expect("src");
-        std::fs::create_dir(dir.join("docs")).expect("docs");
-        std::fs::write(dir.join("README.md"), "# Read me\n").expect("readme");
-        std::fs::write(dir.join("main.rs"), "fn main() {}\n").expect("main");
-        std::fs::write(dir.join("src/lib.rs"), "").expect("lib");
-        std::fs::write(dir.join("docs/guide.md"), "# Guide\n").expect("guide");
-        let mut workspace = Workspace::open(&dir).expect("workspace");
-        workspace.expand(&dir.join("src"));
-        let mut sidebar = Sidebar::new(260.0, false, true);
-        let mut icons = MaterialIcons::new();
-        sidebar.open = true;
-        let translations = Translations::new();
-        let lang = translations.lang(LanguagePreference::English);
-        let mut harness = Harness::builder()
-            .with_size(egui::vec2(260.0, 380.0))
-            .with_pixels_per_point(pixels_per_point)
-            .build_ui(move |ui| {
-                sidebar.show(ui, &mut workspace, &translations, lang, &mut icons, true);
-            });
-        harness.run();
-        harness.snapshot(name);
-    }
-
-    #[test]
-    fn sidebar_snapshot() {
-        sidebar_snapshot_with("sidebar", 1.0);
-    }
-
-    #[test]
-    fn sidebar_2x_snapshot() {
-        sidebar_snapshot_with("sidebar-2x", 2.0);
-    }
-}
+#[path = "sidebar_tests.rs"]
+mod tests;

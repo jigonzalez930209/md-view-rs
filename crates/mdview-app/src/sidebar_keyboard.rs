@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use eframe::egui;
 use mdview_workspace::{Entry, Workspace};
 
-use super::{Action, Sidebar};
+use super::Sidebar;
+use super::sidebar_tree::Action;
 
 impl Sidebar {
     pub(super) fn keyboard_navigation(
@@ -14,12 +15,18 @@ impl Sidebar {
         workspace: &Workspace,
         focus_id: egui::Id,
         actions: &mut Vec<Action>,
+        external: &[std::path::PathBuf],
     ) {
         let Some(children) = workspace.root_entry().children.as_deref() else {
             return;
         };
         let mut flat = Vec::new();
         flatten(children, None, &mut flat);
+        // External files are rendered after the workspace tree; include them in the same
+        // keyboard order. The synthetic folder itself is not focusable.
+        for path in external {
+            flat.push((path.clone(), false, false, None));
+        }
         if flat.is_empty() {
             return;
         }

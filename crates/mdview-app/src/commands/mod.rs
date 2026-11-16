@@ -49,6 +49,10 @@ impl MdViewApp {
                     .path()
                     .map(std::path::Path::to_path_buf)
                 {
+                    if self.path_is_external(&path) {
+                        self.show_error(self.t("External files can only be renamed."));
+                        return;
+                    }
                     log::debug!(
                         "delete prompt title={} confirm={} cancel={}",
                         self.t("Delete"),

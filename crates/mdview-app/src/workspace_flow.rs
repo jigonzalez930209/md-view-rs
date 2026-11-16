@@ -30,6 +30,7 @@ impl MdViewApp {
                     index_started.elapsed().as_secs_f64() * 1000.0
                 );
                 self.workspace = Some(workspace);
+                self.sidebar.reset_active();
                 self.sidebar.reveal();
                 self.sync_session();
                 log::info!(
@@ -115,6 +116,37 @@ impl MdViewApp {
         }
     }
 
+    /// The path of the document in the active tab, if it has one.
+    pub(crate) fn active_document_path(&self) -> Option<PathBuf> {
+        self.tabs.active().editor.document().path().map(Path::to_path_buf)
+    }
+
+    /// Whether a path is outside the current workspace root.
+    ///
+    /// External files are listed in the synthetic explorer folder; they may be renamed but not
+    /// deleted through the workspace commands.
+    pub(crate) fn path_is_external(&self, path: &Path) -> bool {
+        self.workspace
+            .as_ref()
+            .is_some_and(|workspace| !path.starts_with(workspace.root()))
+    }
+
+    /// Open documents that live outside the current workspace root.
+    ///
+    /// The explorer shows these in a synthetic folder at the end of the tree, because they are
+    /// open tabs but do not belong to any real workspace directory.
+    pub(crate) fn external_document_paths(&self) -> Vec<PathBuf> {
+        let Some(root) = self.workspace.as_ref().map(mdview_workspace::Workspace::root) else {
+            return Vec::new();
+        };
+        let paths = self
+            .tabs
+            .tabs()
+            .iter()
+            .filter_map(|tab| tab.editor.document().path().map(Path::to_path_buf));
+        filter_external_paths(root, paths)
+    }
+
     /// Resolve the active theme against the system preference and apply it everywhere.
     pub(crate) fn resolve_theme(&mut self, ctx: &egui::Context) {
         let system_dark = ctx
@@ -130,5 +162,42 @@ impl MdViewApp {
         self.tabs.set_light(self.theme == ThemeMode::Light);
         mdview_theme::apply_id(ctx, self.effective_theme);
         ctx.request_repaint();
+    }
+}
+
+/// Keep open paths outside `root`, sorted by display name and deduplicated.
+fn filter_external_paths(root: &Path, paths: impl IntoIterator<Item = PathBuf>) -> Vec<PathBuf> {
+    let mut paths = paths
+        .into_iter()
+        .filter(|path| !path.as_os_str().is_empty() && !path.starts_with(root))
+        .collect::<Vec<_>>();
+    let name = |path: &Path| {
+        path.file_name()
+            .map(|name| name.to_string_lossy().to_ascii_lowercase())
+            .unwrap_or_else(|| path.to_string_lossy().to_ascii_lowercase())
+    };
+    paths.sort_by(|left, right| name(left).cmp(&name(right)).then_with(|| left.cmp(right)));
+    paths.dedup();
+    paths
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn external_paths_are_outside_the_root_sorted_and_unique() {
+        let root = Path::new("workspace");
+        let paths = vec![
+            PathBuf::from("workspace/src/main.rs"),
+            PathBuf::from("outside/zeta.md"),
+            PathBuf::from("outside/Alpha.md"),
+            PathBuf::from("outside/Alpha.md"),
+            PathBuf::new(),
+        ];
+        assert_eq!(
+            filter_external_paths(root, paths),
+            vec![PathBuf::from("outside/Alpha.md"), PathBuf::from("outside/zeta.md"),]
+        );
     }
 }

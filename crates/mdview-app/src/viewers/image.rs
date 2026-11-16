@@ -51,6 +51,13 @@ impl ViewerInstance for ImageInstance {
         "Image"
     }
 
+    fn rename_path(&mut self, path: &Path) {
+        self.path = path.to_path_buf();
+        self.texture = None;
+        self.texture_key = None;
+        self.raster_bucket = 0.0;
+    }
+
     fn show(&mut self, ui: &mut egui::Ui, context: &mut ViewerContext<'_>) -> ViewerOutput {
         let kind = mdview_media::image_kind_for_path(&self.path);
         let viewport = ui.available_rect_before_wrap();

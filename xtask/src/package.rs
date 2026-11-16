@@ -14,6 +14,16 @@ use crate::icons;
 /// Package version from the workspace.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Debian sorts `~` before the empty string, so `1.0.0~rc.0` upgrades cleanly to `1.0.0`.
+fn debian_version() -> String {
+    VERSION.replace('-', "~")
+}
+
+/// RPM forbids `-` in `Version`; `~` has the same pre-release ordering semantics.
+fn rpm_version() -> String {
+    VERSION.replace('-', "~")
+}
+
 /// Build the Linux package set and update manifest.
 pub fn run(no_build: bool) -> Result<(), String> {
     icons::generate()?;
@@ -33,9 +43,9 @@ pub fn run(no_build: bool) -> Result<(), String> {
     let tarball = format!("mdview-{VERSION}-linux-{arch}.tar.gz");
     tar_gz(&stage, &PathBuf::from("dist").join(&tarball))?;
 
-    let deb = format!("mdview_{VERSION}_amd64.deb");
+    let deb = format!("mdview_{}_amd64.deb", debian_version());
     let deb_path = debian(&stage, Path::new("dist"), &deb, arch)?;
-    let rpm_name = format!("mdview-{VERSION}-1.{}.rpm", rpm_arch(arch));
+    let rpm_name = format!("mdview-{}-1.{}.rpm", rpm_version(), rpm_arch(arch));
     let rpm_path = rpm(&stage, Path::new("dist"), arch)?;
     let appimage = appdir(&stage, arch)?;
     let mut artifacts = vec![
@@ -103,10 +113,11 @@ fn debian(stage: &Path, dist: &Path, name: &str, arch: &str) -> Result<PathBuf, 
     copy_tree(&stage.join("usr"), &root.join("usr"))?;
     let control = root.join("DEBIAN");
     fs::create_dir_all(&control).map_err(|error| error.to_string())?;
+    let version = debian_version();
     fs::write(
         control.join("control"),
         format!(
-            "Package: mdview\nVersion: {VERSION}\nSection: editors\nPriority: optional\nArchitecture: {}\nMaintainer: MD View <mdview@localhost>\nInstalled-Size: {}\nDepends: libc6, libx11-6, libxkbcommon0, libwayland-client0, libgl1\nDescription: Native Markdown, text, and code editor\n MD View opens folders as workspaces, edits Markdown in tabs, and renders\n CommonMark and GFM with images, SVG, math, and Mermaid without a webview.\n",
+            "Package: mdview\nVersion: {version}\nSection: editors\nPriority: optional\nArchitecture: {}\nMaintainer: MD View <mdview@localhost>\nInstalled-Size: {}\nDepends: libc6, libx11-6, libxkbcommon0, libwayland-client0, libgl1\nDescription: Native Markdown, text, and code editor\n MD View opens folders as workspaces, edits Markdown in tabs, and renders\n CommonMark and GFM with images, SVG, math, and Mermaid without a webview.\n",
             if arch == "aarch64" { "arm64" } else { "amd64" },
             tree_size(&root)? / 1024
         ),
@@ -146,10 +157,11 @@ fn rpm(stage: &Path, dist: &Path, arch: &str) -> Result<PathBuf, String> {
     let top = fs::canonicalize(&top).map_err(|error| error.to_string())?;
     let spec = top.join("SPECS/mdview.spec");
     let stage_absolute = fs::canonicalize(stage).map_err(|error| error.to_string())?;
+    let version = rpm_version();
     fs::write(
         &spec,
         format!(
-            "Name: mdview\nVersion: {VERSION}\nRelease: 1\nSummary: Native Markdown, text, and code editor\nLicense: MIT OR Apache-2.0\nBuildArch: {}\n\n%description\nMD View opens folders as workspaces, edits Markdown in tabs, and renders CommonMark and GFM without a webview.\n\n%install\nmkdir -p %{{buildroot}}\ncp -a {}/usr %{{buildroot}}/\n\n%post\ncommand -v update-mime-database >/dev/null && update-mime-database /usr/share/mime || true\n\n%postun\ncommand -v update-mime-database >/dev/null && update-mime-database /usr/share/mime || true\n\n%files\n/usr/bin/mdview\n/usr/share/applications/mdview.desktop\n/usr/share/mime/packages/mdview.xml\n/usr/share/metainfo/org.mdview.MDView.metainfo.xml\n/usr/share/icons/hicolor/*/apps/mdview.png\n/usr/share/doc/mdview/*\n",
+            "Name: mdview\nVersion: {version}\nRelease: 1\nSummary: Native Markdown, text, and code editor\nLicense: MIT OR Apache-2.0\nBuildArch: {}\n\n%description\nMD View opens folders as workspaces, edits Markdown in tabs, and renders CommonMark and GFM without a webview.\n\n%install\nmkdir -p %{{buildroot}}\ncp -a {}/usr %{{buildroot}}/\n\n%post\ncommand -v update-mime-database >/dev/null && update-mime-database /usr/share/mime || true\n\n%postun\ncommand -v update-mime-database >/dev/null && update-mime-database /usr/share/mime || true\n\n%files\n/usr/bin/mdview\n/usr/share/applications/mdview.desktop\n/usr/share/mime/packages/mdview.xml\n/usr/share/metainfo/org.mdview.MDView.metainfo.xml\n/usr/share/icons/hicolor/*/apps/mdview.png\n/usr/share/doc/mdview/*\n",
             rpm_arch(arch),
             stage_absolute.display()
         ),

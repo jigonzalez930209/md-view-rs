@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 1.0.0-rc.0 — 2026-11-15
+
+- Published the first public release candidate with a VitePress documentation site and a
+  tag-driven GitHub release workflow that builds Linux packages, macOS app/DMG, and Windows
+  MSI/zip assets and publishes checksums and the update manifest.
+- The workspace explorer now follows the active tab: selecting a tab expands its parent folders,
+  scrolls the file into view, and marks the row with the active accent. Documents opened from
+  outside the workspace appear in a fixed **External files** folder at the end of the tree; the
+  folder cannot be renamed, deleted, or used as a create target, its files can only be renamed,
+  and an external tab is marked in the same folder. Renaming an image tab now updates the viewer's
+  backing path as well.
+- Switched syntax highlighting to syntect's Oniguruma engine with two-face's matching
+  syntax dumps. The first highlight of a cold language dropped from about 2.8 s to 33 ms in a
+  debug build and from 254 ms to 18 ms in release for TypeScript, removing the freeze when
+  switching from a Markdown document to another file type. The editor and preview color
+  snapshots are unchanged.
+- The search popover grows its result list with the window (up to 720 points) and keeps a
+  compact empty state, so long document or workspace result sets are scrollable instead of
+  being clipped to the first row.
 - Reworked the preview layout to follow GitHub's Markdown body: 1em block spacing, 1.5 line
   height, GitHub heading ratios with a rule under h1/h2, quotes with a left bar and muted
   text, colored GFM alerts with icons, borderless code blocks with a hover Copy button,

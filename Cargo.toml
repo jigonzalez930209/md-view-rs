@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*", "xtask"]
 
 [workspace.package]
-version = "0.14.0"
+version = "1.0.0-rc.0"
 edition = "2024"
 rust-version = "1.95"
 license = "MIT OR Apache-2.0"
@@ -71,7 +71,7 @@ open = "5"
 dirs = "6"
 similar = "2"
 serde = { version = "1", features = ["derive"] }
-syntect = { version = "5.3", default-features = false, features = ["default-fancy", "parsing", "dump-load", "plist-load", "yaml-load", "regex-fancy"] }
+syntect = { version = "5.3", default-features = false, features = ["default-onig", "parsing", "dump-load", "plist-load", "yaml-load", "regex-onig"] }
 thiserror = "2"
 time = { version = "0.3", features = ["formatting"] }
 
