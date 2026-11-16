@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Split sync now lands exactly: the follow tolerance is 0.001 points (was 0.05), since targets
+  are stored exactly and the editor maximum matches egui's sizes. The E2E split-zoom stage and
+  frame tests require a lock error of at most 0.005 points; every settle in the E2E run reports
+  0.00.
+
 ## 1.0.0-rc.1 — 2026-11-16
 
 - Fixed the split-view flicker at the end of the document. The follower pane was sent scroll

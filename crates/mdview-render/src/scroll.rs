@@ -2,9 +2,10 @@
 
 use crate::{Preview, PreviewScrollMetrics};
 
-/// Offsets closer than this (in points) count as already synchronized: a twentieth of
-/// a pixel at 1x, invisible, but above egui's pixel-grid rounding so no target loops.
-const SYNC_TOLERANCE: f32 = 0.05;
+/// Offsets closer than this (in points) count as already synchronized. egui stores an
+/// explicit offset exactly and the maximum offset matches egui's pixel-rounded sizes, so
+/// targets land exactly; this only absorbs float noise.
+const SYNC_TOLERANCE: f32 = 0.001;
 
 /// Whether a pass painted past the scrollable end by accident.
 ///

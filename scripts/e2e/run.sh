@@ -804,9 +804,9 @@ error, actual_zoom, e, e_max, p, p_max = map(float, (error, actual_zoom, e, e_ma
 print(f"split zoom={actual_zoom} leader={name} error={error} editor={e}/{e_max} preview={p}/{p_max}")
 assert name == leader, name
 assert abs(actual_zoom - zoom) < 0.01, actual_zoom
-assert error <= 0.05, error
+assert error <= 0.005, error
 assert e_max > 0 and p_max > 0
-assert abs(e - e_max) <= 0.05 and abs(p - p_max) <= 0.05, (e, e_max, p, p_max)
+assert abs(e - e_max) <= 0.005 and abs(p - p_max) <= 0.005, (e, e_max, p, p_max)
 PY
 }
 before_over=$(grep -c 'split overshoot' "$LOGS/mdview.log" || true)

@@ -190,11 +190,11 @@ fn editor_wheel_to_the_end_keeps_the_preview_locked_without_flicker() {
     let last = frames.last().copied().unwrap_or_default();
     assert!(last.1 > 0.0 && last.3 > 0.0, "both panes must scroll: {last:?}");
     assert!(
-        (last.0 - last.1).abs() <= 0.05,
+        (last.0 - last.1).abs() <= 0.005,
         "editor did not reach its end: {last:?}"
     );
     assert!(
-        (last.2 - last.3).abs() <= 0.05,
+        (last.2 - last.3).abs() <= 0.005,
         "preview did not reach its end: {last:?}"
     );
     let held = frames
@@ -222,11 +222,11 @@ fn preview_wheel_to_the_end_and_back_keeps_the_editor_locked() {
         assert_monotonic(&frames, true);
         let last = frames.last().copied().unwrap_or_default();
         assert!(
-            (last.0 - last.1).abs() <= 0.05,
+            (last.0 - last.1).abs() <= 0.005,
             "editor did not reach its end: {last:?}"
         );
         assert!(
-            (last.2 - last.3).abs() <= 0.05,
+            (last.2 - last.3).abs() <= 0.005,
             "preview did not reach its end: {last:?}"
         );
     }
@@ -249,7 +249,7 @@ fn relayout_relocks_the_editor_to_a_preview_leader() {
     wheel(&mut harness, PREVIEW_X, -60.0, 60);
     let before = frames.borrow().last().copied().unwrap_or_default();
     assert!(
-        before.2 > 0.0 && *lock_error.borrow() <= 0.05,
+        before.2 > 0.0 && *lock_error.borrow() <= 0.005,
         "not locked before re-layout: {before:?}"
     );
     // Zoom and split resizes both re-flow the panes in points; a resize is the
@@ -262,7 +262,7 @@ fn relayout_relocks_the_editor_to_a_preview_leader() {
         let error = *lock_error.borrow();
         let last = frames.borrow().last().copied().unwrap_or_default();
         assert!(
-            error <= 0.05,
+            error <= 0.005,
             "editor drifted {error} points at width {width}: {last:?}"
         );
     }
@@ -335,7 +335,7 @@ fn zoom_keeps_both_panes_locked_for_either_leader() {
             let error = *lock_error.borrow();
             assert!(after != before, "zoom {factor} did not re-flow the panes: {after:?}");
             assert!(
-                error <= 0.05,
+                error <= 0.005,
                 "panes drifted {error} points at zoom {factor} (leader x={leader_x}): {after:?}"
             );
         }
@@ -347,11 +347,11 @@ fn zoom_keeps_both_panes_locked_for_either_leader() {
         assert_monotonic(&frames, true);
         let last = frames.last().copied().unwrap_or_default();
         assert!(
-            (last.0 - last.1).abs() <= 0.05,
+            (last.0 - last.1).abs() <= 0.005,
             "editor not at its end at zoom 1.3: {last:?}"
         );
         assert!(
-            (last.2 - last.3).abs() <= 0.05,
+            (last.2 - last.3).abs() <= 0.005,
             "preview not at its end at zoom 1.3: {last:?}"
         );
     }
@@ -368,14 +368,17 @@ fn zooming_at_the_end_keeps_both_panes_at_the_end_without_overshoot() {
             zoom(&mut harness, factor);
             let last = frames.borrow().last().copied().unwrap_or_default();
             assert!(
-                (last.0 - last.1).abs() <= 0.05,
+                (last.0 - last.1).abs() <= 0.005,
                 "editor left its end at zoom {factor}: {last:?}"
             );
             assert!(
-                (last.2 - last.3).abs() <= 0.05,
+                (last.2 - last.3).abs() <= 0.005,
                 "preview left its end at zoom {factor}: {last:?}"
             );
-            assert!(*lock_error.borrow() <= 0.05, "panes drifted at zoom {factor}: {last:?}");
+            assert!(
+                *lock_error.borrow() <= 0.005,
+                "panes drifted at zoom {factor}: {last:?}"
+            );
         }
     }
 }
