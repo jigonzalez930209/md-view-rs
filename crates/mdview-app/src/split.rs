@@ -18,6 +18,7 @@ impl MdViewApp {
             .unwrap_or(0.5);
         let width = ui.available_width().max(320.0);
         let height = ui.available_height().max(200.0);
+        let menu_open = self.keyboard_menu.open;
         let mut preview_output = None;
 
         if width < 620.0 {
@@ -29,6 +30,7 @@ impl MdViewApp {
                 egui::Layout::top_down(egui::Align::Min),
                 |ui| {
                     if let Some(tab) = self.tabs.tab_mut(index) {
+                        tab.editor.set_ignore_input(menu_open);
                         tab.editor.show(ui);
                     }
                 },
@@ -59,6 +61,7 @@ impl MdViewApp {
                     egui::Layout::top_down(egui::Align::Min),
                     |ui| {
                         if let Some(tab) = self.tabs.tab_mut(index) {
+                            tab.editor.set_ignore_input(menu_open);
                             tab.editor.show(ui);
                         }
                     },

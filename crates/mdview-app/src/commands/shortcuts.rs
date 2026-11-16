@@ -43,17 +43,22 @@ impl MdViewApp {
         if let Some(group) = alt_menu {
             log::debug!("keyboard menu group={group}");
             self.keyboard_menu.open(group);
+            // Alt+F/E/V/G/H also produces a text event in some backends. The menu owns
+            // the key; the focused editor must not insert the letter.
+            consume_text_events(ctx);
             return;
         }
         if self.tabs.active().conflict {
             if self.consume_shortcut(ctx, "Alt+R") {
                 let index = self.tabs.active_index();
                 self.apply_conflict(index, crate::conflict::ConflictAction::Reload, ctx);
+                consume_text_events(ctx);
                 return;
             }
             if self.consume_shortcut(ctx, "Alt+K") {
                 let index = self.tabs.active_index();
                 self.apply_conflict(index, crate::conflict::ConflictAction::KeepMine, ctx);
+                consume_text_events(ctx);
                 return;
             }
         }
@@ -118,4 +123,11 @@ impl MdViewApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
     }
+}
+
+/// Drop text events produced by an Alt shortcut so the focused editor cannot insert the key.
+fn consume_text_events(ctx: &egui::Context) {
+    ctx.input_mut(|input| {
+        input.events.retain(|event| !matches!(event, egui::Event::Text(_)));
+    });
 }

@@ -315,7 +315,9 @@ impl eframe::App for MdViewApp {
                 }
                 match self.tabs.active().mode {
                     mdview_ui::ViewMode::Edit => {
+                        let menu_open = self.keyboard_menu.open;
                         let editor = self.tabs.editor_mut();
+                        editor.set_ignore_input(menu_open);
                         editor.show(ui);
                         editor.take_user_scroll();
                         if editor.is_at_end() && editor.scrolling_recently(std::time::Duration::from_millis(350)) {

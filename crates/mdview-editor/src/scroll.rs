@@ -27,6 +27,14 @@ impl Editor {
         self.identity
     }
 
+    /// Stop the editor from processing keyboard and pointer input for this frame.
+    ///
+    /// The app sets this while a keyboard overlay (the menu navigator or a dialog)
+    /// owns the keys, so Enter and the arrow keys cannot also edit the document.
+    pub fn set_ignore_input(&mut self, ignore: bool) {
+        self.ignore_input = ignore;
+    }
+
     /// The last vertical scroll offset.
     pub fn scroll_offset(&self) -> f32 {
         self.scroll_y

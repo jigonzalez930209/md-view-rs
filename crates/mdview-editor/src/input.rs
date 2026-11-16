@@ -17,6 +17,9 @@ pub(crate) struct Geometry {
 impl Editor {
     /// Handle a frame's input after the content has been painted.
     pub(crate) fn handle_input(&mut self, ui: &mut Ui, response: &Response, geometry: &Geometry) {
+        if self.ignore_input {
+            return;
+        }
         if response.clicked() || response.drag_started() {
             response.request_focus();
         }

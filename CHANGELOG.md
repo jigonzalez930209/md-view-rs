@@ -9,6 +9,9 @@
 - The editor keeps both scrollbars allocated. A transient horizontal bar changed the inner
   height by a few points and made the maximum scroll offset oscillate at the end of the
   document; the end is now stable in Edit and Split.
+- Alt menu and conflict shortcuts no longer leak their letter into a focused editor. After
+  `Alt+R` reloaded a conflicted file, the editor could receive the text event for `r` and
+  mark the reloaded document dirty again; the same applied to `Alt+F/E/V/G/H` menu keys.
 
 ## 1.0.0-rc.1 — 2026-11-16
 
