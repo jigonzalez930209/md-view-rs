@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+## 1.0.0-rc.1 — 2026-11-16
+
+- Fixed the split-view flicker at the end of the document. The follower pane was sent scroll
+  targets past its maximum; egui paints such an offset for one frame and then clamps it, so the
+  opposite pane jumped and snapped back. Follower targets are now clamped to the scrollable range
+  and never re-sent once reached.
+- Replaced the line-based split synchronization with a continuous, monotonic, invertible map
+  between editor and preview offsets. Both panes now reach their ends on the same frame instead
+  of one pane jumping when the other hits its end, and either pane can lead without drift.
+- The follower stays locked to the last pane the user scrolled across re-layouts (zoom, split
+  resize, soft wrap, late media), and an edit makes the editor lead, so typing never moves the
+  editor under the cursor.
+- Fixed the preview flicker when zooming or resizing at the end of a document: re-layout,
+  pending-line, and anchor targets are clamped to the layout just painted, and a preview that
+  was at its end stays at the new end. Pressing End at the end now completes the request
+  without a scroll rewrite.
+- A pass that paints the editor or preview past its scroll end (egui lays out with the previous
+  offset, so a zoom that shrinks the content did this) is now discarded with `request_discard`
+  and repainted in range before it is shown. A re-layout that moves the preview anchor, and a
+  follower re-lock without user input, discard their pass too, so the first frame after a zoom
+  already shows both panes aligned. The app allows three passes per frame for these cases;
+  frames without a discard still run one pass.
+- Tightened the split follow tolerance from 0.5 to 0.05 points, so the follower lands on its
+  target (for example exactly at its end) instead of stopping up to half a point short. The
+  editor's maximum offset now comes from egui's pixel-rounded sizes, so a target at the end is
+  stored exactly and never re-sent in a loop.
+- Added counters of frames shown past the scroll end (`overshoot_paints`), logged in
+  split view as `split overshoot`, and a `split settled` diagnostic with the lock error. A new
+  E2E stage zooms to 1.3 (stacked split) and 0.9 (side by side), scrolls each pane to the end,
+  and asserts both ends, a lock error within 0.05 points, and zero overshoot paints. Updated the
+  stale render-pass link coordinate in the E2E script.
+
 ## 1.0.0-rc.0 — 2026-11-15
 
 - Published the first public release candidate with a VitePress documentation site and a

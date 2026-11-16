@@ -1,29 +1,36 @@
-# Release 1.0.0-rc.0
+# Release 1.0.0-rc.1
 
-**Release date:** 2026-11-15
+**Release date:** 2026-11-16
 
-MD View 1.0.0-rc.0 is the first public release candidate. It is a native Rust desktop editor with a
+MD View 1.0.0-rc.1 is the second public release candidate. It is a native Rust desktop editor with a
 GitHub-parity Markdown reading view, a virtualized code editor, a workspace explorer, and a
-self-contained media renderer.
+self-contained media renderer. This candidate makes split view scrolling and zoom flicker-free.
 
 ## Highlights
+
+- **No flicker at the end of split view.** Reaching the end of either pane no longer makes the other
+  pane jump and snap back. No frame is ever shown painted past a pane's end.
+- **Exact editor and preview synchronization.** A continuous, invertible map links the two panes, so
+  both reach their ends on the same frame and either pane can lead without drift.
+- **Zoom keeps the panes locked.** Zooming, resizing the split, soft wrap, and late media keep the
+  follower aligned within a twentieth of a pixel, and the first frame after a zoom is already correct.
+- **Typing never moves the editor.** An edit makes the editor lead, so preview re-layouts never
+  scroll the text under the cursor.
+
+### Included from 1.0.0-rc.0
 
 - **GitHub Markdown parity.** The reading view follows GitHub's measured body layout: block
   spacing, heading ratios, alerts, tables, code chips, footnotes, safe HTML, math, Mermaid, and
   GitHub Primer syntax colors.
-- **Faster file switching.** Syntax highlighting now uses syntect's Oniguruma engine with two-face's
-  matching dumps. A cold TypeScript highlight dropped from about 2.8 s to 33 ms in debug builds and
-  from 254 ms to 18 ms in release.
-- **Explorer follows tabs.** The active tab expands its folders, scrolls into view, and is marked
-  in the tree. Open documents outside the workspace appear in a fixed **External files** group.
-- **Taller search results.** Document and workspace search results grow with the window and scroll
-  instead of being clipped to a single row.
+- **Faster file switching.** Syntax highlighting uses syntect's Oniguruma engine with two-face's
+  matching dumps.
+- **Explorer follows tabs**, with a fixed **External files** group, and **taller search results**.
 - **Unsigned desktop builds.** Linux packages are ready to use. macOS and Windows RC builds are
   unsigned; signing and notarization are the remaining 1.0.0 release-operator steps.
 
 ## Downloads
 
-Use the [GitHub release page](https://github.com/jigonzalez930209/md-view-rs/releases/tag/v1.0.0-rc.0)
+Use the [GitHub release page](https://github.com/jigonzalez930209/md-view-rs/releases/tag/v1.0.0-rc.1)
 and verify every file against `SHA256SUMS`.
 
 | Platform | Assets |

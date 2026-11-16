@@ -56,7 +56,7 @@ export default defineConfig({
           text: 'Reference',
           items: [
             { text: 'Feature matrix', link: '/guide/features' },
-            { text: 'Release 1.0.0-rc.0', link: '/guide/release' },
+            { text: 'Release 1.0.0-rc.1', link: '/guide/release' },
             { text: 'Project docs', link: `${repository}/tree/main/docs` },
           ],
         },

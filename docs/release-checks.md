@@ -94,7 +94,7 @@ The 1.0.0 release can ship when:
 - [ ] The local format, Clippy, test, release-build, and file-length commands pass.
 - [ ] No data-loss or input-corruption issue remains open.
 
-## Packaging and updates (`1.0.0-rc.0`)
+## Packaging and updates (`1.0.0-rc.1`)
 
 Run these local checks before tagging a release:
 
@@ -102,11 +102,11 @@ Run these local checks before tagging a release:
 - [ ] `cargo xtask package` produces the tarball, `.deb`, `.rpm`, AppDir, AppImage when the tool is
       available, `SHA256SUMS`, `sbom.cdx.json`, and `latest.json`.
 - [ ] `cargo xtask release-check` reports every manifest asset and input.
-- [ ] `dpkg-deb -x dist/mdview_1.0.0.rc.0_amd64.deb /tmp/mdview-deb` then
-      `/tmp/mdview-deb/usr/bin/mdview --version` prints `1.0.0-rc.0`.
-- [ ] `rpm -qlp dist/mdview-1.0.0.rc.0-1.x86_64.rpm` lists the binary, desktop, MIME, metainfo, and
+- [ ] `dpkg-deb -x dist/mdview_1.0.0.rc.1_amd64.deb /tmp/mdview-deb` then
+      `/tmp/mdview-deb/usr/bin/mdview --version` prints `1.0.0-rc.1`.
+- [ ] `rpm -qlp dist/mdview-1.0.0.rc.1-1.x86_64.rpm` lists the binary, desktop, MIME, metainfo, and
       hicolor icons.
-- [ ] `dist/MD-View-1.0.0-rc.0-x86_64.AppImage --appimage-extract-and-run --version` prints `1.0.0-rc.0`.
+- [ ] `dist/MD-View-1.0.0-rc.1-x86_64.AppImage --appimage-extract-and-run --version` prints `1.0.0-rc.1`.
       If the system temporary filesystem is quota-limited, prefix the command with
       `TMPDIR=$PWD/target/tmp`; otherwise the runtime can extract an empty payload and exit 127.
 - [ ] A local HTTP server can serve `latest.json` and an asset; the update dialog finds the

@@ -1,11 +1,11 @@
-# Install MD View 1.0.0-rc.0
+# Install MD View 1.0.0-rc.1
 
 The release candidate is published on the
-[GitHub release page](https://github.com/jigonzalez930209/md-view-rs/releases/tag/v1.0.0-rc.0).
+[GitHub release page](https://github.com/jigonzalez930209/md-view-rs/releases/tag/v1.0.0-rc.1).
 Every asset is listed with its SHA-256 in `SHA256SUMS`.
 
 ::: warning Release candidate
-1.0.0-rc.0 builds are unsigned. macOS Gatekeeper and Windows SmartScreen may show an extra warning.
+1.0.0-rc.1 builds are unsigned. macOS Gatekeeper and Windows SmartScreen may show an extra warning.
 The final 1.0.0 release will add signing and notarization once the release certificates are
 available. Linux packages are ready to install as-is.
 :::
@@ -16,21 +16,21 @@ Choose one of the published assets:
 
 | Asset | Use |
 |---|---|
-| `mdview-1.0.0-rc.0-linux-x86_64.tar.gz` | Portable tree; extract and run `usr/bin/mdview`. |
-| `mdview_1.0.0.rc.0_amd64.deb` | Debian and Ubuntu package. |
-| `mdview-1.0.0.rc.0-1.x86_64.rpm` | Fedora, openSUSE, and other RPM distributions. |
-| `MD-View-1.0.0-rc.0-x86_64.AppImage` | Single-file image for most desktop distributions. |
+| `mdview-1.0.0-rc.1-linux-x86_64.tar.gz` | Portable tree; extract and run `usr/bin/mdview`. |
+| `mdview_1.0.0.rc.1_amd64.deb` | Debian and Ubuntu package. |
+| `mdview-1.0.0.rc.1-1.x86_64.rpm` | Fedora, openSUSE, and other RPM distributions. |
+| `MD-View-1.0.0-rc.1-x86_64.AppImage` | Single-file image for most desktop distributions. |
 
 ```sh
 # Debian / Ubuntu
-sudo dpkg -i mdview_1.0.0.rc.0_amd64.deb
+sudo dpkg -i mdview_1.0.0.rc.1_amd64.deb
 
 # Fedora / RPM
-sudo rpm -i mdview-1.0.0.rc.0-1.x86_64.rpm
+sudo rpm -i mdview-1.0.0.rc.1-1.x86_64.rpm
 
 # AppImage
-chmod +x MD-View-1.0.0-rc.0-x86_64.AppImage
-./MD-View-1.0.0-rc.0-x86_64.AppImage
+chmod +x MD-View-1.0.0-rc.1-x86_64.AppImage
+./MD-View-1.0.0-rc.1-x86_64.AppImage
 ```
 
 The deb and RPM packages install the binary, desktop entry, MIME association, AppStream metadata,
@@ -39,7 +39,7 @@ available.
 
 ## macOS
 
-Download `MD-View-1.0.0-rc.0-macOS-arm64.dmg`, open it, and drag **MD View** to Applications. The first launch
+Download `MD-View-1.0.0-rc.1-macOS-arm64.dmg`, open it, and drag **MD View** to Applications. The first launch
 of an unsigned RC may require **Control-click → Open** or **System Settings → Privacy & Security →
 Open Anyway**.
 
@@ -47,7 +47,7 @@ A zipped `.app` is published alongside the DMG for automation and portable use.
 
 ## Windows
 
-Download `MD-View-1.0.0-rc.0-windows-x86_64.msi` for the per-user install, or the `.zip` for a portable copy. The
+Download `MD-View-1.0.0-rc.1-windows-x86_64.msi` for the per-user install, or the `.zip` for a portable copy. The
 MSI installs a Start-menu shortcut and registers Markdown associations under `HKCU`; no
 administrator rights are required. SmartScreen may warn on the unsigned RC; choose **More info →
 Run anyway** after verifying the checksum.
@@ -61,7 +61,7 @@ sha256sum -c SHA256SUMS
 On Windows PowerShell:
 
 ```powershell
-Get-FileHash .\MD-View-1.0.0-rc.0-windows-x86_64.msi -Algorithm SHA256
+Get-FileHash .\MD-View-1.0.0-rc.1-windows-x86_64.msi -Algorithm SHA256
 ```
 
 Compare the value with the matching line in `SHA256SUMS` from the release.

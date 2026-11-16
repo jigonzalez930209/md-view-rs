@@ -1,6 +1,6 @@
 # Feature matrix
 
-The 1.0.0-rc.0 release candidate covers the following surface. The repository's
+The 1.0.0-rc.1 release candidate covers the following surface. The repository's
 `docs/feature-matrix.md` records the test or snapshot evidence for each row.
 
 ## Application
