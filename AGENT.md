@@ -164,7 +164,9 @@ docs(roadmap): translate the roadmap to English
 ## 6. CI/CD policy
 
 Hosted CI is part of the pre-1.0 release gate. The workflow in `.github/workflows/ci.yml` runs the
-local gate on Linux and compiles the application on macOS and Windows.
+local gate (`cargo xtask ci`: format, Clippy, unit/frame/snapshot tests, deny, file length, and a
+release build) on Linux only. The Xvfb E2E suite (`cargo xtask e2e`) is never run on GitHub; run it
+locally before a release. macOS and Windows are built only by the tag-driven release workflow.
 
 - Verify every change locally with `cargo fmt`, strict Clippy, `cargo test --workspace`, `cargo deny check`, `cargo xtask check-file-length`, and a release build. `cargo xtask ci` runs that sequence.
 - Keep packaging scripts in `xtask` so they can run on the developer machine.

@@ -26,18 +26,6 @@ jobs:
           sudo apt-get install -y \
             libxkbcommon-dev libwayland-dev libx11-dev libxi-dev \
             libgl1-mesa-dev libxcursor-dev libxrandr-dev libxinerama-dev
+      # Unit, frame, and snapshot tests only; the Xvfb E2E suite runs locally (`cargo xtask e2e`).
       - name: Local gate
         run: cargo xtask ci
-
-  macos-windows-build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.97.1
-      - uses: Swatinem/rust-cache@v2
-      - name: Build application
-        run: cargo build --locked -p mdview-app
