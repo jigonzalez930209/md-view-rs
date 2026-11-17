@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 1.0.0-rc.4 — 2026-11-17
+
+- Copy, cut, and paste now use the operating system clipboard. The app built eframe with
+  `default-features = false` but without its `clipboard` feature, so egui silently replaced the
+  OS clipboard with an in-process simulation: copied text was invisible to other applications,
+  and text copied elsewhere never reached a paste. Copying from the editor and the preview's code
+  block button, cutting, and pasting now work across applications on X11 and Wayland. A build
+  check guards the feature, and the E2E run reads the copy through a separate X11 client and
+  pastes text owned by another client.
+- The local gate protects the desktop from memory exhaustion. `cargo xtask ci` refuses to start
+  with less than 4 GiB available, sizes Cargo's parallel jobs from the available memory, and stops
+  a step when available memory drops below 2 GiB or full memory pressure reaches 20%. Each step
+  runs in its own process group, so stopping it also stops its rustc and linker children. The E2E
+  run raises its start and runtime memory floors and documents running the gate in a separate
+  systemd scope.
+
 ## 1.0.0-rc.3 — 2026-11-16
 
 1.0.0-rc.2 was prepared but not published; its changes are listed at the end of this section.

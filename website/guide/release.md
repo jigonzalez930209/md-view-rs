@@ -1,51 +1,46 @@
-# Release 1.0.0-rc.3
+# Release 1.0.0-rc.4
 
-**Release date:** 2026-11-16
+**Release date:** 2026-11-17
 
-MD View 1.0.0-rc.3 is the third public release candidate. It is a native Rust desktop editor with a
-GitHub-parity Markdown reading view, a virtualized code editor, a workspace explorer, and a
-self-contained media renderer. This candidate makes the editor predictable (Enter, typing, wrap,
-and keyboard focus), adds a Markdown formatting bar with list and table editing, and fixes the
-explorer and tab strip. 1.0.0-rc.2 was prepared but not published; its changes are included.
+MD View 1.0.0-rc.4 is the fourth public release candidate. It is a native Rust desktop editor with
+a GitHub-parity Markdown reading view, a virtualized code editor, a workspace explorer, and a
+self-contained media renderer. This candidate restores copy and paste between MD View and the rest
+of the desktop.
 
 ## Highlights
 
-- **The editor behaves.** Enter and Space no longer move the cursor to the mouse pointer, typing
-  no longer recentres the view, up/down never jump into the next line, Tab indents instead of
-  leaving the editor, and dragging selects from where the button went down.
-- **Markdown formatting bar.** Headings, bold, italic, underline, quote, code, link, a Word-style
-  table picker, and bulleted, numbered, and task lists, with toggles that show the formats under
-  the cursor, `Ctrl/Cmd+B/I/U/K`, and **Format: …** palette commands. See
-  [Markdown formatting](/guide/editor#markdown-formatting).
-- **Lists and tables continue as you type.** Enter continues and renumbers lists and leaves them on
-  an empty item; Tab nests items and moves between table cells, adding rows and realigning columns.
-- **Clean soft wrap** at word boundaries, with no repeated text and the cursor and selection on
-  the text.
-- **Chinese, Japanese, and Korean text** uses an installed system font, and wide characters keep
-  the editor grid aligned.
-- **Fast typing in large files:** under 1 ms per key in a 210,000-line file.
-- **Find and replace:** Enter steps through matches and keeps focus, regex `^`/`$` work per line,
-  `$1` expands in replacements, and the panel no longer shifts while typing.
-- **Explorer and tabs:** aligned rows, keyboard navigation after a click, compact context menus,
-  and a tab strip that scrolls to the active tab.
+- **The system clipboard works in both directions.** Copy, cut, and paste now exchange text with
+  other applications. The editor and the preview's **Copy** button write to the OS clipboard, and
+  text copied elsewhere can be pasted into MD View. The desktop shell had compiled egui with an
+  in-process clipboard simulation, so both directions stopped at the window. The E2E run now
+  reads a copied line through a separate X11 client and pastes text owned by another client.
+- **Safer local gate.** `cargo xtask ci` checks available memory before starting, caps parallel
+  Cargo jobs from it, and stops a step before memory pressure can make systemd-oomd kill the
+  terminal. Run it as `systemd-run --user --scope --collect cargo xtask ci` on a busy desktop.
 
 ### Included from earlier candidates
 
-- **From the unpublished rc.2.** Split view ends together with exact sync, the editor has focus
-  without a click, **Insert LaTeX Block** (`Ctrl/Cmd+Shift+M`), a steady editor end, and Alt keys
-  no longer type into the editor.
-- **Flicker-free split view (rc.1).** A continuous, invertible map links editor and preview; zoom,
-  resize, wrap, and late media keep the panes locked, and typing never moves the editor.
-- **GitHub Markdown parity (rc.0).** Block spacing, heading ratios, alerts, tables, code chips,
-  footnotes, safe HTML, math, Mermaid, and GitHub Primer syntax colors.
-- **Faster file switching**, the **explorer that follows tabs** with a fixed **External files**
-  group, and **taller search results**.
+- **Editor behavior (rc.3).** Enter and Space no longer move the cursor to the mouse pointer,
+  typing no longer recentres the view, soft wrap breaks at word boundaries, and Tab, arrows,
+  copy, and paste work without clicking the text pane.
+- **Markdown formatting bar (rc.3).** Headings, bold, italic, underline, quote, code, link, a
+  Word-style table picker, and bulleted, numbered, and task lists, with toggles, `Ctrl/Cmd+B/I/U/K`,
+  and **Format: …** palette commands.
+- **Lists and tables (rc.3).** Enter continues and renumbers lists; Tab nests items, moves between
+  table cells, adds rows, and realigns columns.
+- **CJK text and large files (rc.3).** Installed CJK fonts render in the editor and preview, and
+  edits in a 210,000-line file re-measure only the touched lines.
+- **Find, replace, explorer, and tabs (rc.3).** Regex `^`/`$` per line, `$1` replacements,
+  keyboard explorer navigation, compact context menus, and a tab strip that reveals the active tab.
+- **From the earlier candidates.** Split view ends together with exact sync, **Insert LaTeX Block**
+  (`Ctrl/Cmd+Shift+M`), flicker-free split scrolling, GitHub Markdown parity, Oniguruma
+  highlighting, the explorer that follows tabs, and the desktop packages.
 - **Unsigned desktop builds.** Linux packages are ready to use. macOS and Windows RC builds are
   unsigned; signing and notarization are the remaining 1.0.0 release-operator steps.
 
 ## Downloads
 
-Use the [GitHub release page](https://github.com/jigonzalez930209/md-view-rs/releases/tag/v1.0.0-rc.3)
+Use the [GitHub release page](https://github.com/jigonzalez930209/md-view-rs/releases/tag/v1.0.0-rc.4)
 and verify every file against `SHA256SUMS`.
 
 | Platform | Assets |
