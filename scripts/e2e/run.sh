@@ -663,9 +663,13 @@ sleep 0.8
 x clicks 345 155 2            # double-click selects alpha_beta
 key ctrl+b                    # Bold in a Markdown editor
 x clicks 330 192 3            # triple-click selects the line b=22
+sleep 0.3
 key ctrl+c
 # Copy crosses the app boundary: another X11 client reads CLIPBOARD.
-[[ "$(clipboard_read)" == "b=22" ]] || fail "Copy did not reach the system clipboard"
+if ! copied=$(clipboard_read 5 2>&1); then
+  fail "could not read the system clipboard: $copied"
+fi
+[[ "$copied" == "b=22" ]] || fail "system clipboard has '$copied', expected 'b=22'"
 # Paste crosses it the other way: a separate owner supplies the text.
 clipboard_serve "external-paste-42"
 key End

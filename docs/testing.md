@@ -24,6 +24,20 @@ systemd-oomd has to end the build, it ends that scope instead of the terminal th
 systemd-run --user --scope --collect cargo xtask ci
 ```
 
+The E2E run can use every core while keeping memory capped and swap untouched:
+
+```sh
+systemd-run --user --scope --collect \
+  -p MemoryHigh=6G -p MemoryMax=8G -p MemorySwapMax=0 \
+  -p "CPUQuota=$(nproc)00%" \
+  env CARGO_BUILD_JOBS=4 cargo xtask e2e
+```
+
+That is the configuration used for the 1.0.0-rc.4 E2E pass: 16 cores, 243 MiB peak app memory,
+and no swap. A one-core quota also completed most stages but made the clipboard step race the
+selection; the test now waits for the click selection and reports the actual clipboard contents
+when it fails.
+
 Close browsers, language servers, or virtual machines before running the full gate on a desktop
 that is already using most of its memory. The guards protect the desktop; they do not make an
 under-provisioned machine faster.
