@@ -2,8 +2,89 @@
 
 ## Unreleased
 
-## 1.0.0-rc.2 — 2026-11-16
+## 1.0.0-rc.3 — 2026-11-16
 
+1.0.0-rc.2 was prepared but not published; its changes are listed at the end of this section.
+
+- Markdown files get a formatting bar above the editor (Editor and Split modes), modelled on
+  GitHub's toolbar: a heading menu (H1–H6 and normal text), bold, italic, underline
+  (`<ins>`, which GitHub shows underlined), quote, code, link, a Word-style table picker (choose
+  columns × rows on a grid with the mouse or arrow keys), and bulleted, numbered, and task lists.
+  Buttons toggle, show the formats under the cursor as pressed, combine, and apply to every
+  selected line; each action is one undo step. `Ctrl/Cmd+B/I/U/K` format text in a focused
+  Markdown editor (`Ctrl/Cmd+B` still toggles the sidebar elsewhere), and the command palette
+  lists every action as **Format: …**.
+- Markdown lists continue on Enter: numbers increase and later items are renumbered, new tasks
+  start unchecked, and Enter on an empty item leaves the list (a nested item first moves up to
+  its parent's level). Tab nests an empty item; Shift+Tab moves an item up a level.
+- In Markdown tables, Tab and Shift+Tab move between cells and select their text, Tab in the last
+  cell adds a row, and each Tab realigns the columns.
+- The preview underlines `<ins>` and `<u>` text.
+- Enter and Space no longer move the cursor to the mouse pointer. egui reports both keys as a
+  click on the focused editor, and the editor treated that click as a pointer click: Enter split
+  the line wherever the mouse rested and every typed space jumped there too. Only real pointer
+  clicks move the cursor now.
+- Typing no longer scrolls the editor. Revealing the cursor centred its line on every keystroke
+  (and scrolled horizontally to the middle of long lines); the view now moves only when the
+  cursor leaves it, by the smallest amount with a row of context, in the same frame.
+- Soft-wrapped rows no longer repeat the end of the previous row, and continuation rows, the
+  cursor, the selection, and search matches line up with the text. The editor measures the
+  character advance from laid-out text and paints each wrapped row on its own.
+- The cursor is visible on every column with soft wrap off (it was only drawn at column 0), and
+  tabs are painted to their tab stops, so the cursor no longer drifts after a tab.
+- Syntax highlighting refreshes from the first edited line. Undo, replace all, and Enter in the
+  middle of a line could leave visible lines showing their old text.
+- Tab and Shift+Tab indent and dedent instead of moving keyboard focus out of the editor. A
+  block shift is one undo step, ignores a final line selected only at column 0, and Shift+Tab
+  without a selection dedents the cursor line.
+- Up and Down keep the preferred column, never cross into the next line from a short line, and
+  move by wrapped rows. Page Up/Down move one viewport. Home toggles between the first
+  non-blank character and the line start. Undo and redo put the cursor at the change.
+- Quotes are not auto-paired after a word character (`don't`), and brackets are not auto-closed
+  in front of a word. Enter between `{}`/`[]`/`()` opens an indented block, and Enter on an
+  indentation-only line leaves no trailing whitespace. Backspace in leading spaces removes one
+  indentation level; Ctrl+Backspace and Ctrl+Delete delete by word, and Ctrl+arrows cross
+  punctuation instead of stopping at it.
+- The editor reports the indentation step (4 for nested four-space code, not 8) and has an
+  accessible name on every frame.
+- The E2E run stops every process it started on any exit, including Ctrl+C and SIGTERM, escalates
+  to SIGKILL, and reaps processes left by a run that was killed outright. A memory watchdog
+  fails the run when the app exceeds 1 GiB resident or the machine runs low on memory.
+- Soft wrap breaks rows after whole words (a word longer than the row breaks at the edge),
+  instead of cutting words at a fixed column.
+- Chinese, Japanese, and Korean text is drawn with an installed system CJK font (Noto Sans CJK,
+  Source Han, Microsoft YaHei, Yu Gothic, PingFang, …) instead of empty boxes, in the editor,
+  the preview, and the shell. In the editor, wide characters take two cells of the monospace
+  grid, so the cursor, selection, and wrapping stay aligned after them.
+- Enter in the find field moves to the next match and keeps focus there (it did nothing, and a
+  second Enter could reach the document), Enter in the replace field replaces and moves on, and
+  Enter in Go to Line jumps. Enter and Escape in the search popover work the same way. A
+  single-line field gives up focus on Enter, so checking only for focus never saw the key.
+- Dragging to select starts where the mouse button went down. Without a click first, the
+  selection ran from the previous cursor position.
+- Find: `^` and `$` match at every line in regex mode, patterns that can match empty text (`a*`)
+  no longer trap Next on the cursor, and Replace/Replace All expand `$1` and `${name}` groups in
+  regex mode (Replace All stays one undo step).
+- Typing in large files is fast again: each edit re-measured every line (about 55 ms per key in a
+  210,000-line file in a release build, far more in debug), so keys queued up and Ctrl+S could
+  save before the last characters arrived. The document now keeps a journal of line edits and
+  the editor re-measures only the touched lines (under 1 ms per key); full re-measures walk the
+  rope once instead of looking up every line.
+- The find panel no longer shifts while typing. Its row was wider than the panel, so the panel
+  was pushed left by a different amount whenever the result count changed.
+- The tab strip scrolls to the active tab when it changes (opening a file, Quick Open, the
+  explorer, Ctrl+Tab); a new tab could be active but hidden past the right edge. Long tab names
+  end in "…" inside their tab instead of running under the close button and the next tab, and
+  tabs have accessible names for screen readers.
+- Explorer context menus are compact (they stretched across the editor) and use the same
+  folder icon for **Reveal** on files and folders.
+- Explorer keyboard navigation works: after clicking a row, the arrow keys, Enter, and F2 act on
+  the tree. The tree never kept focus, so the keys did nothing. It no longer repaints every frame
+  while focused, keeps the selection unless a key moves it, and scrolls a moved selection into
+  view without recentring.
+- Explorer: files and folders at the same depth align, the open-document marker uses the focus
+  accent inside the row, icons that are still loading keep their slot, and the tree is no longer
+  cloned on every frame.
 - Split sync now lands exactly: the follow tolerance is 0.001 points (was 0.05), since targets
   are stored exactly and the editor maximum matches egui's sizes. The E2E split-zoom stage and
   frame tests require a lock error of at most 0.005 points; every settle in the E2E run reports

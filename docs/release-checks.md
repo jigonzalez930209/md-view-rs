@@ -4,7 +4,9 @@ H2 (`0.2.0`) is complete and verified locally on Linux. The macOS, Windows, and 
 screen-reader checks in this file are deliberately deferred to the `1.0.0` publication gate;
 they do not block work on the remaining milestones.
 
-Hosted CI/CD is enabled for the release candidate: the tag-driven workflow in
+Hosted CI runs the common gate (`cargo xtask ci`) on Linux only; the E2E suite runs locally
+(`cargo xtask e2e`) and never on GitHub. Hosted CI/CD is enabled for the release candidate: the
+tag-driven workflow in
 `.github/workflows/release.yml` publishes the Linux, macOS, and Windows assets, and
 `.github/workflows/docs.yml` deploys the VitePress documentation. The manual macOS/Windows and
 screen-reader checks below remain deferred to the final 1.0.0 gate; the RC desktop builds are
@@ -94,7 +96,7 @@ The 1.0.0 release can ship when:
 - [ ] The local format, Clippy, test, release-build, and file-length commands pass.
 - [ ] No data-loss or input-corruption issue remains open.
 
-## Packaging and updates (`1.0.0-rc.2`)
+## Packaging and updates (`1.0.0-rc.3`)
 
 Run these local checks before tagging a release:
 
@@ -102,11 +104,11 @@ Run these local checks before tagging a release:
 - [ ] `cargo xtask package` produces the tarball, `.deb`, `.rpm`, AppDir, AppImage when the tool is
       available, `SHA256SUMS`, `sbom.cdx.json`, and `latest.json`.
 - [ ] `cargo xtask release-check` reports every manifest asset and input.
-- [ ] `dpkg-deb -x dist/mdview_1.0.0.rc.2_amd64.deb /tmp/mdview-deb` then
-      `/tmp/mdview-deb/usr/bin/mdview --version` prints `1.0.0-rc.2`.
-- [ ] `rpm -qlp dist/mdview-1.0.0.rc.2-1.x86_64.rpm` lists the binary, desktop, MIME, metainfo, and
+- [ ] `dpkg-deb -x dist/mdview_1.0.0.rc.3_amd64.deb /tmp/mdview-deb` then
+      `/tmp/mdview-deb/usr/bin/mdview --version` prints `1.0.0-rc.3`.
+- [ ] `rpm -qlp dist/mdview-1.0.0.rc.3-1.x86_64.rpm` lists the binary, desktop, MIME, metainfo, and
       hicolor icons.
-- [ ] `dist/MD-View-1.0.0-rc.2-x86_64.AppImage --appimage-extract-and-run --version` prints `1.0.0-rc.2`.
+- [ ] `dist/MD-View-1.0.0-rc.3-x86_64.AppImage --appimage-extract-and-run --version` prints `1.0.0-rc.3`.
       If the system temporary filesystem is quota-limited, prefix the command with
       `TMPDIR=$PWD/target/tmp`; otherwise the runtime can extract an empty payload and exit 127.
 - [ ] A local HTTP server can serve `latest.json` and an asset; the update dialog finds the
