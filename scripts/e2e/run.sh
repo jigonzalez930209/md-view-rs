@@ -18,12 +18,10 @@ APP_PID=""
 SERVER_PID=""
 XVFB_PID=""
 
-cleanup() {
-  [[ -n "$APP_PID" ]] && kill "$APP_PID" 2>/dev/null || true
-  [[ -n "$SERVER_PID" ]] && kill "$SERVER_PID" 2>/dev/null || true
-  [[ -n "$XVFB_PID" ]] && kill "$XVFB_PID" 2>/dev/null || true
-}
-trap cleanup EXIT
+mkdir -p "$TMP"
+# shellcheck source=lifecycle.sh
+source "$ROOT/scripts/e2e/lifecycle.sh"
+reap_stale
 
 fail() {
   echo "E2E FAIL: $*" >&2
@@ -169,6 +167,11 @@ reduce_motion = false
 EOF
 rm -rf "${SHOTS:?}"/*
 
+printf "# Format\n\n" > "$WS/src/format.md"
+printf 'heading\nitalic\nunderline\nquote\ncode\nlink\nbullets\nnumbered\ntask\n' > "$WS/src/toolbar.md"
+printf 'bold\nitalic\nunderline\nhone\nhtwo\nhthree\n## normal\nquote\ncode\nlink\nbullets\nnumbered\ntask\nend\n' > "$WS/src/palette.md"
+printf '# Interact\n\nalpha_beta gamma\na=1\nb=22\nf(x[y])\n\n%s\n' "$(printf 'word %.0s' $(seq 1 40))" > "$WS/src/interact.md"
+python3 -c "import sys; open(sys.argv[1], 'w').write(''.join(f'line {i} of the large file\\n' for i in range(210000)))" "$WS/src/big.txt"
 cat > "$WS/showcase.md" <<EOF
 # Render showcase
 
@@ -287,6 +290,7 @@ BIN="$ROOT/target/$PROFILE/mdview"
 echo "== web server =="
 python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$WEB" >"$TMP/web.log" 2>&1 &
 SERVER_PID=$!
+register_pid "$SERVER_PID" "http.server $PORT"
 for _ in $(seq 1 40); do
   curl -fsS "http://127.0.0.1:$PORT/photo.png" -o /dev/null && break
   sleep 0.1
@@ -296,15 +300,23 @@ echo "== display =="
 if ! xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
   Xvfb "$DISPLAY" -screen 0 1280x900x24 >"$TMP/xvfb.log" 2>&1 &
   XVFB_PID=$!
+  register_pid "$XVFB_PID" "Xvfb $DISPLAY"
   sleep 0.7
 fi
 
 echo "== launch =="
-env -u WAYLAND_DISPLAY XDG_SESSION_TYPE=x11 DISPLAY="$DISPLAY" USER=mdview_e2e \
+# A recording stand-in for the desktop opener: Reveal must ask for the right folder, and the
+# run must not start a real file manager.
+mkdir -p "$TMP/bin"
+printf '#!/bin/sh\nprintf "%%s\\n" "$*" >> "%s/opened.log"\n' "$TMP" > "$TMP/bin/xdg-open"
+chmod +x "$TMP/bin/xdg-open"
+env -u WAYLAND_DISPLAY XDG_SESSION_TYPE=x11 DISPLAY="$DISPLAY" USER=mdview_e2e PATH="$TMP/bin:$PATH" \
   XDG_RUNTIME_DIR="$TMP/runtime" MDVIEW_CONFIG_DIR="$CONFIG" MDVIEW_LOG_DIR="$LOGS" \
   RUST_LOG=warn,mdview=debug "$BIN" "$WS" "$WS/showcase.md" \
   >"$TMP/app.log" 2>&1 &
 APP_PID=$!
+register_pid "$APP_PID" "$BIN"
+start_ram_guard "$APP_PID"
 wait_title "showcase.md"
 WID=$(DISPLAY="$DISPLAY" xwininfo -root -tree | awk '/MD View/{print $1; exit}')
 DISPLAY="$DISPLAY" python3 "$ROOT/scripts/e2e/x11.py" focus "$WID"
@@ -480,6 +492,51 @@ click 240 48
 shot "11-collapsed"
 click 213 48
 
+echo "== explorer context menu: rename, delete, new file in a folder =="
+# Collapsed tree: e2e-folder is the fourth row (y=156) and e2e-created.md the first file (y=231).
+# Menu rows sit below the clicked row: a file's Rename at +80 and Delete at +103, a folder's
+# New file at +27.
+sleep 0.6
+rclick 60 231
+click 57 311
+key ctrl+a
+type_text "ctx-renamed.md"
+key Return
+wait_file "$WS/ctx-renamed.md"
+[[ ! -e "$WS/e2e-created.md" ]] || fail "context-menu rename kept the old name"
+sleep 0.6
+rclick 60 231
+click 57 334
+click 615 408
+for _ in $(seq 1 40); do
+  [[ ! -e "$WS/ctx-renamed.md" ]] && break
+  sleep 0.1
+done
+[[ ! -e "$WS/ctx-renamed.md" ]] || fail "context-menu delete did not remove the file"
+sleep 0.6
+rclick 70 156
+click 60 183
+sleep 0.5
+click 470 390
+key ctrl+a
+type_text "inside.md"
+key Return
+wait_file "$WS/e2e-folder/inside.md"
+shot "11b-context-menu-actions"
+# Reveal: a folder opens itself, a file opens its folder. The tree now shows e2e-folder
+# expanded with inside.md below it.
+sleep 0.6
+rclick 70 156
+click 60 229
+rclick 80 181
+click 60 231
+for _ in $(seq 1 30); do
+  [[ $(wc -l < "$TMP/opened.log" 2>/dev/null || echo 0) -ge 2 ]] && break
+  sleep 0.1
+done
+[[ "$(cat "$TMP/opened.log" 2>/dev/null)" == "$WS/e2e-folder"$'\n'"$WS/e2e-folder" ]] ||
+  fail "Reveal opened: $(cat "$TMP/opened.log" 2>/dev/null)"
+
 echo "== palette, tabs, quick open =="
 key ctrl+shift+p
 type_text "settings"
@@ -534,6 +591,196 @@ type_text "10"
 shot "16-goto"
 click 593 409
 shot "17-goto-result"
+
+echo "== markdown formatting and lists =="
+key ctrl+p
+type_text "format.md"
+key Enter
+wait_title "format.md"
+key ctrl+shift+p
+type_text "Edit mode"
+key Enter
+sleep 0.8
+key ctrl+End
+# Enter continues a list, Enter on an empty item ends it, Tab nests an empty item.
+type_text "- one"; key Enter; type_text "two"; key Enter; key Enter
+type_text "1. first"; key Enter; type_text "second"; key Enter; key Tab
+type_text "sub"; key Enter; key Enter; type_text "third"
+# Bold the selected word with the Markdown shortcut (Ctrl+B is Bold in a Markdown editor).
+key ctrl+shift+Left
+key ctrl+b
+sleep 0.4
+shot "17a-markdown-lists"
+key ctrl+s
+sleep 0.8
+python3 - "$WS/src/format.md" <<'PY_FORMAT' || fail "Markdown list editing produced unexpected text"
+import sys
+text = open(sys.argv[1], encoding="utf-8").read()
+expected = "# Format\n\n- one\n- two\n1. first\n2. second\n   1. sub\n3. **third**"
+if text.rstrip("\n") != expected:
+    raise SystemExit(f"got {text!r}")
+PY_FORMAT
+key ctrl+p
+type_text "showcase.md"
+key Enter
+wait_title "showcase.md"
+
+echo "== editor interactions: mouse, clipboard, find, toolbar, palette =="
+# Coordinates follow the Markdown editor in Edit mode: the formatting bar sits above the
+# text, so line N is at y = 117 + (N - 1) * 18.8 and column C at x = 317 + C * 7.83.
+key ctrl+p
+type_text "interact.md"
+key Enter
+wait_title "interact.md"
+key ctrl+shift+p
+type_text "Edit mode"
+key Enter
+sleep 0.8
+x clicks 345 155 2            # double-click selects alpha_beta
+key ctrl+b                    # Bold in a Markdown editor
+x clicks 330 192 3            # triple-click selects the line b=22
+key ctrl+c
+key End
+key Enter
+key ctrl+v                    # the copied line is pasted below
+key ctrl+h
+type_text '(\w)=(\d+)'
+click 772 141                 # regex option
+click 625 180                 # replacement field
+type_text '$2:$1'
+click 840 180                 # Replace All
+key Escape
+set_wrap true
+x drag 318 268 357 287        # select across two wrapped rows
+type_text "Z"
+key ctrl+End
+click 479 91                  # toolbar table button
+click 520 170                 # 3 columns x 4 rows on the grid
+type_text "Head"
+key ctrl+Home
+key ctrl+shift+p
+type_text "Format: Heading 2"
+key Enter
+sleep 0.4
+click 360 230                 # cursor inside f(x[y]): brackets are highlighted
+shot "17b-editor-interactions"
+python3 - "$SHOTS/17b-editor-interactions.png" <<'PY_BRACKETS' || fail "the bracket pair around the cursor is not highlighted"
+import subprocess, sys
+def blueness(x0, x1, y0=223, y1=238):
+    raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", sys.argv[1], "-vf",
+                          f"crop={x1 - x0}:{y1 - y0}:{x0}:{y0}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+                         capture_output=True, check=True).stdout
+    pixels = [raw[i:i + 3] for i in range(0, len(raw), 3)]
+    return sum(p[2] - p[0] for p in pixels) / len(pixels)
+cells = {col: blueness(int(317 + col * 7.83) + 1, int(317 + col * 7.83) + 7) for col in range(7)}
+# f(x[y]) with the cursor before `]`: `[` (3) and `]` (5) are highlighted, `(` and `)` are not.
+plain = max(cells[1], cells[2], cells[4], cells[6])
+if not (cells[3] > plain + 6 and cells[5] > plain + 6):
+    raise SystemExit(f"cells {cells}")
+PY_BRACKETS
+key ctrl+s
+sleep 0.8
+python3 - "$WS/src/interact.md" <<'PY_INTERACT' || fail "editor interactions produced unexpected text"
+import sys
+lines = open(sys.argv[1], encoding="utf-8").read().split("\n")
+expected_head = ["## Interact", "", "**alpha_beta** gamma", "1:a", "22:b", "22:b", "f(x[y])", ""]
+if lines[:8] != expected_head:
+    raise SystemExit(f"head: {lines[:8]!r}")
+paragraph = lines[8]
+# The drag replaced everything from the paragraph start to column 5 of the second row.
+if not paragraph.startswith("Zword ") or not 10 < paragraph.count("word") < 40:
+    raise SystemExit(f"paragraph: {paragraph!r}")
+table = [line for line in lines if line.startswith("|")]
+if len(table) != 5 or not table[0].startswith("| Head | Column 2 | Column 3 |"):
+    raise SystemExit(f"table: {table!r}")
+PY_INTERACT
+set_wrap false
+
+echo "== formatting bar: every button =="
+key ctrl+p
+type_text "toolbar.md"
+key Enter
+wait_title "toolbar.md"
+key ctrl+shift+p
+type_text "Edit mode"
+key Enter
+sleep 0.8
+click 330 117; click 285 91; click 325 171   # Heading menu: Heading 2
+x clicks 330 136 2; click 338 91             # Italic on the double-clicked word
+x clicks 330 155 2; click 364 91             # Underline
+click 330 174; click 401 91                  # Quote
+x clicks 330 192 2; click 427 91             # Code
+x clicks 330 211 2; click 453 91             # Link: the url placeholder is selected
+type_text "https://x.dev"
+click 330 230; click 516 91                  # Bulleted list
+click 330 249; click 542 91                  # Numbered list
+click 330 268; click 568 91                  # Task list
+shot "17c-formatting-bar"
+key ctrl+s
+sleep 0.8
+expected=$'## heading\n_italic_\n<ins>underline</ins>\n> quote\n`code`\n[link](https://x.dev)\n- bullets\n1. numbered\n- [ ] task'
+[[ "$(cat "$WS/src/toolbar.md")" == "$expected" ]] || fail "formatting bar produced: $(cat "$WS/src/toolbar.md")"
+key ctrl+w
+
+echo "== command palette: every Format command =="
+key ctrl+p
+type_text "palette.md"
+key Enter
+wait_title "palette.md"
+key ctrl+shift+p
+type_text "Edit mode"
+key Enter
+sleep 0.8
+format_cmd() { key ctrl+shift+p; type_text "Format: $1"; key Enter; sleep 0.3; }
+y_of() { echo $((117 + ($1 - 1) * 1883 / 100)); }
+x clicks 330 "$(y_of 1)" 2; format_cmd "Bold"
+x clicks 330 "$(y_of 2)" 2; format_cmd "Italic"
+x clicks 330 "$(y_of 3)" 2; format_cmd "Underline"
+click 330 "$(y_of 4)"; format_cmd "Heading 1"
+click 330 "$(y_of 5)"; format_cmd "Heading 2"
+click 330 "$(y_of 6)"; format_cmd "Heading 3"
+click 340 "$(y_of 7)"; format_cmd "Normal text"
+click 330 "$(y_of 8)"; format_cmd "Quote"
+x clicks 330 "$(y_of 9)" 2; format_cmd "Code"
+x clicks 330 "$(y_of 10)" 2; format_cmd "Link"; type_text "u"
+click 330 "$(y_of 11)"; format_cmd "Bulleted list"
+click 330 "$(y_of 12)"; format_cmd "Numbered list"
+click 330 "$(y_of 13)"; format_cmd "Task list"
+click 330 "$(y_of 14)"; key End; format_cmd "Table 3"
+shot "17d-palette-format"
+key ctrl+s
+sleep 0.8
+python3 - "$WS/src/palette.md" <<'PY_PALETTE' || fail "palette Format commands produced unexpected text"
+import sys
+lines = open(sys.argv[1], encoding="utf-8").read().split("\n")
+expected = ["**bold**", "_italic_", "<ins>underline</ins>", "# hone", "## htwo", "### hthree", "normal",
+            "> quote", "`code`", "[link](u)", "- bullets", "1. numbered", "- [ ] task", "end", ""]
+if lines[:15] != expected:
+    raise SystemExit(f"got {lines[:15]!r}")
+table = [line for line in lines[15:] if line.startswith("|")]
+if len(table) != 4 or not table[0].startswith("| Column 1 | Column 2 | Column 3 |"):
+    raise SystemExit(f"table {table!r}")
+PY_PALETTE
+key ctrl+w
+
+echo "== large file mode =="
+key ctrl+p
+type_text "big.txt"
+key Enter
+wait_title "big.txt"
+sleep 1
+key ctrl+End
+type_text "TAIL"
+sleep 0.6
+key ctrl+s
+sleep 1
+[[ "$(tail -c 4 "$WS/src/big.txt")" == "TAIL" ]] || fail "typing at the end of a large file was not saved"
+log_has "file open path=$WS/src/big.txt bytes=[0-9]+ lines=210001"
+key ctrl+w
+key ctrl+p
+type_text "showcase.md"
+key Enter
+wait_title "showcase.md"
 
 echo "== split and scroll stress =="
 key ctrl+shift+e
@@ -1059,6 +1306,10 @@ for _ in $(seq 1 140); do
 done
 if kill -0 "$APP_PID" 2>/dev/null; then fail "application did not close on Alt+F4"; fi
 APP_PID=""
+kill "$GUARD_PID" 2>/dev/null || true
+GUARD_PID=""
+rss_peak=$(cat "$TMP/rss-peak-mb")
+(( rss_peak > 0 )) || fail "RAM guard recorded no samples"
 
 echo "== logs =="
 [[ -f "$LOGS/mdview.log" ]] || fail "log file missing"
@@ -1095,6 +1346,7 @@ fi
 echo
 echo "E2E PASS"
 echo "  log bytes: $size (limit 1048576)"
+echo "  peak app memory: ${rss_peak} MiB (limit ${MAX_RSS_MB} MiB)"
 echo "  screenshots: $SHOTS"
 echo "  logs: $LOGS"
 echo "  workspace: $WS"

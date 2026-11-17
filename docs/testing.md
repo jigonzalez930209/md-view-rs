@@ -26,13 +26,24 @@
   View/Editor/Split segmented control with disabled modes on image documents.
 - Editor: edit and save, floating find/replace overlay, go-to-line, indent guides, whitespace,
   and scroll-beyond-last-line end stability.
+- Markdown: lists typed into `src/format.md` (continuation, nesting, leaving a list) and Ctrl+B,
+  compared byte for byte after saving.
+- Editor interactions on `src/interact.md`: double-click and Ctrl+B, triple-click, copy and paste,
+  regex Replace All with `$2:$1` through the find panel's controls, a drag across soft-wrapped
+  rows, the formatting bar's table grid, **Format: Heading 2** from the palette, and a bracket
+  highlight screenshot; the saved file is checked.
+- Formatting bar: every button once on `src/toolbar.md` (heading menu, italic, underline, quote,
+  code, link, the three lists), compared exactly after saving.
+- Explorer context menu: a file renamed and deleted (with confirmation) through its menu items,
+  and a new file created inside a folder from the folder's menu.
+- Large-file mode: a 210,000-line file opens, typing at its end is saved, and the tab closes.
 - Split mode and 120 wheel events across both panes, then a 200-event end-of-document run
   with stable editor offsets and the last preview block visible.
 - Split-end hold: 400 wheel events at the editor end, asserting the editor offset is stable,
   the preview stays at its maximum, and the preview end target is written at most once.
 - Split zoom: at zoom 1.3 (stacked split) and 0.9 (side by side), each pane is scrolled to the
   end; the `split settled` log must show both panes at their maximum with a lock error within
-  0.05 points, and no `split overshoot` (a frame painted past a pane's end) may be logged.
+  0.005 points, and no `split overshoot` (a frame painted past a pane's end) may be logged.
 - Media warm-up: local images, SVG, math, and Mermaid are resolved before the first preview
   layout; intrinsic sizes reserve stable boxes so no texture load reflows the document.
 - Rendering: inline and display LaTeX, tables with a clickable cell link, local and HTTP
@@ -52,6 +63,19 @@
 
 Screenshots are written to `target/e2e/`. Logs and the disposable workspace stay in the
 temporary directory printed on success or failure.
+
+## Process cleanup and memory guard
+
+`scripts/e2e/lifecycle.sh` owns the processes the run starts (the app, the web server, and
+Xvfb when the run started it). They are stopped on success, failure, Ctrl+C, SIGTERM, and
+SIGHUP: SIGTERM first, SIGKILL after three seconds. Each process is recorded in
+`target/e2e-pids`; if a run is killed with SIGKILL, the next run stops the recorded processes
+that still run the same command before it starts.
+
+A watchdog samples the app every 200 ms. The run fails, and the app is killed, when its
+resident memory exceeds `MDVIEW_E2E_MAX_RSS_MB` (default 1024 MiB; a normal run peaks near
+250 MiB) or the machine has less than `MDVIEW_E2E_MIN_AVAILABLE_MB` available (default 768 MiB).
+The summary prints the app's peak resident memory.
 
 ## Profiles
 
@@ -83,13 +107,33 @@ painted-position test reads the final paragraph's rectangle from the widget tree
 and fails if it is ever painted above its resting place and snaps back; the previous line-based
 sync fails it with a 334-point one-frame jump. A zoom test applies the app zoom factor the way
 the window experiences it (constant pixels, so fewer or more points) at 0.8–1.6 with either pane
-leading, and asserts the panes stay locked within 0.05 points and reach both ends together. A
+leading, and asserts the panes stay locked within 0.005 points and reach both ends together. A
 rendered-pixel test renders every frame with wgpu while zooming at the end (soft wrap on and off,
 either pane leading) and requires both panes to be pixel-identical to the settled frame from the
 first frame after each zoom, and the frames to come to rest; without the discarded passes it
 fails with a 65-pixel one-frame jump. Every frame test also asserts that no frame is shown painted
 past a pane's end (`overshoot_paints`). The pure
 offset map in `split_sync.rs` has continuity, monotonicity, round-trip, and range tests.
+
+Editor typing and navigation have frame tests in `crates/mdview-editor/src/typing_tests.rs`.
+They send real key, text, and pointer events through egui: Enter and Space after a mouse click
+must not move the cursor to the pointer, typing near the viewport edge must not scroll, Enter at
+the bottom scrolls at most one row, the highlight cache must show edited text, and Up/Down,
+Page Up/Down, Home/End, Tab/Shift+Tab, Backspace, word deletion, Ctrl+arrows, auto-pairing,
+and undo are checked against the resulting text and cursor.
+
+`crates/mdview-editor/src/feature_tests.rs` covers double- and triple-click selection, dragging
+across wrapped rows and Shift+click, copy/cut/paste with undo, find with regex, whole-word, and
+case options (including line anchors and empty matches), regex Replace All with groups, large-file
+mode, and bracket matching. `sidebar_tests.rs` drives the explorer with a click and the arrow
+keys, Enter, and Left.
+
+Markdown formatting has frame tests in `crates/mdview-editor/src/markdown_tests.rs`: toggling and
+combining bold, italic, and underline (with and without a selection, and across lines), headings,
+quotes, list conversions, list continuation and renumbering on Enter, leaving and nesting lists,
+tables and Tab navigation, links, code blocks, single-step undo, and the `Ctrl/Cmd+B/I/U`
+shortcuts. The E2E run types lists into `src/format.md`, bolds a word with `Ctrl+B`, saves, and
+compares the file byte for byte.
 
 ## Disk-backed temporary storage
 

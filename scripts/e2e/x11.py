@@ -156,6 +156,16 @@ if __name__ == "__main__":
         XTST.XTestFakeButtonEvent(dpy, 1, 0, 0)
         X11.XFlush(dpy)
         time.sleep(0.2)
+    elif command == "clicks":
+        # N quick clicks at one point: 2 is a double click, 3 a triple click.
+        x, y, count = int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])
+        XTST.XTestFakeMotionEvent(dpy, -1, x, y, 0)
+        for _ in range(count):
+            XTST.XTestFakeButtonEvent(dpy, 1, 1, 0)
+            XTST.XTestFakeButtonEvent(dpy, 1, 0, 0)
+            X11.XFlush(dpy)
+            time.sleep(0.06)
+        time.sleep(0.2)
     elif command == "drag":
         x1, y1, x2, y2 = (int(value) for value in sys.argv[2:6])
         XTST.XTestFakeMotionEvent(dpy, -1, x1, y1, 0)
