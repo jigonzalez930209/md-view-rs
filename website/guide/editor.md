@@ -43,6 +43,45 @@ document and workspace search share the same top-center panel anchored to the wi
 
 `Ctrl/Cmd+G` opens the line prompt. Enter a one-based line number to move the cursor and center it.
 
+## Markdown formatting
+
+Markdown files (`.md`, `.markdown`, `.mdx`, …) show a formatting bar above the editor in
+**Editor** and **Split** modes, modelled on GitHub's comment toolbar:
+
+| Button | Markdown | Shortcut |
+|---|---|---|
+| Heading | `#` … `######`, or normal text, from a menu | |
+| Bold | `**text**` | `Ctrl/Cmd+B` |
+| Italic | `_text_` | `Ctrl/Cmd+I` |
+| Underline | `<ins>text</ins>` (GitHub shows it underlined) | `Ctrl/Cmd+U` |
+| Quote | `> ` before each line | |
+| Code | `` `code` ``, or a fenced block for several lines | |
+| Link | `[text](url)` with `url` selected | `Ctrl/Cmd+K` |
+| Table | a table picked on a grid of up to 10 × 8 cells | |
+| Bulleted, numbered, task list | `- `, `1. `, `- [ ] ` on each selected line | |
+
+Every button toggles: pressing it on formatted text removes the format, and the buttons for the
+formats under the cursor are shown pressed. Formats combine (`**_<ins>text</ins>_**`) and each
+comes off on its own. Without a selection, Bold, Italic, and Underline format the word under the
+cursor, or insert an empty pair to type into. Each action is a single undo step. The same actions
+are in the command palette as **Format: …**. In a focused Markdown editor `Ctrl/Cmd+B` is Bold;
+elsewhere it still toggles the sidebar.
+
+Lists continue as you type:
+
+- **Enter** at the end of an item starts the next one: numbers increase (later items are
+  renumbered), and a new task starts unchecked. Enter in the middle of an item moves the rest of
+  the text into the new item.
+- **Enter** on an empty item leaves the list. A nested item first moves up to its parent's level
+  and continues the parent's numbering; a top-level item loses its marker.
+- **Tab** on an empty item nests it under the item above; **Shift+Tab** moves an item back up.
+
+The **Table** button opens a grid: hover or use the arrow keys to choose columns × rows, then
+click or press Enter. The header cells are named `Column 1`, `Column 2`, … and the first one is
+selected so you can type over it. Inside a table, **Tab** moves to the next cell and selects its
+text (the `| --- |` row is skipped), **Shift+Tab** goes back, and Tab in the last cell adds a row.
+Each Tab also realigns the table's columns.
+
 ## LaTeX blocks
 
 `Ctrl/Cmd+Shift+M`, **Edit → Insert LaTeX Block**, or the command palette inserts a display-math

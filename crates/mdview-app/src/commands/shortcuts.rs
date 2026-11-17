@@ -21,6 +21,15 @@ impl MdViewApp {
         }
     }
 
+    /// Whether keys go to a Markdown document's editor, where Cmd+B/I/U/K format text.
+    fn markdown_editor_focused(&self) -> bool {
+        let tab = self.tabs.active();
+        tab.mode != mdview_ui::ViewMode::View
+            && !tab.is_viewer()
+            && self.tabs.editor().is_markdown()
+            && self.tabs.editor().has_focus()
+    }
+
     pub(crate) fn handle_shortcuts(&mut self, ctx: &egui::Context) {
         if self.dialogs.is_open() || self.close_prompt_open {
             return;
@@ -114,7 +123,8 @@ impl MdViewApp {
             self.handle_command(ctx, Command::SetZoom(zoom));
         } else if self.consume_shortcut(ctx, "Cmd+0") {
             self.handle_command(ctx, Command::SetZoom(1.0));
-        } else if self.consume_shortcut(ctx, "Cmd+B") {
+        } else if !self.markdown_editor_focused() && self.consume_shortcut(ctx, "Cmd+B") {
+            // In a focused Markdown editor Cmd+B is Bold; the editor handles it.
             self.sidebar.open = !self.sidebar.open;
             self.sync_session();
         } else if self.consume_shortcut(ctx, "Ctrl+Shift+Tab") {

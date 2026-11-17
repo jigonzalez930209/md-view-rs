@@ -26,6 +26,7 @@ pub fn apply(ctx: &egui::Context, mode: ThemeMode) {
 /// Apply a specific theme identifier.
 pub fn apply_id(ctx: &egui::Context, id: ThemeId) {
     crate::add_reading_fonts(ctx);
+    crate::add_cjk_fallback(ctx);
     let theme = Theme::for_id(id);
     let mut visuals = match id.mode() {
         ThemeMode::Light => egui::Visuals::light(),

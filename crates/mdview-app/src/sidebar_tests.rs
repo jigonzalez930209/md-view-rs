@@ -118,3 +118,71 @@ fn sidebar_2x_snapshot() {
 fn sidebar_external_snapshot() {
     sidebar_snapshot_with("sidebar-external", 1.0, true);
 }
+
+#[test]
+fn keyboard_navigation_works_after_clicking_a_row() {
+    use egui_kittest::kittest::Queryable;
+    use std::{cell::RefCell, rc::Rc};
+
+    let temp = tempfile::tempdir().expect("temp dir");
+    let dir = temp.path().join("project");
+    std::fs::create_dir_all(dir.join("docs")).expect("docs");
+    std::fs::write(dir.join("docs/guide.md"), "# Guide\n").expect("guide");
+    std::fs::write(dir.join("README.md"), "# Read me\n").expect("readme");
+    let mut workspace = Workspace::open(&dir).expect("workspace");
+    let mut sidebar = Sidebar::new(260.0, false, true);
+    sidebar.open = true;
+    let mut icons = MaterialIcons::new();
+    let translations = Translations::new();
+    let lang = translations.lang(LanguagePreference::English);
+    let opened: Rc<RefCell<Vec<PathBuf>>> = Rc::default();
+    let selected: Rc<RefCell<Option<PathBuf>>> = Rc::default();
+    let (opened_in, selected_in) = (opened.clone(), selected.clone());
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(260.0, 300.0))
+        .build_ui(move |ui| {
+            let events = sidebar.show(
+                ui,
+                &mut workspace,
+                SidebarView {
+                    translations: &translations,
+                    lang,
+                    icons: &mut icons,
+                    light: true,
+                    active: None,
+                    external: &[],
+                },
+            );
+            for event in events {
+                if let SidebarEvent::Open(path) = event {
+                    opened_in.borrow_mut().push(path);
+                }
+            }
+            *selected_in.borrow_mut() = sidebar.selected.clone();
+        });
+    harness.run();
+    harness.get_by_label("docs").click();
+    harness.run();
+    assert_eq!(selected.borrow().as_deref(), Some(dir.join("docs").as_path()));
+    harness.key_press(egui::Key::ArrowDown);
+    harness.run();
+    assert_eq!(
+        selected.borrow().as_deref(),
+        Some(dir.join("docs/guide.md").as_path()),
+        "Down moves into the expanded folder"
+    );
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+    assert_eq!(
+        opened.borrow().as_slice(),
+        &[dir.join("docs/guide.md")],
+        "Enter opens the file"
+    );
+    harness.key_press(egui::Key::ArrowLeft);
+    harness.run();
+    assert_eq!(
+        selected.borrow().as_deref(),
+        Some(dir.join("docs").as_path()),
+        "Left goes to the parent"
+    );
+}

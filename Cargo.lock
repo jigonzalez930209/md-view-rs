@@ -2366,6 +2366,7 @@ dependencies = [
  "mdview-model",
  "mdview-syntax",
  "regex",
+ "unicode-width",
 ]
 
 [[package]]
@@ -2443,6 +2444,7 @@ version = "1.0.0-rc.2"
 dependencies = [
  "craft-ui",
  "egui",
+ "fontdb 0.24.0",
 ]
 
 [[package]]

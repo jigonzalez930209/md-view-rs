@@ -7,6 +7,7 @@ mod cli;
 mod commands;
 mod conflict;
 mod document_ops;
+mod editor_pane;
 mod file_ops;
 mod history;
 mod install;

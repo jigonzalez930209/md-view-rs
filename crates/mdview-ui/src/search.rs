@@ -130,7 +130,9 @@ pub fn show_search(ctx: &Context, view: SearchView<'_>) -> Option<SearchAction> 
                     if query.changed() {
                         action = Some(SearchAction::Changed);
                     }
-                    if query.has_focus() {
+                    // Enter and Escape make a single-line field give up focus in the same
+                    // frame, so they count while the field has or has just lost focus.
+                    if query.has_focus() || query.lost_focus() {
                         if ctx.input(|input| input.key_pressed(Key::Escape)) {
                             action = Some(SearchAction::Close);
                         } else if ctx.input(|input| input.key_pressed(Key::Enter)) {

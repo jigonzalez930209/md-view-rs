@@ -6,6 +6,7 @@
 mod about;
 mod close_prompt;
 mod controls;
+mod format_bar;
 mod header;
 mod keyboard_menu;
 mod loading;
@@ -25,6 +26,7 @@ pub use close_prompt::{CloseChoice, show_close_prompt};
 pub use controls::{
     CONTROL_HEIGHT, compact_menu, menu_item, numeric_stepper, primary_button, secondary_button, text_field,
 };
+pub use format_bar::{FORMAT_BAR_HEIGHT, FORMAT_BAR_LABELS, show_format_bar};
 pub use header::{TitleBarState, show_title_bar};
 pub use keyboard_menu::{KeyboardMenuState, MenuEntry, MenuGroup, show_keyboard_menu};
 pub use loading::show_loading;
@@ -100,6 +102,8 @@ pub enum Command {
     GotoLine,
     /// Insert a display LaTeX block at the cursor.
     InsertLatexBlock,
+    /// Apply a Markdown formatting action in the editor.
+    Format(mdview_editor::MarkdownAction),
     /// Toggle soft wrap.
     ToggleWrap,
     /// Toggle line numbers.

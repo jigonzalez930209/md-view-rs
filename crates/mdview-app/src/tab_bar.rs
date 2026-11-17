@@ -73,6 +73,12 @@ pub fn show_tab_bar(ui: &mut egui::Ui, tabs: &[TabInfo], active: usize, view: Ta
                     ui.ctx().request_repaint();
                 }
             }
+            // When the active tab changes (opened, activated from the tree, Quick Open, or
+            // Ctrl+Tab), bring it into view; otherwise leave the offset to the wheel.
+            let active_id = egui::Id::unique("tab_bar_revealed_active");
+            let revealed: Option<usize> = ui.ctx().data(|data| data.get_temp(active_id));
+            let reveal = revealed != Some(active);
+            let mut active_span = None;
             let output = egui::ScrollArea::horizontal()
                 .auto_shrink([false, true])
                 .scroll_source(egui::scroll_area::ScrollSource::SCROLL_BAR)
@@ -80,8 +86,14 @@ pub fn show_tab_bar(ui: &mut egui::Ui, tabs: &[TabInfo], active: usize, view: Ta
                 .show(ui, |ui| {
                     ui.horizontal_centered(|ui| {
                         ui.spacing_mut().item_spacing.x = 2.0;
+                        let origin = ui.cursor().min.x;
                         for (index, tab) in tabs.iter().enumerate() {
-                            match tab_button(ui, tab, index, index == active, view.icons, view.light, &t) {
+                            let start = ui.cursor().min.x - origin;
+                            let hit = tab_button(ui, tab, index, index == active, view.icons, view.light, &t);
+                            if index == active {
+                                active_span = Some((start, ui.min_rect().right() - origin));
+                            }
+                            match hit {
                                 Some(TabHit::Select) => select_requested = Some(index),
                                 Some(TabHit::Close) => close_requested = Some(index),
                                 None => {}
@@ -89,8 +101,24 @@ pub fn show_tab_bar(ui: &mut egui::Ui, tabs: &[TabInfo], active: usize, view: Ta
                         }
                     });
                 });
-            ui.ctx()
-                .data_mut(|data| data.insert_temp(scroll_id, output.state.clamped_offset().x));
+            let mut stored = output.state.clamped_offset().x;
+            if reveal && let Some((start, end)) = active_span {
+                let visible = output.inner_rect.width();
+                let max = (output.content_size.x - visible).max(0.0);
+                let target = if start < stored {
+                    start
+                } else if end > stored + visible {
+                    end - visible
+                } else {
+                    stored
+                };
+                stored = target.clamp(0.0, max);
+                if (stored - output.state.clamped_offset().x).abs() > 0.5 {
+                    ui.ctx().request_repaint();
+                }
+                ui.ctx().data_mut(|data| data.insert_temp(active_id, active));
+            }
+            ui.ctx().data_mut(|data| data.insert_temp(scroll_id, stored));
         },
     );
     if let Some(index) = close_requested {
@@ -273,6 +301,9 @@ enum TabHit {
     Close,
 }
 
+/// Tab label size; the width is measured with the same font the label is painted with.
+const TAB_FONT_SIZE: f32 = 12.5;
+
 fn tab_button(
     ui: &mut egui::Ui,
     tab: &TabInfo,
@@ -286,13 +317,14 @@ fn tab_button(
         .painter()
         .layout_no_wrap(
             tab.label.clone(),
-            egui::FontId::proportional(12.0),
+            egui::FontId::proportional(TAB_FONT_SIZE),
             egui::Color32::WHITE,
         )
         .rect
         .width();
     let width = (text_width + 58.0).clamp(96.0, 212.0);
     let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 34.0), egui::Sense::click());
+    response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Tab, true, active, &tab.label));
     let active_t = ui
         .ctx()
         .animate_bool_with_time(response.id.with("tab_active"), active, 0.16);
@@ -338,17 +370,17 @@ fn tab_button(
     } else {
         ui.visuals().weak_text_color()
     };
-    ui.painter().text(
-        egui::pos2(rect.left() + 28.0, rect.center().y),
-        egui::Align2::LEFT_CENTER,
-        &tab.label,
-        egui::FontId::proportional(12.5),
-        color,
+    // Long names end in "…" inside the tab instead of running over the close button and the
+    // next tab.
+    let mut job = egui::text::LayoutJob::single_section(
+        tab.label.clone(),
+        egui::TextFormat::simple(egui::FontId::proportional(TAB_FONT_SIZE), color),
     );
+    job.wrap = egui::text::TextWrapping::truncate_at_width((rect.width() - 28.0 - 26.0).max(16.0));
+    let galley = ui.painter().layout_job(job);
+    let text_pos = egui::pos2(rect.left() + 28.0, rect.center().y - galley.size().y / 2.0);
+    ui.painter().galley(text_pos, galley.clone(), color);
     if tab.missing {
-        let galley = ui
-            .painter()
-            .layout_no_wrap(tab.label.clone(), egui::FontId::proportional(12.5), color);
         let strike_y = rect.center().y;
         ui.painter().line_segment(
             [

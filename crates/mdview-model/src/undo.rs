@@ -102,27 +102,33 @@ impl UndoStack {
     }
 
     /// Undo one edit in `rope`.
-    pub fn undo(&mut self, rope: &mut Rope) -> bool {
-        let Some(edit) = self.undo.pop() else {
-            return false;
-        };
+    ///
+    /// Returns the character range of the restored text, or `None` when there is
+    /// nothing to undo.
+    pub fn undo(&mut self, rope: &mut Rope) -> Option<(usize, usize)> {
+        let edit = self.undo.pop()?;
         apply_remove(rope, edit.start, edit.inserted.chars().count());
-        rope.insert(edit.start, &edit.removed);
+        let start = edit.start.min(rope.len_chars());
+        rope.insert(start, &edit.removed);
+        let range = (start, start + edit.removed.chars().count());
         self.redo.push(edit);
         self.last_at = None;
-        true
+        Some(range)
     }
 
     /// Redo one edit in `rope`.
-    pub fn redo(&mut self, rope: &mut Rope) -> bool {
-        let Some(edit) = self.redo.pop() else {
-            return false;
-        };
+    ///
+    /// Returns the character range of the reinserted text, or `None` when there is
+    /// nothing to redo.
+    pub fn redo(&mut self, rope: &mut Rope) -> Option<(usize, usize)> {
+        let edit = self.redo.pop()?;
         apply_remove(rope, edit.start, edit.removed.chars().count());
-        rope.insert(edit.start, &edit.inserted);
+        let start = edit.start.min(rope.len_chars());
+        rope.insert(start, &edit.inserted);
+        let range = (start, start + edit.inserted.chars().count());
         self.undo.push(edit);
         self.last_at = None;
-        true
+        Some(range)
     }
 
     fn push(&mut self, edit: Edit) {
@@ -173,9 +179,9 @@ mod tests {
         let mut undo = UndoStack::default();
         undo.inserted(5, "!", EditKind::Typing);
         rope.insert(5, "!");
-        assert!(undo.undo(&mut rope));
+        assert!(undo.undo(&mut rope).is_some());
         assert_eq!(rope.to_string(), "hello");
-        assert!(undo.redo(&mut rope));
+        assert!(undo.redo(&mut rope).is_some());
         assert_eq!(rope.to_string(), "hello!");
     }
 
@@ -185,9 +191,9 @@ mod tests {
         let mut undo = UndoStack::default();
         undo.deleted(2, "cd");
         rope.remove(2..4);
-        assert!(undo.undo(&mut rope));
+        assert!(undo.undo(&mut rope).is_some());
         assert_eq!(rope.to_string(), "abcdef");
-        assert!(undo.redo(&mut rope));
+        assert!(undo.redo(&mut rope).is_some());
         assert_eq!(rope.to_string(), "abef");
     }
 }

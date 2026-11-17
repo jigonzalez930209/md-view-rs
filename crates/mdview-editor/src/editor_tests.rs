@@ -86,3 +86,48 @@ fn latex_block_pushes_existing_text_to_a_new_line() {
     assert_eq!(editor.document().snapshot(), "alpha\n$$\n\n$$\nbeta\n");
     assert_eq!(editor.document().line_col(editor.cursor()), (2, 0));
 }
+
+#[test]
+fn incremental_layout_matches_a_full_measure_after_random_edits() {
+    let mut editor = editor("first\tline\nsecond 中文\n\nlast");
+    let mut seed = 0x2545_f491_u64;
+    let mut next = move |bound: usize| {
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        (seed % bound.max(1) as u64) as usize
+    };
+    let pieces = ["a", "\n", "\t", "中", "xy\nz", "\n\n", ""];
+    let rebuilds = editor.layout_rebuilds;
+    for round in 0..400 {
+        let len = editor.document.len_chars();
+        match next(3) {
+            0 => {
+                let at = next(len + 1);
+                editor.document.insert_text(at, pieces[next(pieces.len())]);
+            }
+            1 if len > 0 => {
+                let start = next(len);
+                let end = (start + next(6)).min(len);
+                editor.document.delete_range(start, end);
+            }
+            _ => {
+                let start = next(len + 1);
+                let end = (start + next(4)).min(len);
+                editor.document.replace_range(start, end, pieces[next(pieces.len())]);
+            }
+        }
+        // Measure only every few edits, so several journal entries apply at once.
+        if round % 3 == 0 {
+            editor.ensure_layout();
+            let expected = editor
+                .document
+                .map_lines(|chars| chars.fold(0, |width, character| width + super::cell_width(character, width)));
+            assert_eq!(editor.display_widths, expected, "round {round}");
+        }
+    }
+    assert_eq!(
+        editor.layout_rebuilds, rebuilds,
+        "edits update the layout incrementally"
+    );
+}

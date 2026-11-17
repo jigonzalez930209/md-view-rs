@@ -49,6 +49,8 @@ impl MdViewApp {
                 }
                 items
             } else {
+                use mdview_editor::MarkdownAction;
+                let format = mdview_ui::Command::Format;
                 let entries: Vec<(&str, mdview_ui::Command)> = vec![
                     ("New", mdview_ui::Command::New),
                     ("New File in Workspace", mdview_ui::Command::NewFile),
@@ -63,6 +65,23 @@ impl MdViewApp {
                     ("Replace", mdview_ui::Command::Replace),
                     ("Go to Line", mdview_ui::Command::GotoLine),
                     ("Insert LaTeX Block", mdview_ui::Command::InsertLatexBlock),
+                    ("Format: Bold", format(MarkdownAction::Bold)),
+                    ("Format: Italic", format(MarkdownAction::Italic)),
+                    ("Format: Underline", format(MarkdownAction::Underline)),
+                    ("Format: Heading 1", format(MarkdownAction::Heading(1))),
+                    ("Format: Heading 2", format(MarkdownAction::Heading(2))),
+                    ("Format: Heading 3", format(MarkdownAction::Heading(3))),
+                    ("Format: Normal text", format(MarkdownAction::Heading(0))),
+                    ("Format: Quote", format(MarkdownAction::Quote)),
+                    ("Format: Code", format(MarkdownAction::Code)),
+                    ("Format: Link", format(MarkdownAction::Link)),
+                    ("Format: Bulleted list", format(MarkdownAction::BulletList)),
+                    ("Format: Numbered list", format(MarkdownAction::NumberedList)),
+                    ("Format: Task list", format(MarkdownAction::TaskList)),
+                    (
+                        "Format: Table 3 × 3",
+                        format(MarkdownAction::Table { rows: 3, columns: 3 }),
+                    ),
                     ("Edit mode", mdview_ui::Command::SetMode(mdview_ui::ViewMode::Edit)),
                     ("Reading view", mdview_ui::Command::SetMode(mdview_ui::ViewMode::View)),
                     ("Split view", mdview_ui::Command::SetMode(mdview_ui::ViewMode::Split)),

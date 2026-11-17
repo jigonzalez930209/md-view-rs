@@ -1,9 +1,10 @@
 //! Painting the editor viewport.
 
-use egui::{Align, Align2, Color32, FontId, Pos2, Rect, Response, ScrollArea, Sense, Stroke, Ui, Vec2};
+use egui::{Align2, Color32, FontId, Pos2, Rect, Response, ScrollArea, Sense, Stroke, Ui, Vec2};
 
 use crate::input::Geometry;
-use crate::{Editor, display_col, display_width};
+use crate::scroll::CursorView;
+use crate::{Editor, display_col};
 
 impl Editor {
     /// Show the editor, handle input, and draw the go-to dialog.
@@ -25,7 +26,7 @@ impl Editor {
         let font = FontId::monospace(self.style.font_size);
         let natural_row_height = ui.ctx().fonts_mut(|fonts| fonts.row_height(&font));
         let row_height = natural_row_height.max(self.style.font_size * self.style.line_height);
-        let char_width = ui.ctx().fonts_mut(|fonts| fonts.glyph_width(&font, ' '));
+        let char_width = self.char_advance(ui, &font);
         let digits = self.document.line_count().to_string().len().max(3);
         let gutter = if self.line_numbers {
             digits as f32 * char_width + 18.0
@@ -33,12 +34,15 @@ impl Editor {
             0.0
         };
         let available = ui.available_width().max(240.0);
+        // The vertical bar is always allocated, so wrapped rows must fit beside it.
+        let text_area = available - ui.spacing().scroll.allocated_width();
         let available_height = ui.available_height().max(160.0);
         let columns = if self.wrap && !self.large_mode {
-            (((available - gutter - 24.0) / char_width).floor() as usize).max(8)
+            (((text_area - gutter - 24.0) / char_width).floor() as usize).max(8)
         } else {
             0
         };
+        self.ensure_wrap(columns);
         let total_rows = self.total_rows(columns);
         let max_width = self.display_widths.iter().copied().max().unwrap_or(0);
         let content_width = if columns > 0 {
@@ -86,6 +90,27 @@ impl Editor {
         if let Some(offset) = requested {
             area = area.vertical_scroll_offset(offset);
         }
+        // Reveal the cursor in this pass: computing the offset here (instead of asking
+        // egui to scroll after painting) avoids a frame drawn at the old offset, and a
+        // minimal scroll keeps the text still while typing near the viewport edge.
+        if std::mem::take(&mut self.scroll_to_cursor) {
+            let view = CursorView {
+                columns,
+                row_height,
+                char_width,
+                gutter,
+                content_height,
+                available: Vec2::new(available, available_height),
+            };
+            let (vertical, horizontal) = self.cursor_scroll_target(&view);
+            if !programmatic && let Some(offset) = vertical {
+                area = area.vertical_scroll_offset(offset);
+            }
+            if let Some(offset) = horizontal {
+                area = area.horizontal_scroll_offset(offset);
+            }
+            self.center_cursor = false;
+        }
         let mut painted_offset = 0.0_f32;
         let output = area.show_viewport(ui, |ui, viewport| {
             painted_offset = viewport.min.y;
@@ -102,7 +127,7 @@ impl Editor {
             let mut row = 0usize;
             let mut line = 0usize;
             while line < self.document.line_count() {
-                let rows = rows_for(self.display_widths.get(line).copied().unwrap_or(0), columns);
+                let rows = self.rows_of(line, columns);
                 if row + rows > start_row {
                     break;
                 }
@@ -128,7 +153,7 @@ impl Editor {
             let selection_end_line = self.document.line_col(selection_end).0;
 
             while line < self.document.line_count() && row < end_row {
-                let rows = rows_for(self.display_widths.get(line).copied().unwrap_or(0), columns);
+                let rows = self.rows_of(line, columns);
                 let line_start = self.document.line_start_char(line);
                 for segment in 0..rows {
                     if row >= end_row {
@@ -149,13 +174,17 @@ impl Editor {
                             ui.visuals().selection.bg_fill.gamma_multiply(0.18),
                         );
                     }
+                    // Paint only this row's columns. Shifting the whole line left and clipping
+                    // at the content edge repeated the end of each wrapped row on the next.
+                    let segment_start = self.segment_start(line, segment, columns);
+                    let segment_end = self.segment_end(line, segment, columns);
                     let paint_row = crate::paint::RowPaint {
                         painter: &painter,
                         row_rect,
                         line,
                         line_start,
-                        segment,
-                        columns,
+                        segment_start,
+                        segment_end,
                         gutter,
                         char_width,
                         origin,
@@ -201,8 +230,9 @@ impl Editor {
                     if self.style.whitespace != crate::WhitespaceMode::None {
                         self.paint_whitespace(&paint_row, &text, selection_start, selection_end, ui.visuals());
                     }
-                    let segment_shift = segment as f32 * columns as f32 * char_width;
-                    let mut x = origin.x + gutter + 8.0 - segment_shift;
+                    let segment_shift = segment_start as f32 * char_width;
+                    let text_x = origin.x + gutter + 8.0 - segment_shift;
+                    let mut display = 0usize;
                     let spans = self
                         .highlight_cache
                         .line(line)
@@ -215,19 +245,40 @@ impl Editor {
                             }]
                         });
                     for span in spans {
-                        let shown = span.text.replace('\t', "    ");
-                        if !shown.is_empty() {
-                            let color = span
-                                .color
-                                .map_or_else(|| ui.visuals().text_color(), |[r, g, b]| Color32::from_rgb(r, g, b));
-                            row_painter.text(Pos2::new(x, y), Align2::LEFT_TOP, &shown, font.clone(), color);
-                            x += display_width(&span.text) as f32 * char_width;
+                        let color = span
+                            .color
+                            .map_or_else(|| ui.visuals().text_color(), |[r, g, b]| Color32::from_rgb(r, g, b));
+                        let span_text = span.text.trim_end_matches(['\r', '\n']);
+                        let mut run = TextRun::default();
+                        for character in span_text.chars() {
+                            let width = crate::cell_width(character, display);
+                            if display >= segment_start && display < segment_end {
+                                if character == '\t' {
+                                    run.push(display, &" ".repeat(width));
+                                } else if width == 2 {
+                                    // A wide glyph is centred in its two cells, so the grid
+                                    // after it stays aligned whatever its advance.
+                                    run.flush(&row_painter, text_x, y, char_width, &font, color);
+                                    let x = text_x + (display + 1) as f32 * char_width;
+                                    let glyph = character.to_string();
+                                    row_painter.text(Pos2::new(x, y), Align2::CENTER_TOP, glyph, font.clone(), color);
+                                } else {
+                                    run.push(display, character.encode_utf8(&mut [0; 4]));
+                                }
+                            } else {
+                                run.flush(&row_painter, text_x, y, char_width, &font, color);
+                            }
+                            display += width;
+                        }
+                        run.flush(&row_painter, text_x, y, char_width, &font, color);
+                        if display >= segment_end {
+                            break;
                         }
                     }
 
                     let cursor_display = display_col(&text, cursor_column);
-                    if line == cursor_line && segment == cursor_display / columns.max(1) {
-                        let cursor_x = origin.x + gutter + 8.0 + cursor_display as f32 * char_width;
+                    if line == cursor_line && segment == self.segment_at(line, cursor_display, columns) {
+                        let cursor_x = text_x + cursor_display as f32 * char_width;
                         if cursor_x >= origin.x + gutter {
                             painter.line_segment(
                                 [Pos2::new(cursor_x, y + 2.0), Pos2::new(cursor_x, y + row_height - 2.0)],
@@ -240,27 +291,21 @@ impl Editor {
                 line += 1;
             }
 
-            if self.scroll_to_cursor {
-                let cursor_row = self.row_for_cursor(columns);
-                let y = origin.y + cursor_row as f32 * row_height;
-                ui.scroll_to_rect(
-                    Rect::from_min_size(Pos2::new(origin.x, y), Vec2::new(content_width, row_height)),
-                    Some(Align::Center),
-                );
-                self.scroll_to_cursor = false;
-            }
-
             let content_rect = painted.rect;
-            let revision = self.document.revision();
-            if self.accessibility_revision != Some(revision) {
-                let text = if self.document.len_chars() <= 100_000 {
-                    self.document.snapshot()
+            // Describe the widget every frame: accesskit rebuilds its tree each frame, and a
+            // node described only after an edit has no name on the other frames. The closure
+            // runs only when accessibility or an output event needs the text.
+            let document = &self.document;
+            painted.widget_info(|| {
+                let text = if document.len_chars() <= 100_000 {
+                    document.snapshot()
                 } else {
                     String::new()
                 };
-                painted.widget_info(|| egui::WidgetInfo::text_edit(ui.is_enabled(), "", &text, "Code editor"));
-                self.accessibility_revision = Some(revision);
-            }
+                let mut info = egui::WidgetInfo::text_edit(ui.is_enabled(), "", &text, "Code editor");
+                info.label = Some("Code editor".to_owned());
+                info
+            });
             let selection = self.selection();
             if self.announced_selection != Some(selection) {
                 self.announced_selection = Some(selection);
@@ -287,6 +332,7 @@ impl Editor {
             self.last_scroll_at = std::time::Instant::now();
         }
         self.scroll_y = new_scroll;
+        self.scroll_x = output.state.clamped_offset().x;
         // Use the sizes egui clamps with (rounded to the pixel grid), so a target at this
         // maximum is stored exactly and split sync never chases a sub-pixel residue.
         self.last_max_offset = (output.content_size.y - output.inner_rect.height()).max(0.0);
@@ -324,29 +370,79 @@ impl Editor {
             return self.document.line_count().max(1);
         }
         (0..self.document.line_count())
-            .map(|line| rows_for(self.display_widths.get(line).copied().unwrap_or(0), columns))
+            .map(|line| self.rows_of(line, columns))
             .sum::<usize>()
             .max(1)
     }
 
-    fn row_for_cursor(&self, columns: usize) -> usize {
+    pub(crate) fn row_for_cursor(&self, columns: usize) -> usize {
         let (line, column) = self.document.line_col(self.cursor);
         if columns == 0 {
             return line;
         }
         let mut row = 0;
         for index in 0..line {
-            row += rows_for(self.display_widths.get(index).copied().unwrap_or(0), columns);
+            row += self.rows_of(index, columns);
         }
         let text = self.document.line(line);
-        row + display_col(&text, column).saturating_sub(1) / columns
+        row + self.segment_at(line, display_col(&text, column), columns)
     }
 }
 
-pub(crate) fn rows_for(width: usize, columns: usize) -> usize {
-    if columns == 0 {
-        1
-    } else {
-        width.max(1).div_ceil(columns)
+impl Editor {
+    /// The advance of one monospace character as the text layout places it.
+    ///
+    /// `glyph_width` reports the font's unrounded advance, while laid-out text can
+    /// advance by a slightly different amount; over a long line the difference moved
+    /// the cursor and selection away from the text. Measure a run of glyphs instead.
+    fn char_advance(&mut self, ui: &Ui, font: &FontId) -> f32 {
+        let key = (font.size, ui.ctx().pixels_per_point());
+        if let Some((cached, width)) = self.char_advance_cache
+            && cached == key
+        {
+            return width;
+        }
+        const RUN: usize = 64;
+        let galley = ui
+            .ctx()
+            .fonts_mut(|fonts| fonts.layout_no_wrap("0".repeat(RUN), font.clone(), Color32::WHITE));
+        let measured = galley.size().x / RUN as f32;
+        let width = if measured.is_finite() && measured > 0.0 {
+            measured
+        } else {
+            ui.ctx().fonts_mut(|fonts| fonts.glyph_width(font, ' '))
+        };
+        self.char_advance_cache = Some((key, width));
+        width
+    }
+}
+
+/// Consecutive single-cell characters painted as one string.
+#[derive(Default)]
+struct TextRun {
+    start: usize,
+    text: String,
+}
+
+impl TextRun {
+    fn push(&mut self, display: usize, text: &str) {
+        if self.text.is_empty() {
+            self.start = display;
+        }
+        self.text.push_str(text);
+    }
+
+    fn flush(&mut self, painter: &egui::Painter, text_x: f32, y: f32, char_width: f32, font: &FontId, color: Color32) {
+        if self.text.is_empty() {
+            return;
+        }
+        let x = text_x + self.start as f32 * char_width;
+        painter.text(
+            Pos2::new(x, y),
+            Align2::LEFT_TOP,
+            std::mem::take(&mut self.text),
+            font.clone(),
+            color,
+        );
     }
 }

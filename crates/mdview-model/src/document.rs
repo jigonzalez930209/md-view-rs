@@ -6,81 +6,8 @@ use std::path::{Path, PathBuf};
 use ropey::Rope;
 
 use crate::encoding::Encoding;
+pub use crate::eol::Eol;
 use crate::undo::{EditKind, UndoStack};
-
-/// The line-ending style of a document.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum Eol {
-    /// Unix line feeds.
-    #[default]
-    Lf,
-    /// Windows CRLF pairs.
-    Crlf,
-    /// Classic Mac carriage returns.
-    Cr,
-    /// More than one style is present.
-    Mixed,
-}
-
-impl Eol {
-    /// Detect the line-ending style in `text`.
-    pub fn detect(text: &str) -> Self {
-        let crlf = text.contains("\r\n");
-        let bare_cr = text.replace("\r\n", "").contains('\r');
-        let bare_lf = text.replace("\r\n", "").contains('\n');
-        match (crlf, bare_cr, bare_lf) {
-            (true, false, false) => Self::Crlf,
-            (false, true, false) => Self::Cr,
-            (false, false, true) | (false, false, false) => Self::Lf,
-            _ => Self::Mixed,
-        }
-    }
-
-    /// Normalize `text` to LF for the in-memory buffer.
-    pub fn normalize(self, text: &str) -> String {
-        text.replace("\r\n", "\n").replace('\r', "\n")
-    }
-
-    /// Detect every line ending in source text.
-    pub fn detect_endings(text: &str) -> Vec<Self> {
-        let mut endings = Vec::new();
-        let mut chars = text.chars().peekable();
-        while let Some(character) = chars.next() {
-            match character {
-                '\r' => {
-                    if chars.peek() == Some(&'\n') {
-                        chars.next();
-                        endings.push(Self::Crlf);
-                    } else {
-                        endings.push(Self::Cr);
-                    }
-                }
-                '\n' => endings.push(Self::Lf),
-                _ => {}
-            }
-        }
-        endings
-    }
-
-    /// Apply this style to LF-normalized text. Mixed is saved as LF when no per-line data exists.
-    pub fn apply(self, text: &str) -> String {
-        match self {
-            Self::Crlf => text.replace('\n', "\r\n"),
-            Self::Cr => text.replace('\n', "\r"),
-            Self::Lf | Self::Mixed => text.to_owned(),
-        }
-    }
-
-    /// The short label used in the status bar.
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Lf => "LF",
-            Self::Crlf => "CRLF",
-            Self::Cr => "CR",
-            Self::Mixed => "Mixed",
-        }
-    }
-}
 
 /// An open text document.
 #[derive(Debug)]
@@ -94,6 +21,33 @@ pub struct Document {
     bom: bool,
     revision: u64,
     undo: UndoStack,
+    /// The earliest character changed since the last [`Document::take_changed_line`].
+    changed_from: Option<usize>,
+    /// The character index just after the most recent edit, undo, or redo.
+    last_edit_end: usize,
+    /// Line-level edits since revision `journal_base`, one per revision.
+    journal: Vec<LineEdit>,
+    journal_base: u64,
+}
+
+/// How one edit changed the document's lines: from `line`, `removed_lines` line breaks were
+/// replaced by `inserted_lines`. Lines before `line` and after the edit are unchanged, so
+/// per-line caches can be updated without rescanning the document.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LineEdit {
+    /// The first line the edit touched.
+    pub line: usize,
+    /// Line breaks removed by the edit.
+    pub removed_lines: usize,
+    /// Line breaks inserted by the edit.
+    pub inserted_lines: usize,
+}
+
+/// How many edits the journal keeps; older consumers rebuild from scratch.
+const JOURNAL_LIMIT: usize = 256;
+
+fn breaks(text: &str) -> usize {
+    text.bytes().filter(|byte| *byte == b'\n').count()
 }
 
 impl Default for Document {
@@ -115,6 +69,10 @@ impl Document {
             bom: false,
             revision: 0,
             undo: UndoStack::default(),
+            changed_from: None,
+            last_edit_end: 0,
+            journal: Vec::new(),
+            journal_base: 0,
         }
     }
 
@@ -144,6 +102,10 @@ impl Document {
             bom,
             revision: 0,
             undo: UndoStack::default(),
+            changed_from: None,
+            last_edit_end: 0,
+            journal: Vec::new(),
+            journal_base: 0,
         }
     }
 
@@ -200,6 +162,11 @@ impl Document {
         }
         self.dirty = true;
         self.revision = self.revision.wrapping_add(1);
+        self.record(Some(LineEdit {
+            line: 0,
+            removed_lines: 0,
+            inserted_lines: 0,
+        }));
     }
 
     /// Per-line endings for a mixed file.
@@ -287,14 +254,11 @@ impl Document {
 
     /// The character index for a line and column.
     pub fn char_index(&self, line: usize, column: usize) -> usize {
+        // Clamp to the end of the line's text: a column past the end must not land
+        // after the newline, which is the start of the next line.
         let line = line.min(self.line_count().saturating_sub(1));
         let start = self.rope.line_to_char(line);
-        let end = if line + 1 < self.rope.len_lines() {
-            self.rope.line_to_char(line + 1)
-        } else {
-            self.rope.len_chars()
-        };
-        (start + column).min(end)
+        (start + column.min(self.line_len(line))).min(self.rope.len_chars())
     }
 
     /// A character range as an owned string.
@@ -329,9 +293,15 @@ impl Document {
             return;
         }
         let start = start.min(self.rope.len_chars());
+        let line = self.rope.char_to_line(start);
         self.rope.insert(start, text);
         self.undo.inserted(start, text, EditKind::Typing);
-        self.after_edit();
+        self.after_edit(start, start + text.chars().count());
+        self.record(Some(LineEdit {
+            line,
+            removed_lines: 0,
+            inserted_lines: breaks(text),
+        }));
     }
 
     /// Delete a character range.
@@ -342,9 +312,15 @@ impl Document {
             return;
         }
         let removed = self.rope.slice(start..end).to_string();
+        let line = self.rope.char_to_line(start);
         self.rope.remove(start..end);
         self.undo.deleted(start, &removed);
-        self.after_edit();
+        self.after_edit(start, start);
+        self.record(Some(LineEdit {
+            line,
+            removed_lines: breaks(&removed),
+            inserted_lines: 0,
+        }));
     }
 
     /// Replace a character range.
@@ -355,44 +331,58 @@ impl Document {
             return;
         }
         let removed = self.rope.slice(start..end).to_string();
+        let line = self.rope.char_to_line(start);
         self.rope.remove(start..end);
         self.rope.insert(start, text);
         self.undo.replaced(start, &removed, text);
-        self.after_edit();
+        self.after_edit(start, start + text.chars().count());
+        self.record(Some(LineEdit {
+            line,
+            removed_lines: breaks(&removed),
+            inserted_lines: breaks(text),
+        }));
     }
 
-    /// Replace several character ranges as one undo transaction.
-    pub fn replace_ranges(&mut self, ranges: &[(usize, usize)], replacement: &str) {
-        if ranges.is_empty() {
+    /// Replace several character ranges, each with its own text, as one undo transaction.
+    ///
+    /// Ranges must not overlap; they are applied from the end so earlier offsets stay valid.
+    pub fn replace_ranges(&mut self, edits: &[(usize, usize, String)]) {
+        if edits.is_empty() {
             return;
         }
         let before = self.rope.to_string();
-        for (start, end) in ranges.iter().copied().rev() {
-            let start = start.min(self.rope.len_chars());
-            let end = end.min(self.rope.len_chars()).max(start);
+        let first = edits.iter().map(|edit| edit.0).min().unwrap_or(0);
+        let mut sorted: Vec<&(usize, usize, String)> = edits.iter().collect();
+        sorted.sort_by_key(|edit| edit.0);
+        for (start, end, replacement) in sorted.into_iter().rev() {
+            let start = (*start).min(self.rope.len_chars());
+            let end = (*end).min(self.rope.len_chars()).max(start);
             self.rope.remove(start..end);
             self.rope.insert(start, replacement);
         }
         let after = self.rope.to_string();
         self.undo.replaced(0, &before, &after);
-        self.after_edit();
+        self.after_edit(first.min(self.rope.len_chars()), first.min(self.rope.len_chars()));
+        self.record(None);
     }
 
     /// Undo one edit.
     pub fn undo(&mut self) -> bool {
-        if !self.undo.undo(&mut self.rope) {
+        let Some((start, end)) = self.undo.undo(&mut self.rope) else {
             return false;
-        }
-        self.after_edit();
+        };
+        self.after_edit(start, end);
+        self.record(None);
         true
     }
 
     /// Redo one edit.
     pub fn redo(&mut self) -> bool {
-        if !self.undo.redo(&mut self.rope) {
+        let Some((start, end)) = self.undo.redo(&mut self.rope) else {
             return false;
-        }
-        self.after_edit();
+        };
+        self.after_edit(start, end);
+        self.record(None);
         true
     }
 
@@ -421,11 +411,74 @@ impl Document {
         self.dirty = false;
         self.revision = self.revision.wrapping_add(1);
         self.undo.clear();
+        self.changed_from = Some(0);
+        self.last_edit_end = 0;
+        self.record(None);
     }
 
-    fn after_edit(&mut self) {
+    /// The first line changed since the previous call, if any text changed.
+    ///
+    /// Caches keyed by line (syntax highlighting) invalidate from here. The line is
+    /// resolved against the current text: everything before the earliest changed
+    /// character is unchanged, so its line number is still valid.
+    pub fn take_changed_line(&mut self) -> Option<usize> {
+        let index = self.changed_from.take()?;
+        Some(self.rope.char_to_line(index.min(self.rope.len_chars())))
+    }
+
+    /// The line edits made after `revision`, oldest first, or `None` when they are not
+    /// known (too old, or an edit that replaced text in several places), so a per-line cache
+    /// must be rebuilt.
+    pub fn line_edits_since(&self, revision: u64) -> Option<&[LineEdit]> {
+        let behind = self.revision.wrapping_sub(revision);
+        let kept = self.revision.wrapping_sub(self.journal_base);
+        if behind > kept || kept as usize != self.journal.len() {
+            return None;
+        }
+        Some(&self.journal[self.journal.len() - behind as usize..])
+    }
+
+    /// Apply `measure` to the characters of every line (without its line break), in order.
+    ///
+    /// Walking the rope once is much faster than looking each line up by index.
+    pub fn map_lines<T>(&self, mut measure: impl FnMut(&mut dyn Iterator<Item = char>) -> T) -> Vec<T> {
+        let mut out = Vec::with_capacity(self.line_count());
+        for line in self.rope.lines() {
+            let mut chars = line.chars().filter(|character| !matches!(character, '\n' | '\r'));
+            out.push(measure(&mut chars));
+        }
+        if out.is_empty() {
+            out.push(measure(&mut std::iter::empty()));
+        }
+        out
+    }
+
+    fn record(&mut self, edit: Option<LineEdit>) {
+        match edit {
+            Some(edit) => {
+                self.journal.push(edit);
+                if self.journal.len() > JOURNAL_LIMIT {
+                    self.journal.remove(0);
+                    self.journal_base = self.journal_base.wrapping_add(1);
+                }
+            }
+            None => {
+                self.journal.clear();
+                self.journal_base = self.revision;
+            }
+        }
+    }
+
+    /// The character index just after the most recent edit, undo, or redo.
+    pub fn last_edit_end(&self) -> usize {
+        self.last_edit_end.min(self.rope.len_chars())
+    }
+
+    fn after_edit(&mut self, start: usize, end: usize) {
         self.dirty = true;
         self.revision = self.revision.wrapping_add(1);
+        self.changed_from = Some(self.changed_from.map_or(start, |changed| changed.min(start)));
+        self.last_edit_end = end;
     }
 }
 
@@ -436,59 +489,5 @@ impl fmt::Display for Document {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn detects_line_endings_including_mixed() {
-        assert_eq!(Eol::detect("a\nb\n"), Eol::Lf);
-        assert_eq!(Eol::detect("a\r\nb\r\n"), Eol::Crlf);
-        assert_eq!(Eol::detect("a\rb\r"), Eol::Cr);
-        assert_eq!(Eol::detect("a\r\nb\n"), Eol::Mixed);
-        assert_eq!(Eol::Crlf.apply("a\nb"), "a\r\nb");
-        assert_eq!(Eol::Cr.apply("a\nb"), "a\rb");
-    }
-
-    #[test]
-    fn edits_increment_revision_and_dirty() {
-        let mut doc = Document::untitled();
-        doc.insert_text(0, "hello");
-        assert_eq!(doc.snapshot(), "hello");
-        assert!(doc.is_dirty());
-        assert_eq!(doc.line_count(), 1);
-        assert_eq!(doc.line_col(5), (0, 5));
-        assert_eq!(doc.line_start_char(0), 0);
-    }
-
-    #[test]
-    fn undo_and_redo_restore_text() {
-        let mut doc = Document::untitled();
-        doc.insert_text(0, "hello");
-        doc.insert_text(5, " world");
-        doc.delete_range(5, 6);
-        assert_eq!(doc.snapshot(), "helloworld");
-        assert!(doc.undo());
-        assert_eq!(doc.snapshot(), "hello world");
-        assert!(doc.undo());
-        assert_eq!(doc.snapshot(), "hello");
-        assert!(doc.redo());
-        assert_eq!(doc.snapshot(), "hello world");
-    }
-
-    #[test]
-    fn line_helpers_handle_trailing_newline() {
-        let doc = Document::from_loaded(
-            PathBuf::from("/tmp/x.md"),
-            "one\ntwo\n".into(),
-            Eol::Lf,
-            Encoding::Utf8,
-            false,
-        );
-        assert_eq!(doc.line_count(), 3);
-        assert_eq!(doc.line(0), "one");
-        assert_eq!(doc.line(1), "two");
-        assert_eq!(doc.line(2), "");
-        assert_eq!(doc.char_index(1, 2), 6);
-        assert_eq!(doc.slice(4, 7), "two");
-    }
-}
+#[path = "document_tests.rs"]
+mod tests;

@@ -23,13 +23,15 @@ impl Editor {
         if self.ignore_input {
             return;
         }
-        if response.clicked() || response.drag_started() {
+        // egui reports Enter and Space on a focused widget as a primary click
+        // (`Response::clicked`). Only a real pointer click may move the cursor; otherwise
+        // every Enter and every typed space would jump the cursor to the mouse pointer.
+        let pointer_click = response.clicked_by(egui::PointerButton::Primary);
+        if pointer_click || response.drag_started() {
             response.request_focus();
         }
 
-        if response.clicked()
-            && let Some(position) = ui.input(|input| input.pointer.interact_pos())
-        {
+        if pointer_click && let Some(position) = ui.input(|input| input.pointer.interact_pos()) {
             let now = std::time::Instant::now();
             let count = self
                 .last_click
@@ -59,14 +61,38 @@ impl Editor {
         } else if response.dragged()
             && let Some(position) = ui.input(|input| input.pointer.interact_pos())
         {
+            if response.drag_started()
+                && !ui.input(|input| input.modifiers.shift)
+                && let Some(origin) = ui.input(|input| input.pointer.press_origin())
+            {
+                // A drag selects from where the button went down, not from the old cursor.
+                let (line, column) = self.position_at(origin, geometry);
+                self.anchor = self.document.char_index(line, column);
+                self.document.break_undo_group();
+            }
             let (line, column) = self.position_at(position, geometry);
             self.cursor = self.document.char_index(line, column);
+            self.preferred_column = None;
             self.scroll_to_cursor = true;
         }
 
-        if !response.has_focus() {
+        self.focused = response.has_focus();
+        if !self.focused {
             return;
         }
+        // Keep Tab and the arrow keys for editing: without a lock filter egui uses them to
+        // move keyboard focus to the next widget, so Tab left the editor instead of indenting.
+        ui.memory_mut(|memory| {
+            memory.set_focus_lock_filter(
+                response.id,
+                egui::EventFilter {
+                    tab: true,
+                    horizontal_arrows: true,
+                    vertical_arrows: true,
+                    escape: false,
+                },
+            );
+        });
 
         let events = ui.input(|input| input.events.clone());
         for event in events {
@@ -100,16 +126,19 @@ impl Editor {
         let command = modifiers.command;
         match key {
             Key::Z if command && !modifiers.shift => {
-                self.document.undo();
-                self.clamp_cursor();
+                if self.document.undo() {
+                    self.after_history();
+                }
             }
             Key::Z if command && modifiers.shift => {
-                self.document.redo();
-                self.clamp_cursor();
+                if self.document.redo() {
+                    self.after_history();
+                }
             }
             Key::Y if command => {
-                self.document.redo();
-                self.clamp_cursor();
+                if self.document.redo() {
+                    self.after_history();
+                }
             }
             Key::A if command => {
                 self.anchor = 0;
@@ -140,65 +169,47 @@ impl Editor {
             Key::ArrowDown => self.move_vertical(1, modifiers.shift),
             Key::Home => self.move_home(modifiers.shift, command),
             Key::End => self.move_end(modifiers.shift, command),
-            Key::PageUp => self.move_vertical(-20, modifiers.shift),
-            Key::PageDown => self.move_vertical(20, modifiers.shift),
+            Key::PageUp => self.move_vertical(-self.page_rows(), modifiers.shift),
+            Key::PageDown => self.move_vertical(self.page_rows(), modifiers.shift),
+            Key::Backspace if command => self.delete_word(-1),
+            Key::Delete if command => self.delete_word(1),
             Key::Backspace => self.backspace(),
             Key::Delete => self.delete_forward(),
-            Key::Enter => self.newline(),
-            Key::Tab => self.indent(modifiers.shift),
+            Key::Enter => {
+                if !self.markdown_newline() {
+                    self.newline();
+                }
+                self.scroll_to_cursor = true;
+            }
+            Key::Tab => {
+                if !self.markdown_table_tab(modifiers.shift) && !self.markdown_tab(modifiers.shift) {
+                    self.indent(modifiers.shift);
+                }
+                self.scroll_to_cursor = true;
+            }
+            Key::B if command && self.is_markdown() => self.apply_markdown(crate::MarkdownAction::Bold),
+            Key::I if command && self.is_markdown() => self.apply_markdown(crate::MarkdownAction::Italic),
+            Key::U if command && self.is_markdown() => self.apply_markdown(crate::MarkdownAction::Underline),
+            Key::K if command && self.is_markdown() => self.apply_markdown(crate::MarkdownAction::Link),
             _ => {}
         }
         self.document.break_undo_group();
     }
 
-    fn move_horizontal(&mut self, delta: isize, select: bool, word: bool) {
-        let mut next = self.cursor;
-        if word {
-            next = self.word_boundary(next, delta);
-        } else if delta < 0 {
-            next = next.saturating_sub(1);
-        } else {
-            next = (next + 1).min(self.document.len_chars());
+    /// Rows moved by Page Up and Page Down: one viewport, keeping a row of context.
+    fn page_rows(&self) -> isize {
+        let height = self.viewport_rect.height();
+        if !height.is_finite() || height <= 0.0 {
+            return 20;
         }
-        self.set_cursor(next, select);
+        ((height / self.last_row_height.max(1.0)).floor() as isize - 1).max(1)
     }
 
-    fn move_vertical(&mut self, delta: isize, select: bool) {
-        let (line, column) = self.document.line_col(self.cursor);
-        let target = if delta < 0 {
-            line.saturating_sub(delta.unsigned_abs())
-        } else {
-            (line + delta as usize).min(self.document.line_count().saturating_sub(1))
-        };
-        let next = self.document.char_index(target, column);
-        self.set_cursor(next, select);
-    }
-
-    fn move_home(&mut self, select: bool, document: bool) {
-        let next = if document {
-            0
-        } else {
-            let (line, _) = self.document.line_col(self.cursor);
-            self.document.line_start_char(line)
-        };
-        self.set_cursor(next, select);
-    }
-
-    fn move_end(&mut self, select: bool, document: bool) {
-        let next = if document {
-            self.document.len_chars()
-        } else {
-            let (line, _) = self.document.line_col(self.cursor);
-            self.document.char_index(line, self.document.line_len(line))
-        };
-        self.set_cursor(next, select);
-    }
-
-    fn set_cursor(&mut self, next: usize, select: bool) {
-        self.cursor = next.min(self.document.len_chars());
-        if !select {
-            self.anchor = self.cursor;
-        }
+    /// Put the cursor where undo or redo changed the text and bring it into view.
+    fn after_history(&mut self) {
+        self.cursor = self.document.last_edit_end();
+        self.anchor = self.cursor;
+        self.preferred_column = None;
         self.scroll_to_cursor = true;
         self.cursor_blink_start = std::time::Instant::now();
     }
@@ -227,6 +238,23 @@ impl Editor {
     }
 
     fn auto_pair(&self, character: char) -> Option<String> {
+        // Only close a pair where nothing follows but space or a closing character, so
+        // typing before a word does not leave a stray closing character.
+        let next = self.char_after_selection();
+        if next.is_some_and(|next| !next.is_whitespace() && !matches!(next, ')' | ']' | '}' | ',' | ';' | ':' | '.')) {
+            return None;
+        }
+        if matches!(character, '"' | '\'' | '`') {
+            // An apostrophe in prose (`don't`) or a quote after a word is not an opening quote.
+            let previous = self
+                .selection()
+                .0
+                .checked_sub(1)
+                .and_then(|index| self.document.char_at(index));
+            if previous.is_some_and(|previous| previous.is_alphanumeric() || previous == '_' || previous == character) {
+                return None;
+            }
+        }
         let closing = match character {
             '(' => ')',
             '[' => ']',
@@ -257,11 +285,14 @@ impl Editor {
     pub(crate) fn replace_selection(&mut self, text: &str) {
         let (start, end) = self.selection();
         if start != end {
-            self.document.delete_range(start, end);
+            // One undo step for typing over a selection.
+            self.document.replace_range(start, end, text);
+        } else {
+            self.document.insert_text(start, text);
         }
-        self.document.insert_text(start, text);
         self.cursor = start + text.chars().count();
         self.anchor = self.cursor;
+        self.preferred_column = None;
         self.scroll_to_cursor = true;
         self.cursor_blink_start = std::time::Instant::now();
     }
@@ -277,6 +308,19 @@ impl Editor {
         if start == 0 {
             return;
         }
+        let (line, column) = self.document.line_col(start);
+        let before: String = self.document.line(line).chars().take(column).collect();
+        if !self.indentation.use_tabs && column > 1 && before.chars().all(|character| character == ' ') {
+            // Inside leading spaces, Backspace removes one indentation level.
+            let width = self.indentation.width.max(1);
+            let target = (column - 1) / width * width;
+            self.document.delete_range(start - (column - target), start);
+            self.cursor = start - (column - target);
+            self.anchor = self.cursor;
+            self.preferred_column = None;
+            self.scroll_to_cursor = true;
+            return;
+        }
         let previous = start - 1;
         let pair = self.document.slice(previous, start);
         let next = self.document.slice(start, (start + 1).min(self.document.len_chars()));
@@ -288,6 +332,25 @@ impl Editor {
         self.document.delete_range(previous, end);
         self.cursor = previous;
         self.anchor = previous;
+        self.scroll_to_cursor = true;
+    }
+
+    /// Delete to the previous (`-1`) or next (`1`) word boundary, or the selection.
+    fn delete_word(&mut self, direction: isize) {
+        let (start, end) = self.selection();
+        let (from, to) = if start != end {
+            (start, end)
+        } else if direction < 0 {
+            (self.word_boundary(start, -1), start)
+        } else {
+            (start, self.word_boundary(start, 1))
+        };
+        if from < to {
+            self.document.delete_range(from, to);
+        }
+        self.cursor = from;
+        self.anchor = from;
+        self.preferred_column = None;
         self.scroll_to_cursor = true;
     }
 
@@ -314,54 +377,102 @@ impl Editor {
     }
 
     fn newline(&mut self) {
-        let (line, _) = self.document.line_col(self.cursor);
+        let (start, _) = self.selection();
+        let (line, column) = self.document.line_col(start);
         let current = self.document.line(line);
+        // Indentation comes from the text before the cursor only, so Enter inside the
+        // leading whitespace does not duplicate it.
         let indent: String = current
             .chars()
-            .take_while(|character| character.is_whitespace())
+            .take(column)
+            .take_while(|character| *character == ' ' || *character == '\t')
             .collect();
-        let mut extra = String::new();
-        if current.trim_end().ends_with('{') {
-            extra.push_str("    ");
+        let before = current.chars().take(column).collect::<String>();
+        let opens = before.trim_end().ends_with(['{', '[', '(']);
+        let closes_next = self
+            .char_after_selection()
+            .is_some_and(|next| matches!(next, '}' | ']' | ')'));
+        if opens {
+            let inner = format!("\n{indent}{}", self.indentation.unit());
+            if closes_next {
+                // `{|}` becomes an indented empty block with the brace on its own line.
+                self.replace_selection(&format!("{inner}\n{indent}"));
+                self.cursor = start + inner.chars().count();
+                self.anchor = self.cursor;
+            } else {
+                self.replace_selection(&inner);
+            }
+            return;
         }
-        let text = format!("\n{indent}{extra}");
-        self.replace_selection(&text);
+        let (_, end) = self.selection();
+        if start == end && !indent.is_empty() && column == current.chars().count() && before.trim().is_empty() {
+            // Enter on a line holding only indentation leaves that line empty instead of
+            // keeping trailing whitespace; the indentation moves to the new line.
+            self.anchor = self.document.line_start_char(line);
+        }
+        self.replace_selection(&format!("\n{indent}"));
+    }
+
+    fn char_after_selection(&self) -> Option<char> {
+        self.document.char_at(self.selection().1)
     }
 
     fn indent(&mut self, dedent: bool) {
         let (start, end) = self.selection();
-        if start == end {
-            if dedent {
-                return;
-            }
+        if start == end && !dedent {
             let unit = self.indentation.unit();
             self.replace_selection(&unit);
             return;
         }
-        let start_line = self.document.line_col(start).0;
-        let end_line = self.document.line_col(end).0;
-        for line in (start_line..=end_line).rev() {
-            let line_start = self.document.line_start_char(line);
-            if dedent {
-                let text = self.document.line(line);
-                let removed = if self.indentation.use_tabs {
-                    text.chars().take(1).take_while(|character| *character == '\t').count()
-                } else {
-                    text.chars()
-                        .take(self.indentation.width)
-                        .take_while(|character| *character == ' ')
-                        .count()
-                };
-                if removed > 0 {
-                    self.document.delete_range(line_start, line_start + removed);
-                }
-            } else {
-                let unit = self.indentation.unit();
-                self.document.insert_text(line_start, &unit);
-            }
+        let (start_line, start_column) = self.document.line_col(start);
+        let (mut end_line, end_column) = self.document.line_col(end);
+        if end_line > start_line && end_column == 0 {
+            // A selection ending at the start of a line does not include that line.
+            end_line -= 1;
         }
-        self.anchor = self.document.line_start_char(start_line);
-        self.cursor = self.document.char_index(end_line, self.document.line_len(end_line));
+        let block_start = self.document.line_start_char(start_line);
+        let block_end = self.document.line_start_char(end_line) + self.document.line_len(end_line);
+        let unit = self.indentation.unit();
+        let mut shifted = Vec::new();
+        let lines: Vec<String> = (start_line..=end_line)
+            .map(|line| {
+                let text = self.document.line(line);
+                let (new, shift) = if dedent {
+                    let removed = if text.starts_with('\t') {
+                        1
+                    } else {
+                        text.chars()
+                            .take(self.indentation.width)
+                            .take_while(|character| *character == ' ')
+                            .count()
+                    };
+                    (text.chars().skip(removed).collect(), -(removed as isize))
+                } else if text.is_empty() && start != end {
+                    // Indenting a block leaves its empty lines empty.
+                    (text, 0)
+                } else {
+                    (format!("{unit}{text}"), unit.chars().count() as isize)
+                };
+                shifted.push(shift);
+                new
+            })
+            .collect();
+        let replacement = lines.join("\n");
+        if replacement == self.document.slice(block_start, block_end) {
+            return;
+        }
+        // One edit, so a single undo restores the whole block.
+        self.document.replace_range(block_start, block_end, &replacement);
+        if start == end {
+            let column = start_column as isize + shifted[0];
+            self.cursor = block_start + column.max(0) as usize;
+            self.anchor = self.cursor;
+        } else {
+            self.anchor = block_start;
+            self.cursor = block_start + replacement.chars().count();
+        }
+        self.preferred_column = None;
+        self.scroll_to_cursor = true;
     }
 
     fn copy_selection(&self, ui: &mut Ui) {
@@ -371,105 +482,10 @@ impl Editor {
         }
     }
 
-    fn clamp_cursor(&mut self) {
-        self.cursor = self.cursor.min(self.document.len_chars());
-        self.anchor = self.anchor.min(self.document.len_chars());
-    }
-
     fn next_char(&self) -> Option<char> {
         if self.cursor >= self.document.len_chars() {
             return None;
         }
         self.document.slice(self.cursor, self.cursor + 1).chars().next()
     }
-
-    fn word_at(&self, line: usize, column: usize) -> (usize, usize) {
-        let text = self.document.line(line);
-        let chars: Vec<char> = text.chars().collect();
-        let column = column.min(chars.len());
-        let mut start = column;
-        let mut end = column;
-        while start > 0 && is_word(chars[start - 1]) {
-            start -= 1;
-        }
-        while end < chars.len() && is_word(chars[end]) {
-            end += 1;
-        }
-        (
-            self.document.char_index(line, start),
-            self.document.char_index(line, end),
-        )
-    }
-
-    fn word_boundary(&self, index: usize, delta: isize) -> usize {
-        let text = self.document.snapshot();
-        let chars: Vec<char> = text.chars().collect();
-        let mut index = index.min(chars.len());
-        if delta < 0 {
-            while index > 0 && chars[index - 1].is_whitespace() {
-                index -= 1;
-            }
-            while index > 0 && is_word(chars[index - 1]) {
-                index -= 1;
-            }
-        } else {
-            while index < chars.len() && is_word(chars[index]) {
-                index += 1;
-            }
-            while index < chars.len() && chars[index].is_whitespace() {
-                index += 1;
-            }
-        }
-        index
-    }
-
-    fn position_at(&self, position: egui::Pos2, geometry: &Geometry) -> (usize, usize) {
-        let local_y = (position.y - geometry.content_rect.min.y).max(0.0);
-        let row = (local_y / geometry.row_height).floor() as usize;
-        let (line, segment_start) = self.row_to_line(row, geometry.columns);
-        let local_x = (position.x - geometry.content_rect.min.x - geometry.gutter - 8.0).max(0.0);
-        let display_target = segment_start + (local_x / geometry.char_width).round() as usize;
-        let text = self.document.line(line);
-        let column = char_at_display_col(&text, display_target);
-        (line, column)
-    }
-
-    pub(crate) fn row_to_line(&self, row: usize, columns: usize) -> (usize, usize) {
-        if columns == 0 {
-            return (row.min(self.document.line_count().saturating_sub(1)), 0);
-        }
-        let mut accumulated = 0;
-        for line in 0..self.document.line_count() {
-            let rows = rows_for_width(self.display_widths.get(line).copied().unwrap_or(0), columns);
-            if row < accumulated + rows {
-                let segment = row - accumulated;
-                return (line, segment * columns);
-            }
-            accumulated += rows;
-        }
-        (self.document.line_count().saturating_sub(1), 0)
-    }
-}
-
-fn rows_for_width(width: usize, columns: usize) -> usize {
-    if columns == 0 {
-        1
-    } else {
-        width.max(1).div_ceil(columns)
-    }
-}
-
-fn char_at_display_col(text: &str, target: usize) -> usize {
-    let mut width = 0;
-    for (index, character) in text.chars().enumerate() {
-        if width >= target {
-            return index;
-        }
-        width += if character == '\t' { 4 - width % 4 } else { 1 };
-    }
-    text.chars().count()
-}
-
-fn is_word(character: char) -> bool {
-    character.is_alphanumeric() || character == '_'
 }

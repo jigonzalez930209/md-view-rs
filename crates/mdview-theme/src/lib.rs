@@ -7,6 +7,7 @@
 #![deny(missing_docs)]
 
 mod apply;
+mod cjk;
 mod contrast;
 mod fonts;
 mod palette;
@@ -14,6 +15,7 @@ mod palette;
 use egui::{Color32, CornerRadius, Stroke};
 
 pub use apply::{apply, apply_id, apply_theme, effective_id, set_reduced_motion};
+pub use cjk::add_cjk_fallback;
 pub use contrast::{contrast_ratio, relative_luminance};
 pub use fonts::{ReadingFace, add_reading_fonts, install_reading_fonts};
 pub use palette::ThemeId;

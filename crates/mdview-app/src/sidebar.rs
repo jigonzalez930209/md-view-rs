@@ -203,14 +203,17 @@ impl Sidebar {
         }
         let focus_id = ui.scope_id().with("tree_focus");
         let mut scroll_to_selected = self.scroll_to_selected;
-        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+        let mut focus_requested = false;
+        let tree = egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             ui.add_space(2.0);
-            let root = workspace.root_entry().clone();
+            // Borrow the tree instead of cloning it every frame: actions are applied after
+            // drawing, so nothing mutates the workspace while its rows are shown.
+            let root = workspace.root_entry();
             let mut ctx = TreeCtx {
                 actions: &mut actions,
                 icons,
                 light,
-                focus_id,
+                focus_requested: &mut focus_requested,
                 active,
                 scroll_to_selected: &mut scroll_to_selected,
             };
@@ -225,7 +228,27 @@ impl Sidebar {
             ui.add_space(12.0);
         });
         self.scroll_to_selected = false;
+        // The tree takes keyboard focus as one widget. egui drops focus from an id that no
+        // widget registers in a frame, so register it here; without that, arrow keys and
+        // Enter did nothing after clicking a row. The lock keeps the arrows in the tree.
+        ui.interact(tree.inner_rect, focus_id, egui::Sense::focusable_noninteractive());
+        if focus_requested {
+            // Requested after registering the tree: registering applies click-away focus
+            // loss, and the click landed on a row, not on the tree widget itself.
+            ui.memory_mut(|memory| memory.request_focus(focus_id));
+        }
         if ui.memory(|memory| memory.has_focus(focus_id)) {
+            ui.memory_mut(|memory| {
+                memory.set_focus_lock_filter(
+                    focus_id,
+                    egui::EventFilter {
+                        tab: false,
+                        horizontal_arrows: true,
+                        vertical_arrows: true,
+                        escape: false,
+                    },
+                );
+            });
             self.keyboard_navigation(ui, workspace, focus_id, &mut actions, external);
         }
 

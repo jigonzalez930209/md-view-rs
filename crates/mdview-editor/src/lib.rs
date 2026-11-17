@@ -5,23 +5,35 @@
 //! application shell consume read-only status from this crate.
 
 mod actions;
+mod brackets;
 mod controls;
 mod find;
 mod goto;
 mod input;
+mod layout;
+mod md_format;
+mod md_lists;
+mod md_syntax;
+mod md_table;
+mod motion;
 mod paint;
 mod render;
 mod scroll;
 mod style;
+mod wrap;
 
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
 
 use mdview_model::{Document, Encoding, Eol, Indentation};
 use mdview_syntax::Highlighter;
 
+pub(crate) use layout::{cell_width, display_col, display_width};
+
 pub use find::{FindState, SearchOptions};
 pub use goto::GotoState;
+pub use md_format::{MarkdownAction, MarkdownState};
 pub use style::{BOTTOM_CLEARANCE, EditorStyle, WhitespaceMode};
 
 /// The visible editor status for the shell's status bar.
@@ -74,7 +86,6 @@ pub struct Editor {
     pub(crate) scroll_to_cursor: bool,
     pub(crate) cursor_blink_start: Instant,
     pub(crate) last_click: Option<(Instant, egui::Pos2, u8)>,
-    pub(crate) accessibility_revision: Option<u64>,
     pub(crate) announced_selection: Option<(usize, usize)>,
     pub(crate) identity: u64,
     pub(crate) scroll_y: f32,
@@ -96,6 +107,21 @@ pub struct Editor {
     pub(crate) focus_requested: bool,
     pub(crate) ignore_input: bool,
     pub(crate) overshoot_paints: u64,
+    /// Display column kept by Up and Down across shorter lines.
+    pub(crate) preferred_column: Option<usize>,
+    pub(crate) scroll_x: f32,
+    /// Reveal the cursor in the middle of the viewport if it is off screen.
+    pub(crate) center_cursor: bool,
+    pub(crate) language_key: Option<(u64, Option<std::path::PathBuf>)>,
+    /// Measured character advance keyed by font size and pixels per point.
+    pub(crate) char_advance_cache: Option<((f32, f32), f32)>,
+    /// Soft-wrap row breaks per line, for `wrap_key` (revision, columns).
+    pub(crate) wrap_breaks: Vec<Vec<usize>>,
+    pub(crate) wrap_key: Option<(u64, usize)>,
+    /// Whether the text area had keyboard focus in the last frame.
+    pub(crate) focused: bool,
+    /// Full layout rebuilds, for tests that the incremental path is used.
+    pub(crate) layout_rebuilds: u64,
 }
 
 impl Editor {
@@ -127,7 +153,6 @@ impl Editor {
             scroll_to_cursor: false,
             cursor_blink_start: Instant::now(),
             last_click: None,
-            accessibility_revision: None,
             announced_selection: None,
             identity: 0,
             scroll_y: 0.0,
@@ -149,6 +174,15 @@ impl Editor {
             focus_requested: false,
             ignore_input: false,
             overshoot_paints: 0,
+            preferred_column: None,
+            scroll_x: 0.0,
+            center_cursor: false,
+            language_key: None,
+            char_advance_cache: None,
+            wrap_breaks: Vec::new(),
+            wrap_key: None,
+            focused: false,
+            layout_rebuilds: 0,
         };
         editor.highlight_enabled = editor.highlight_budget_allows();
         editor.ensure_layout();
@@ -177,7 +211,9 @@ impl Editor {
     pub fn move_cursor_to(&mut self, index: usize) {
         self.cursor = index.min(self.document.len_chars());
         self.anchor = self.cursor;
+        self.preferred_column = None;
         self.scroll_to_cursor = true;
+        self.center_cursor = true;
     }
 
     /// Replace the document and reset view state.
@@ -192,6 +228,9 @@ impl Editor {
         }
         self.find.reset();
         self.goto.reset();
+        self.preferred_column = None;
+        self.highlight_cache.reset();
+        self.language_key = None;
         self.highlight_revision = None;
         self.layout_revision = None;
         self.bracket_match = None;
@@ -262,6 +301,8 @@ impl Editor {
     /// Force large-file mode. The application uses the on-disk size before loading.
     pub fn set_large_mode(&mut self, large: bool) {
         self.large_mode = large;
+        // Large mode measures lines differently (characters instead of cells).
+        self.layout_revision = None;
         self.highlight_enabled = !large && self.highlight_budget_allows();
         if large {
             self.wrap = false;
@@ -289,6 +330,11 @@ impl Editor {
         }
     }
 
+    /// Whether the text area had keyboard focus in the last frame.
+    pub fn has_focus(&self) -> bool {
+        self.focused
+    }
+
     /// Open the find bar.
     pub fn open_find(&mut self, replace: bool) {
         self.find.open = true;
@@ -308,7 +354,9 @@ impl Editor {
     pub fn select(&mut self, start: usize, end: usize) {
         self.anchor = start.min(self.document.len_chars());
         self.cursor = end.min(self.document.len_chars());
+        self.preferred_column = None;
         self.scroll_to_cursor = true;
+        self.center_cursor = true;
     }
 
     /// Move the cursor to the start of a one-based line.
@@ -316,7 +364,9 @@ impl Editor {
         let index = line.saturating_sub(1).min(self.document.line_count().saturating_sub(1));
         self.cursor = self.document.line_start_char(index);
         self.anchor = self.cursor;
+        self.preferred_column = None;
         self.scroll_to_cursor = true;
+        self.center_cursor = true;
         self.document.break_undo_group();
     }
 
@@ -328,88 +378,16 @@ impl Editor {
         }
     }
 
-    pub(crate) fn ensure_layout(&mut self) {
-        let revision = self.document.revision();
-        if self.layout_revision == Some(revision) {
-            return;
-        }
-        self.display_widths.clear();
-        self.display_widths.reserve(self.document.line_count());
-        let measure_tabs = self.wrap && !self.large_mode;
-        for line in 0..self.document.line_count() {
-            if measure_tabs {
-                self.display_widths.push(display_width(&self.document.line(line)));
-            } else {
-                self.display_widths.push(self.document.line_len(line));
-            }
-        }
-        self.layout_revision = Some(revision);
-    }
-
-    pub(crate) fn ensure_brackets(&mut self) {
-        if self.bracket_cursor == Some(self.cursor) && self.bracket_revision == Some(self.document.revision()) {
-            return;
-        }
-        self.bracket_cursor = Some(self.cursor);
-        self.bracket_revision = Some(self.document.revision());
-        self.bracket_match = self.matching_bracket();
-    }
-
-    fn matching_bracket(&self) -> Option<(usize, usize)> {
-        let len = self.document.len_chars();
-        if len == 0 {
-            return None;
-        }
-        let position = if self.cursor < len && self.document.char_at(self.cursor).is_some_and(is_bracket) {
-            self.cursor
-        } else if self.cursor > 0 && self.document.char_at(self.cursor - 1).is_some_and(is_bracket) {
-            self.cursor - 1
-        } else {
-            return None;
-        };
-        let (open, close, forward) = match self.document.char_at(position)? {
-            '(' => ('(', ')', true),
-            '[' => ('[', ']', true),
-            '{' => ('{', '}', true),
-            ')' => ('(', ')', false),
-            ']' => ('[', ']', false),
-            '}' => ('{', '}', false),
-            _ => return None,
-        };
-        let mut depth = 0usize;
-        if forward {
-            for index in position..len {
-                let character = self.document.char_at(index)?;
-                if character == open {
-                    depth += 1;
-                } else if character == close {
-                    depth = depth.saturating_sub(1);
-                    if depth == 0 {
-                        return Some((position, index));
-                    }
-                }
-            }
-        } else {
-            for index in (0..=position).rev() {
-                let character = self.document.char_at(index)?;
-                if character == close {
-                    depth += 1;
-                } else if character == open {
-                    depth = depth.saturating_sub(1);
-                    if depth == 0 {
-                        return Some((index, position));
-                    }
-                }
-            }
-        }
-        None
-    }
-
     fn highlight_budget_allows(&self) -> bool {
         self.document.line_count() <= 2_000 && self.document.len_bytes() <= 1024 * 1024
     }
 
     pub(crate) fn ensure_language(&mut self) {
+        let key = (self.document.revision(), self.document.path().map(Path::to_path_buf));
+        if self.language_key.as_ref() == Some(&key) {
+            return;
+        }
+        self.language_key = Some(key);
         let prefix = self.document.slice(0, self.document.len_chars().min(4096));
         self.language = self.highlighter.language_name(self.document.path(), &prefix);
     }
@@ -420,8 +398,12 @@ impl Editor {
         }
         let revision = self.document.revision();
         if self.highlight_revision != Some(revision) {
-            let cursor_line = self.document.line_col(self.anchor.min(self.cursor)).0;
-            self.highlight_cache.invalidate_from(cursor_line);
+            // Invalidate from the first line the edits touched, not from the cursor: Enter
+            // in the middle of a line changes the line above the new cursor, and undo can
+            // change text anywhere.
+            if let Some(line) = self.document.take_changed_line() {
+                self.highlight_cache.invalidate_from(line);
+            }
             self.highlight_revision = Some(revision);
             self.ensure_language();
         }
@@ -439,30 +421,6 @@ impl Editor {
             &mut self.highlight_cache,
         );
     }
-}
-
-fn is_bracket(character: char) -> bool {
-    matches!(character, '(' | ')' | '[' | ']' | '{' | '}')
-}
-
-pub(crate) fn display_width(text: &str) -> usize {
-    text.chars().fold(0, |width, character| {
-        if character == '\t' {
-            width + (4 - width % 4)
-        } else {
-            width + 1
-        }
-    })
-}
-
-pub(crate) fn display_col(text: &str, char_col: usize) -> usize {
-    text.chars().take(char_col).fold(0, |width, character| {
-        if character == '\t' {
-            width + (4 - width % 4)
-        } else {
-            width + 1
-        }
-    })
 }
 
 #[cfg(test)]
@@ -490,3 +448,12 @@ mod scale_tests {
         assert!(!editor.status().large_mode);
     }
 }
+
+#[cfg(test)]
+mod typing_tests;
+
+#[cfg(test)]
+mod markdown_tests;
+
+#[cfg(test)]
+mod feature_tests;

@@ -73,7 +73,7 @@ impl Editor {
                         field.request_focus();
                         self.goto.focus = false;
                     }
-                    if field.has_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
+                    if crate::controls::submitted(ui, &field) {
                         submit = true;
                     }
                     ui.vertical(|ui| {

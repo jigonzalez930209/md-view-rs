@@ -9,6 +9,7 @@ publish.workspace = true
 [dependencies]
 craft-ui.workspace = true
 egui.workspace = true
+fontdb.workspace = true
 
 [lints]
 workspace = true

@@ -20,6 +20,7 @@ impl MdViewApp {
         let height = ui.available_height().max(200.0);
         let menu_open = self.keyboard_menu.open;
         let mut preview_output = None;
+        let t = crate::editor_pane::format_labels(&self.translations, self.lang);
 
         if width < 620.0 {
             let handle_height = 6.0;
@@ -32,7 +33,7 @@ impl MdViewApp {
                     if let Some(tab) = self.tabs.tab_mut(index) {
                         tab.editor.set_split_mode(true);
                         tab.editor.set_ignore_input(menu_open);
-                        tab.editor.show(ui);
+                        crate::editor_pane::show_editor_pane(ui, &mut tab.editor, &mut self.icons, &t, menu_open);
                     }
                 },
             );
@@ -64,7 +65,7 @@ impl MdViewApp {
                         if let Some(tab) = self.tabs.tab_mut(index) {
                             tab.editor.set_split_mode(true);
                             tab.editor.set_ignore_input(menu_open);
-                            tab.editor.show(ui);
+                            crate::editor_pane::show_editor_pane(ui, &mut tab.editor, &mut self.icons, &t, menu_open);
                         }
                     },
                 );

@@ -69,10 +69,15 @@ impl Sidebar {
         } else if ui.input(|input| input.key_pressed(egui::Key::F2)) {
             action = Some(Action::Rename(flat[index].0.clone()));
         }
+        if next == index && action.is_none() {
+            // No key for the tree this frame: leave the selection alone and do not repaint.
+            return;
+        }
         if let Some(action) = action {
             actions.push(action);
         }
         self.selected = Some(flat[next].0.clone());
+        self.scroll_to_selected = true;
         ui.memory_mut(|memory| memory.request_focus(focus_id));
         ui.ctx().request_repaint();
     }

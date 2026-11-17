@@ -10,8 +10,10 @@ pub(crate) struct RowPaint<'a> {
     pub row_rect: Rect,
     pub line: usize,
     pub line_start: usize,
-    pub segment: usize,
-    pub columns: usize,
+    /// First display column of this row; 0 without soft wrap.
+    pub segment_start: usize,
+    /// Display column where this row ends; `usize::MAX` on a line's last row.
+    pub segment_end: usize,
     pub gutter: f32,
     pub char_width: f32,
     pub origin: Pos2,
@@ -21,16 +23,17 @@ pub(crate) struct RowPaint<'a> {
 
 impl RowPaint<'_> {
     fn segment_bounds(&self) -> (usize, usize) {
-        let start = self.segment * self.columns;
-        if self.columns > 0 {
-            (start, start + self.columns)
-        } else {
-            (start, usize::MAX)
-        }
+        (self.segment_start, self.segment_end)
     }
 
+    fn contains(&self, display: usize) -> bool {
+        display >= self.segment_start && display < self.segment_end
+    }
+
+    /// The x position of a display column of the line, on this wrapped row.
     fn x(&self, display: usize) -> f32 {
-        self.origin.x + self.gutter + 8.0 + display as f32 * self.char_width
+        let local = display.saturating_sub(self.segment_start);
+        self.origin.x + self.gutter + 8.0 + local as f32 * self.char_width
     }
 }
 
@@ -57,7 +60,7 @@ impl Editor {
             .color;
         for column in (4..=indent_width).step_by(4) {
             let display = column - 1;
-            if row.columns > 0 && display / row.columns != row.segment {
+            if !row.contains(display) {
                 continue;
             }
             let x = row.x(display);
@@ -79,11 +82,11 @@ impl Editor {
         let color = visuals.weak_text_color().gamma_multiply(0.7);
         let mut display = 0usize;
         for (column, character) in text.chars().enumerate() {
-            let width = if character == '\t' { 4 - display % 4 } else { 1 };
+            let width = crate::cell_width(character, display);
             if character == ' ' || character == '\t' {
                 let show = self.style.whitespace == WhitespaceMode::All
                     || (row.line_start + column >= selection_start && row.line_start + column < selection_end);
-                let segment_ok = row.columns == 0 || display / row.columns == row.segment;
+                let segment_ok = row.contains(display);
                 if show && segment_ok {
                     let x = row.x(display);
                     row.painter.circle_filled(
@@ -143,19 +146,25 @@ impl Editor {
             return;
         }
         let text = self.document.line(row.line);
-        let start_col = selection_start.saturating_sub(row.line_start).min(text.chars().count());
-        let end_col = selection_end.saturating_sub(row.line_start).min(text.chars().count());
-        if start_col == end_col {
+        let length = text.chars().count();
+        let start_col = selection_start.saturating_sub(row.line_start).min(length);
+        let end_col = selection_end.saturating_sub(row.line_start).min(length);
+        // A selection that continues past this line covers its newline: show it as half a
+        // cell on the line's last row, so selected empty lines are visible too.
+        let newline = selection_end > row.line_start + length && row.line < selection_end_line;
+        let newline_cells = usize::from(newline && row.segment_end == usize::MAX);
+        if start_col == end_col && newline_cells == 0 {
             return;
         }
         let (segment_start, segment_end) = row.segment_bounds();
         let start = display_col(&text, start_col).max(segment_start);
-        let end = display_col(&text, end_col).min(segment_end);
+        let end = display_col(&text, end_col).min(segment_end) + newline_cells;
         if start >= end {
             return;
         }
         let x = row.x(start);
-        let width = (end - start) as f32 * row.char_width;
+        let cells = (end - start) as f32 - 0.5 * newline_cells as f32;
+        let width = cells * row.char_width;
         row.painter.rect_filled(
             Rect::from_min_max(
                 Pos2::new(x, row.row_rect.min.y),

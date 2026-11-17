@@ -1,7 +1,6 @@
 //! Scroll offsets, line mapping, and user-scroll reporting.
 
 use crate::Editor;
-use crate::render::rows_for;
 
 /// Offsets closer than this (in points) count as already synchronized. egui stores an
 /// explicit offset exactly and the maximum offset matches egui's pixel-rounded sizes, so
@@ -16,7 +15,69 @@ pub(crate) fn overshot(painted: f32, state: &egui::scroll_area::State, max_offse
     painted > max_offset + 0.5 && state.unclamped_offset().y <= max_offset + 0.5
 }
 
+/// The geometry needed to reveal the cursor before the scroll area is shown.
+pub(crate) struct CursorView {
+    pub(crate) columns: usize,
+    pub(crate) row_height: f32,
+    pub(crate) char_width: f32,
+    pub(crate) gutter: f32,
+    pub(crate) content_height: f32,
+    /// The size available to the scroll area, used before the first paint.
+    pub(crate) available: egui::Vec2,
+}
+
 impl Editor {
+    /// The vertical and horizontal offsets that bring the cursor into view.
+    ///
+    /// Each is `None` when the cursor is already visible on that axis. The cursor
+    /// keeps a row of context above and below and a few characters to the side.
+    /// Navigation (`center_cursor`) puts an off-screen cursor in the middle instead.
+    pub(crate) fn cursor_scroll_target(&self, view: &CursorView) -> (Option<f32>, Option<f32>) {
+        let size = if self.viewport_rect.is_finite() && self.viewport_rect.height() > 0.0 {
+            self.viewport_rect.size()
+        } else {
+            view.available
+        };
+        let row_top = self.row_for_cursor(view.columns) as f32 * view.row_height;
+        let row_bottom = row_top + view.row_height;
+        let max_y = (view.content_height - size.y).max(0.0);
+        let margin = view.row_height.min((size.y - view.row_height).max(0.0) / 2.0);
+        let top = self.scroll_y;
+        let visible = row_top >= top && row_bottom <= top + size.y;
+        let vertical = if self.center_cursor && !visible {
+            Some(row_top + view.row_height / 2.0 - size.y / 2.0)
+        } else if row_top - margin < top {
+            Some(row_top - margin)
+        } else if row_bottom + margin > top + size.y {
+            Some(row_bottom + margin - size.y)
+        } else {
+            None
+        }
+        .map(|offset| offset.clamp(0.0, max_y))
+        .filter(|offset| (offset - top).abs() > 0.01);
+
+        let horizontal = if view.columns > 0 {
+            // Soft wrap: there is no horizontal scrolling to do.
+            (self.scroll_x > 0.0).then_some(0.0)
+        } else {
+            let (line, column) = self.document.line_col(self.cursor);
+            let display = crate::display_col(&self.document.line(line), column);
+            let x = view.gutter + 8.0 + display as f32 * view.char_width;
+            let side = (4.0 * view.char_width).min(size.x / 4.0);
+            if x + side <= size.x {
+                // Keep the line numbers in view whenever the cursor fits without them gone.
+                (self.scroll_x > 0.0).then_some(0.0)
+            } else if x - side < self.scroll_x + view.gutter {
+                Some((x - side - view.gutter).max(0.0))
+            } else if x + side > self.scroll_x + size.x {
+                Some(x + side - size.x)
+            } else {
+                None
+            }
+        };
+        (vertical, horizontal)
+    }
+
     /// Give the editor a stable identity for its scroll area.
     pub fn set_identity(&mut self, identity: u64) {
         self.identity = identity;
@@ -96,7 +157,7 @@ impl Editor {
         let mut rows = 0usize;
         tops.push(0.0);
         for line in 0..lines {
-            rows += rows_for(self.display_widths.get(line).copied().unwrap_or(0), self.last_columns);
+            rows += self.rows_of(line, self.last_columns);
             tops.push(rows as f32 * row_height);
         }
         tops
@@ -114,7 +175,7 @@ impl Editor {
         let row = position.floor() as usize;
         let (line, _) = self.row_to_line(row, self.last_columns);
         let line_row = self.line_to_row(line);
-        let rows = rows_for(self.display_widths.get(line).copied().unwrap_or(0), self.last_columns).max(1);
+        let rows = self.rows_of(line, self.last_columns);
         let within_row = position - position.floor();
         let fraction = ((row.saturating_sub(line_row)) as f32 + within_row) / rows as f32;
         (line, fraction.clamp(0.0, 1.0))
@@ -193,8 +254,6 @@ impl Editor {
     /// The row index of a zero-based logical line in the current wrap layout.
     pub fn line_to_row(&self, line: usize) -> usize {
         let line = line.min(self.document.line_count().saturating_sub(1));
-        (0..line)
-            .map(|index| rows_for(self.display_widths.get(index).copied().unwrap_or(0), self.last_columns))
-            .sum()
+        (0..line).map(|index| self.rows_of(index, self.last_columns)).sum()
     }
 }

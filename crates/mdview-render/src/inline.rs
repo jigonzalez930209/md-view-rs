@@ -26,6 +26,8 @@ pub(crate) struct Segment {
     pub strong: bool,
     pub emphasis: bool,
     pub strike: bool,
+    /// `<ins>` or `<u>`: underlined, as GitHub shows inserted text.
+    pub underline: bool,
     pub monospace: bool,
     pub mark: bool,
     pub subscript: bool,
@@ -53,6 +55,7 @@ struct HtmlState {
     strong: bool,
     emphasis: bool,
     strike: bool,
+    underline: bool,
     mark: bool,
     subscript: bool,
     superscript: bool,
@@ -157,6 +160,7 @@ fn push_text(text: &str, style: &Segment, html: &HtmlState, out: &mut Vec<Segmen
     segment.strong |= html.strong;
     segment.emphasis |= html.emphasis;
     segment.strike |= html.strike;
+    segment.underline |= html.underline;
     segment.mark |= html.mark;
     segment.subscript |= html.subscript;
     segment.superscript |= html.superscript;
@@ -189,6 +193,7 @@ fn apply_html(raw: &str, html: &mut HtmlState, style: &Segment, out: &mut Vec<Se
         "strong" | "b" => html.strong = !closing,
         "em" | "i" => html.emphasis = !closing,
         "del" | "s" | "strike" => html.strike = !closing,
+        "ins" | "u" => html.underline = !closing,
         "script" | "style" | "iframe" | "object" | "embed" => html.suppress = !closing,
         _ => {}
     }
@@ -455,6 +460,9 @@ fn styled_text(text: &str, segment: &Segment, theme: &Theme, size: f32, code: f3
     if segment.strike {
         text = text.strikethrough();
     }
+    if segment.underline {
+        text = text.underline();
+    }
     if segment.monospace || segment.keyboard {
         // GitHub sets inline code at 85% of the body on a muted chip.
         text = text.monospace().size(code::code_size(size, code)).color(theme.text);
@@ -471,3 +479,7 @@ fn styled_text(text: &str, segment: &Segment, theme: &Theme, size: f32, code: f3
     }
     text
 }
+
+#[cfg(test)]
+#[path = "inline_tests.rs"]
+mod underline_tests;

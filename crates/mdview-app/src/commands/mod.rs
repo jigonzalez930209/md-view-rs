@@ -212,6 +212,13 @@ impl MdViewApp {
                 self.ensure_edit_mode(ctx);
                 self.tabs.editor_mut().open_goto();
             }
+            Command::Format(action) => {
+                if self.tabs.active().is_viewer() || !self.tabs.editor().is_markdown() {
+                    return;
+                }
+                self.ensure_edit_mode(ctx);
+                self.tabs.editor_mut().apply_markdown(action);
+            }
             Command::InsertLatexBlock => {
                 if self.tabs.active().is_viewer() {
                     return;

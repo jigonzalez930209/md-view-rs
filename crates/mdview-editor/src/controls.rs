@@ -32,6 +32,14 @@ pub(crate) fn text_field(ui: &mut Ui, value: &mut String, hint: &str, width: f32
     output.inner
 }
 
+/// Whether Enter was pressed in a single-line field this frame.
+///
+/// A single-line `TextEdit` gives up focus when Enter is pressed, so in that frame it
+/// reports `lost_focus` and no longer `has_focus`; checking only `has_focus` never fires.
+pub(crate) fn submitted(ui: &Ui, field: &Response) -> bool {
+    (field.has_focus() || field.lost_focus()) && ui.input(|input| input.key_pressed(egui::Key::Enter))
+}
+
 /// A compact up/down triangle used by numeric fields.
 pub(crate) fn step_button(ui: &mut Ui, up: bool) -> bool {
     let (rect, response) = ui.allocate_exact_size(egui::vec2(18.0, 15.0), egui::Sense::click());

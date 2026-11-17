@@ -63,7 +63,7 @@ impl Editor {
         } else {
             anchor
         };
-        let width = (anchor.width() - 16.0).clamp(300.0, 396.0);
+        let width = (anchor.width() - 16.0).clamp(300.0, 460.0);
         let position = egui::pos2(
             (anchor.right() - width - 8.0).max(anchor.left() + 8.0),
             anchor.top() + 6.0,
@@ -86,6 +86,10 @@ impl Editor {
                     .show(ui, |ui| {
                         ui.set_width(width - 18.0);
                         ui.horizontal(|ui| {
+                            // Every control has a fixed width so the row is exactly the panel
+                            // width: a wider row pushed the panel left (areas stay on screen),
+                            // and the controls moved while typing as the result count changed.
+                            ui.spacing_mut().item_spacing.x = 4.0;
                             if ui
                                 .add(
                                     egui::Button::new(egui::RichText::new(if self.find.replace { "v" } else { ">" }))
@@ -100,7 +104,7 @@ impl Editor {
                                 ui,
                                 &mut self.find.query,
                                 "Find",
-                                (width - 218.0).max(120.0),
+                                (width - 18.0 - FIND_ROW_FIXED).max(100.0),
                             );
                             if self.find.focus_query {
                                 query.request_focus();
@@ -109,14 +113,16 @@ impl Editor {
                             if query.changed() {
                                 changed = true;
                             }
-                            if query.has_focus()
-                                && ui.input(|input| input.key_pressed(Key::Enter) || input.key_pressed(Key::F3))
-                            {
+                            let f3 = query.has_focus() && ui.input(|input| input.key_pressed(Key::F3));
+                            if crate::controls::submitted(ui, &query) || f3 {
                                 if ui.input(|input| input.modifiers.shift) {
                                     self.find_previous();
                                 } else {
                                     self.find_next();
                                 }
+                                // Keep typing in the find field: the next Enter finds the next
+                                // match instead of inserting a line break in the document.
+                                query.request_focus();
                             }
                             if toggle_chip(ui, "Aa", self.find.options.case_sensitive)
                                 .on_hover_text("Match case")
@@ -140,18 +146,22 @@ impl Editor {
                                 changed = true;
                             }
                             let (current, total) = self.match_position();
-                            ui.label(
-                                egui::RichText::new(if total == 0 {
-                                    "No results".to_owned()
-                                } else if total == 1 {
-                                    "1 result".to_owned()
-                                } else if current == 0 {
-                                    format!("{total} results")
-                                } else {
-                                    format!("{current} of {total}")
-                                })
-                                .small()
-                                .weak(),
+                            ui.add_sized(
+                                [RESULT_LABEL_WIDTH, 21.0],
+                                egui::Label::new(
+                                    egui::RichText::new(if total == 0 {
+                                        "No results".to_owned()
+                                    } else if total == 1 {
+                                        "1 result".to_owned()
+                                    } else if current == 0 {
+                                        format!("{total} results")
+                                    } else {
+                                        format!("{current} of {total}")
+                                    })
+                                    .small()
+                                    .weak(),
+                                )
+                                .truncate(),
                             );
                             if small_icon_button(ui, "<", "Previous match").clicked() {
                                 self.find_previous();
@@ -174,6 +184,11 @@ impl Editor {
                                 }
                                 if replacement.changed() {
                                     changed = true;
+                                }
+                                if crate::controls::submitted(ui, &replacement) {
+                                    // Enter replaces the current match and moves to the next.
+                                    self.replace_current();
+                                    replacement.request_focus();
                                 }
                                 if small_text_button(ui, "Replace").clicked() {
                                     self.replace_current();
@@ -212,13 +227,11 @@ impl Editor {
         (current, total)
     }
 
-    /// Recompute matches from the current query and document.
-    pub(crate) fn recompute_matches(&mut self) {
-        self.find.matches.clear();
+    /// The compiled search, or `None` for an empty query or an invalid pattern.
+    fn search_regex(&self) -> Option<regex::Regex> {
         if self.find.query.is_empty() {
-            return;
+            return None;
         }
-        let text = self.document.snapshot();
         let pattern = if self.find.options.regex {
             self.find.query.clone()
         } else {
@@ -229,15 +242,26 @@ impl Editor {
         } else {
             pattern
         };
-        let Ok(regex) = RegexBuilder::new(&pattern)
+        RegexBuilder::new(&pattern)
             .case_insensitive(!self.find.options.case_sensitive)
+            // `^` and `$` match at line starts and ends, as in other editors.
+            .multi_line(true)
             .size_limit(10 * 1024 * 1024)
             .build()
-        else {
+            .ok()
+    }
+
+    /// Recompute matches from the current query and document.
+    pub(crate) fn recompute_matches(&mut self) {
+        self.find.matches.clear();
+        let Some(regex) = self.search_regex() else {
             return;
         };
+        let text = self.document.snapshot();
         self.find.matches = regex
             .find_iter(&text)
+            // Empty matches (`a*`, `^`) cannot be selected or stepped through.
+            .filter(|found| !found.is_empty())
             .map(|found| {
                 (
                     self.document.byte_to_char(found.start()),
@@ -245,6 +269,22 @@ impl Editor {
                 )
             })
             .collect();
+    }
+
+    /// The replacement for the match at `[start, end)`: `$1`/`${name}` expand in regex mode.
+    fn replacement_for(&self, regex: &regex::Regex, text: &str, start: usize) -> String {
+        if !self.find.options.regex {
+            return self.find.replacement.clone();
+        }
+        let byte = self.document.char_to_byte(start);
+        regex.captures_at(text, byte).map_or_else(
+            || self.find.replacement.clone(),
+            |captures| {
+                let mut expanded = String::new();
+                captures.expand(&self.find.replacement, &mut expanded);
+                expanded
+            },
+        )
     }
 
     /// Select the next match after the cursor.
@@ -296,21 +336,45 @@ impl Editor {
             self.find_next();
             return;
         };
-        self.document.replace_range(start, end, &self.find.replacement);
+        let replacement = match self.search_regex() {
+            Some(regex) => self.replacement_for(&regex, &self.document.snapshot(), start),
+            None => self.find.replacement.clone(),
+        };
+        self.document.replace_range(start, end, &replacement);
         self.recompute_matches();
-        self.cursor = start + self.find.replacement.chars().count();
+        self.cursor = start + replacement.chars().count();
         self.anchor = self.cursor;
+        // Select the next match so repeated Replace walks through the document.
+        if !self.find.matches.is_empty() {
+            self.find_next();
+        }
     }
 
-    fn replace_all(&mut self) {
+    pub(crate) fn replace_all(&mut self) {
         self.recompute_matches();
         if self.find.matches.is_empty() {
             return;
         }
-        self.document.replace_ranges(&self.find.matches, &self.find.replacement);
+        let Some(regex) = self.search_regex() else {
+            return;
+        };
+        let text = self.document.snapshot();
+        let edits: Vec<(usize, usize, String)> = self
+            .find
+            .matches
+            .iter()
+            .map(|(start, end)| (*start, *end, self.replacement_for(&regex, &text, *start)))
+            .collect();
+        self.document.replace_ranges(&edits);
         self.recompute_matches();
     }
 }
+
+/// Width of the match counter ("12 of 345"), fixed so the row never changes width.
+const RESULT_LABEL_WIDTH: f32 = 64.0;
+/// Width of everything in the find row except the query field: the replace toggle, three
+/// option chips, the counter, three buttons, and the gaps between them.
+const FIND_ROW_FIXED: f32 = 20.0 + 3.0 * 23.0 + RESULT_LABEL_WIDTH + 3.0 * 24.0 + 9.0 * 4.0;
 
 fn toggle_chip(ui: &mut egui::Ui, label: &str, active: bool) -> egui::Response {
     let (rect, response) = ui.allocate_exact_size(egui::vec2(23.0, 21.0), egui::Sense::click());

@@ -274,6 +274,11 @@ fn layout_table_cell(
                     } else {
                         egui::Stroke::NONE
                     },
+                    underline: if segment.underline {
+                        egui::Stroke::new(1.0, color)
+                    } else {
+                        egui::Stroke::NONE
+                    },
                     ..Default::default()
                 },
             );

@@ -56,7 +56,7 @@ changes**, and **Compare**. A missing file gets its own bar with **Save As…** 
 | `Ctrl/Cmd+W` | Close tab |
 | `Ctrl/Cmd+P` | Quick Open |
 | `Ctrl/Cmd+Shift+P` | Command palette |
-| `Ctrl/Cmd+B` | Toggle sidebar |
+| `Ctrl/Cmd+B` | Toggle sidebar (Bold in a focused Markdown editor) |
 | `Alt+Left` / `Alt+Right` | Back / forward |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
 | `F2` | Rename the active file |

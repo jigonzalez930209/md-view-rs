@@ -6,10 +6,11 @@
 
 mod document;
 mod encoding;
+mod eol;
 mod indentation;
 mod undo;
 
-pub use document::{Document, Eol};
+pub use document::{Document, Eol, LineEdit};
 pub use encoding::Encoding;
 pub use indentation::Indentation;
 pub use undo::{EditKind, UndoStack};

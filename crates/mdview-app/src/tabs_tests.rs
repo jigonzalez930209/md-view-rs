@@ -222,3 +222,59 @@ fn one_hundred_open_close_cycles_stay_stable() {
     assert_eq!(tabs.len(), 1);
     assert!(tabs.active().editor.document().path().is_none());
 }
+
+#[test]
+fn the_active_tab_is_scrolled_into_view() {
+    use egui_kittest::kittest::Queryable;
+    use std::{cell::Cell, rc::Rc};
+
+    let translations = Translations::new();
+    let lang = translations.lang(mdview_i18n::LanguagePreference::English);
+    let infos: Vec<TabInfo> = (0..12)
+        .map(|index| TabInfo {
+            label: format!("document-number-{index}.md"),
+            icon: "markdown".to_owned(),
+            dirty: false,
+            conflict: false,
+            missing: false,
+        })
+        .collect();
+    let active = Rc::new(Cell::new(0usize));
+    let shown = active.clone();
+    let mut icons = mdview_ui::MaterialIcons::new();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(700.0, 34.0))
+        .build_ui(move |ui| {
+            show_tab_bar(
+                ui,
+                &infos,
+                shown.get(),
+                TabBarView {
+                    translations: &translations,
+                    lang,
+                    icons: &mut icons,
+                    light: true,
+                    mode: mdview_ui::ViewMode::Edit,
+                    can_view: true,
+                    can_edit: true,
+                    can_split: true,
+                },
+            );
+        });
+    harness.run();
+    let visible = |harness: &Harness<'_>, label: &str| {
+        let rect = harness.get_by_label_contains(label).rect();
+        rect.left() >= 0.0 && rect.right() <= 700.0
+    };
+    assert!(visible(&harness, "document-number-0.md"));
+    // Activating the last tab (Ctrl+Tab, Quick Open, or the explorer) must reveal it.
+    active.set(11);
+    harness.run();
+    assert!(
+        visible(&harness, "document-number-11.md"),
+        "the active tab stays hidden"
+    );
+    active.set(0);
+    harness.run();
+    assert!(visible(&harness, "document-number-0.md"));
+}
