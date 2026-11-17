@@ -8,6 +8,26 @@
 - `libX11.so.6` and `libXtst.so.6` for the XTest driver
 - no window manager is required
 
+## Resource guard
+
+`cargo xtask ci` refuses to start with less than 4 GiB available, sizes `CARGO_BUILD_JOBS` from
+the available memory (at most 4 jobs), and stops a step when available memory drops below 2 GiB or
+full memory-stall pressure reaches 20%. Each step runs in its own process group, so stopping it
+also stops its rustc and linker children. The E2E run applies the same 4 GiB start check and stops
+when available memory drops below 2 GiB (`MDVIEW_E2E_MIN_START_MB`,
+`MDVIEW_E2E_MIN_AVAILABLE_MB`).
+
+On Linux with systemd, a heavy gate can also run in its own transient scope. If the kernel or
+systemd-oomd has to end the build, it ends that scope instead of the terminal that started it:
+
+```sh
+systemd-run --user --scope --collect cargo xtask ci
+```
+
+Close browsers, language servers, or virtual machines before running the full gate on a desktop
+that is already using most of its memory. The guards protect the desktop; they do not make an
+under-provisioned machine faster.
+
 ## What it covers
 
 - Startup with a workspace and a Markdown document; diagnostics log creation.
@@ -28,8 +48,9 @@
   and scroll-beyond-last-line end stability.
 - Markdown: lists typed into `src/format.md` (continuation, nesting, leaving a list) and Ctrl+B,
   compared byte for byte after saving.
-- Editor interactions on `src/interact.md`: double-click and Ctrl+B, triple-click, copy and paste,
-  regex Replace All with `$2:$1` through the find panel's controls, a drag across soft-wrapped
+- Editor interactions on `src/interact.md`: double-click and Ctrl+B, triple-click, copy through the
+  real X11 CLIPBOARD and paste of text owned by a separate client, regex Replace All with `$2:$1`
+  through the find panel's controls, a drag across soft-wrapped
   rows, the formatting bar's table grid, **Format: Heading 2** from the palette, and a bracket
   highlight screenshot; the saved file is checked.
 - Formatting bar: every button once on `src/toolbar.md` (heading menu, italic, underline, quote,

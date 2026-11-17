@@ -15,6 +15,7 @@ SHOTS="$ROOT/target/e2e"
 DISPLAY=${MDVIEW_E2E_DISPLAY:-:97}
 PORT=8899
 APP_PID=""
+CLIP_PID=""
 SERVER_PID=""
 XVFB_PID=""
 
@@ -29,7 +30,30 @@ fail() {
   exit 1
 }
 
+# Do not start the build and the app when the desktop is already short on memory.
+MIN_START_AVAILABLE_MB=${MDVIEW_E2E_MIN_START_MB:-4096}
+available=$(meminfo_mb MemAvailable)
+if (( available < MIN_START_AVAILABLE_MB )); then
+  fail "only ${available} MiB available; close memory-heavy applications first (need ${MIN_START_AVAILABLE_MB} MiB)"
+fi
+
 x() { DISPLAY="$DISPLAY" python3 "$ROOT/scripts/e2e/x11.py" "$@"; }
+clipboard_read() {
+  DISPLAY="$DISPLAY" python3 "$ROOT/scripts/e2e/clipboard.py" read "${1:-3}"
+}
+clipboard_serve() {
+  local text=$1
+  rm -f "$TMP/clipboard-ready"
+  DISPLAY="$DISPLAY" python3 "$ROOT/scripts/e2e/clipboard.py" serve "$text" "$TMP/clipboard-ready" \
+    >"$TMP/clipboard.log" 2>&1 &
+  CLIP_PID=$!
+  register_pid "$CLIP_PID" "clipboard.py serve"
+  for _ in $(seq 1 60); do
+    [[ -e "$TMP/clipboard-ready" ]] && return 0
+    sleep 0.05
+  done
+  fail "clipboard helper did not take ownership: $(cat "$TMP/clipboard.log")"
+}
 click() { x click "$1" "$2"; sleep 0.45; }
 rclick() { x rclick "$1" "$2"; sleep 0.6; }
 key() { x key "$1"; sleep 0.35; }
@@ -640,9 +664,13 @@ x clicks 345 155 2            # double-click selects alpha_beta
 key ctrl+b                    # Bold in a Markdown editor
 x clicks 330 192 3            # triple-click selects the line b=22
 key ctrl+c
+# Copy crosses the app boundary: another X11 client reads CLIPBOARD.
+[[ "$(clipboard_read)" == "b=22" ]] || fail "Copy did not reach the system clipboard"
+# Paste crosses it the other way: a separate owner supplies the text.
+clipboard_serve "external-paste-42"
 key End
 key Enter
-key ctrl+v                    # the copied line is pasted below
+key ctrl+v                    # the externally copied line is pasted below
 key ctrl+h
 type_text '(\w)=(\d+)'
 click 772 141                 # regex option
@@ -683,7 +711,7 @@ sleep 0.8
 python3 - "$WS/src/interact.md" <<'PY_INTERACT' || fail "editor interactions produced unexpected text"
 import sys
 lines = open(sys.argv[1], encoding="utf-8").read().split("\n")
-expected_head = ["## Interact", "", "**alpha_beta** gamma", "1:a", "22:b", "22:b", "f(x[y])", ""]
+expected_head = ["## Interact", "", "**alpha_beta** gamma", "1:a", "22:b", "external-paste-42", "f(x[y])", ""]
 if lines[:8] != expected_head:
     raise SystemExit(f"head: {lines[:8]!r}")
 paragraph = lines[8]

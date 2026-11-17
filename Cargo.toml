@@ -61,7 +61,7 @@ craft-i18n = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a
 craft-keymap = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5", features = ["egui"] }
 
 egui = "=0.37"
-eframe = { version = "0.37", default-features = false, features = ["glow", "x11", "wayland", "default_fonts"] }
+eframe = { version = "0.37", default-features = false, features = ["glow", "x11", "wayland", "default_fonts", "clipboard"] }
 env_logger = "0.11"
 log = "0.4"
 regex = "1.13"

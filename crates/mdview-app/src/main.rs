@@ -37,6 +37,9 @@ mod viewers;
 mod workspace_flow;
 mod workspace_ops;
 
+#[cfg(test)]
+mod clipboard_tests;
+
 use std::sync::{Arc, Mutex};
 
 use cli::CliAction;

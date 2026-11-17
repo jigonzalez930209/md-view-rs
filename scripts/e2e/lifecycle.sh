@@ -9,8 +9,9 @@
 E2E_STATE="$ROOT/target/e2e-pids"
 # Resident memory allowed for the app, in MiB. A normal run peaks near 250 MiB.
 MAX_RSS_MB=${MDVIEW_E2E_MAX_RSS_MB:-1024}
-# Stop the run when the machine has less than this much memory available, in MiB.
-MIN_AVAILABLE_MB=${MDVIEW_E2E_MIN_AVAILABLE_MB:-768}
+# Stop the run when the machine has less than this much memory available, in MiB. The app
+# normally peaks near 250 MiB, but keeping a desktop-sized reserve prevents swap thrashing.
+MIN_AVAILABLE_MB=${MDVIEW_E2E_MIN_AVAILABLE_MB:-2048}
 GUARD_PID=""
 
 # Remember a started process: "<pid> <expected command fragment>".
@@ -94,6 +95,7 @@ start_ram_guard() {
 cleanup() {
   local status=$?
   [[ -n "$GUARD_PID" ]] && kill "$GUARD_PID" 2>/dev/null || true
+  stop_pid "$CLIP_PID"
   stop_pid "$APP_PID"
   stop_pid "$SERVER_PID"
   stop_pid "$XVFB_PID"
