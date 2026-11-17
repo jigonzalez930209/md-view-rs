@@ -173,6 +173,54 @@ locally before a release. macOS and Windows are built only by the tag-driven rel
 - Signing, notarization, store publishing, and automated release promotion remain part of the `1.0.0` release gate.
 - Do not push tags or trigger release workflows before the local feature set is operational.
 
+### 6.1 Running the full local matrix
+
+Run both gates before a release candidate:
+
+```sh
+cargo xtask ci
+cargo xtask e2e
+```
+
+`cargo xtask ci` runs, in order: `cargo fmt --all -- --check`, strict Clippy, the workspace tests with
+one test thread, `cargo deny check`, `cargo xtask check-file-length`, and the release build.
+`cargo xtask e2e` builds the debug binary and runs the Xvfb interaction suite, including the
+system-clipboard checks.
+
+On Linux, run each gate inside a transient systemd scope so a memory spike cannot take the desktop
+or terminal with it. Use every core, cap memory, and forbid swap for the scope:
+
+```sh
+systemd-run --user --scope --collect \
+  -p MemoryHigh=8G -p MemoryMax=12G -p MemorySwapMax=0 \
+  -p "CPUQuota=$(nproc)00%" \
+  env CARGO_BUILD_JOBS=4 nice -n 10 cargo xtask ci
+
+systemd-run --user --scope --collect \
+  -p MemoryHigh=6G -p MemoryMax=8G -p MemorySwapMax=0 \
+  -p "CPUQuota=$(nproc)00%" \
+  env CARGO_BUILD_JOBS=4 nice -n 10 cargo xtask e2e
+```
+
+The CI guard refuses to start below 4 GiB available, sizes Cargo jobs from available memory, stops
+a step below 2 GiB or at 20% full memory pressure, and terminates the whole process group. The E2E
+run applies the same 4 GiB start check and aborts below 2 GiB. Do not run either gate as an
+unguarded background job; keep the scope attached to the terminal and close browsers, language
+servers, or VMs when the host is short on memory.
+
+If the host has swapped pages, force them back into RAM before a heavy run only when MemAvailable
+is larger than the swap in use:
+
+```sh
+free -h
+swapon --show
+sudo swapoff -a && sudo swapon -a
+```
+
+Run packaging with `cargo xtask package` followed by `cargo xtask release-check` in the same
+scope. The E2E suite needs `Xvfb`, `ffmpeg`, `curl`, and Python with `libX11.so.6` and
+`libXtst.so.6`; it is never part of hosted CI.
+
 ## 7. Pull requests
 
 - The PR title follows the same format as the commit summary.
