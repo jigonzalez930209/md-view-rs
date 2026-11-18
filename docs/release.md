@@ -22,6 +22,14 @@ cargo xtask sbom           # regenerate dist/sbom.cdx.json only
 | `sbom.cdx.json` | CycloneDX 1.5 component inventory from `cargo metadata --locked` |
 | `latest.json` | update manifest with version, notes, asset URL, size, and SHA-256 |
 
+`MDVIEW_FFMPEG_DIR` names the folder written by `scripts/ffmpeg/build.sh linux-x86_64 <dir>`;
+the packages then install its `ffmpeg` and `ffprobe` in `/usr/lib/mdview/` (where the video
+viewer looks first) and its licenses and `BUILDINFO` in `/usr/share/doc/mdview/ffmpeg/`. Without
+the variable the packages are built without FFmpeg and `cargo xtask release-check` fails. The
+release workflow builds FFmpeg for every platform in `.github/workflows/ffmpeg.yml` (cached by
+the script's hash): macOS puts it in `Contents/MacOS`, Windows next to `mdview.exe` in the zip
+and the MSI. The release also publishes the FFmpeg and dav1d source tarballs it was built from.
+
 `MDVIEW_UPDATE_BASE_URL` sets the asset base URL written into `latest.json`; the default is a
 placeholder until the release host exists.
 

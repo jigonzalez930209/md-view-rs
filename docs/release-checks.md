@@ -103,7 +103,11 @@ Run these local checks before tagging a release:
 - [ ] `cargo xtask icons` regenerates all PNG sizes, ICO, and ICNS without errors.
 - [ ] `cargo xtask package` produces the tarball, `.deb`, `.rpm`, AppDir, AppImage when the tool is
       available, `SHA256SUMS`, `sbom.cdx.json`, and `latest.json`.
-- [ ] `cargo xtask release-check` reports every manifest asset and input.
+- [ ] `scripts/ffmpeg/build.sh linux-x86_64 target/ffmpeg-out/linux-x86_64` builds FFmpeg, and
+      `cargo xtask package` runs with `MDVIEW_FFMPEG_DIR` set to that folder.
+- [ ] `cargo xtask release-check` reports every manifest asset and input, including the bundled
+      `usr/lib/mdview/ffmpeg` and `ffprobe`.
+- [ ] A video with sound plays from the installed package on a machine without a system FFmpeg.
 - [ ] `dpkg-deb -x dist/mdview_1.0.0.rc.7_amd64.deb /tmp/mdview-deb` then
       `/tmp/mdview-deb/usr/bin/mdview --version` prints `1.0.0-rc.7`.
 - [ ] `rpm -qlp dist/mdview-1.0.0.rc.7-1.x86_64.rpm` lists the binary, desktop, MIME, metainfo, and

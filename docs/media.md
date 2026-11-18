@@ -27,14 +27,19 @@ by the renderer yet; pages still show what it can draw.
 ## Video
 
 Video files open in a viewer with play/pause (click the picture or press Space), a seek bar,
-±5 s on the left and right arrows, a time counter, and mute. MD View includes no video codec:
-the viewer runs the system `ffprobe`, `ffmpeg`, and `ffplay` (without a shell) when they are on
-the PATH, so every container and codec FFmpeg reads plays; otherwise it explains how to install
-FFmpeg on each platform. A worker thread decodes raw RGBA frames through a pipe at the view's
-width (never above the native size) and hands each frame over at its presentation time; the
-pipe's backpressure keeps decoding at playback speed. Audio plays in a windowless `ffplay`
-started and stopped with the video. Pausing stops both processes, seeking while paused decodes a
-single frame, and closing the tab stops everything.
+±5 s on the left and right arrows, a time counter, and mute. MD View includes no video codec of
+its own: it runs `ffprobe` and `ffmpeg` (without a shell). Release packages ship a reduced LGPL
+FFmpeg built by `scripts/ffmpeg/build.sh` (decoders, demuxers, scaling, resampling, and the
+rotation filters only; AV1 through dav1d) and the viewer looks for it first: `MDVIEW_FFMPEG_DIR`,
+then beside the executable (Windows, the macOS bundle), then `../lib/mdview` from it (the Linux
+packages and the AppImage). A build without it uses the FFmpeg on the PATH, and without any FFmpeg
+the viewer explains how to install it. A worker thread decodes raw RGBA frames through a pipe at
+the view's width (never above the native size) and hands each frame over at its presentation
+time; the pipe's backpressure keeps decoding at playback speed. A second `ffmpeg` decodes the
+soundtrack to 16-bit PCM at the output device's rate and channel count, and cpal plays it
+(CoreAudio, WASAPI, or ALSA) through a one-second queue whose backpressure paces that decoder.
+Pausing stops both, seeking while paused decodes a single frame, and closing the tab stops
+everything.
 
 ## Images
 
