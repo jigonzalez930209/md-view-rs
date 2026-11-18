@@ -19,6 +19,18 @@
       <Component Id="MainExecutable" Guid="*">
         <File Id="MdViewExe" Source="target\release\mdview.exe" KeyPath="yes" />
       </Component>
+      <!-- The LGPL FFmpeg built by scripts/ffmpeg/build.sh; the video viewer looks beside mdview.exe. -->
+      <Component Id="FfmpegExecutable" Guid="*">
+        <File Id="FfmpegExe" Source="target\ffmpeg-out\windows-x86_64\ffmpeg.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="FfprobeExecutable" Guid="*">
+        <File Id="FfprobeExe" Source="target\ffmpeg-out\windows-x86_64\ffprobe.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="FfmpegNotice" Guid="*">
+        <File Id="FfmpegBuildInfo" Source="target\ffmpeg-out\windows-x86_64\BUILDINFO" Name="FFmpeg-BUILDINFO.txt" KeyPath="yes" />
+        <File Id="FfmpegLicense" Source="target\ffmpeg-out\windows-x86_64\licenses\FFmpeg-COPYING.LGPLv2.1" Name="FFmpeg-COPYING.LGPLv2.1.txt" />
+        <File Id="Dav1dLicense" Source="target\ffmpeg-out\windows-x86_64\licenses\dav1d-COPYING" Name="dav1d-COPYING.txt" />
+      </Component>
       <Component Id="MarkdownAssociation" Guid="*">
         <RegistryKey Root="HKCU" Key="Software\Classes\MDView.Markdown">
           <RegistryValue Type="string" Value="Markdown Document" />
