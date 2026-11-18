@@ -1,0 +1,33 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; font-family: Inter, sans-serif; }
+    .panel { position: absolute; overflow: hidden; opacity: 0; }
+    
+    #root { background: #f6f8fa; }
+    .panel { opacity: 1; box-shadow: 0 18px 50px rgba(10,18,32,0.14), 0 0 0 1px rgba(10,18,32,0.08); }
+    #brand { position: absolute; left: 110px; top: 116px; display: flex; align-items: center; gap: 16px; white-space: nowrap; }
+    #brand img { width: 56px; height: 56px; }
+    #brand .bn { font-size: 42px; font-weight: 900; letter-spacing: -0.03em; color: #0a1220; }
+    #brand .bt { font-size: 32px; font-weight: 600; color: #57606a; }
+    #line { position: absolute; left: 110px; top: 880px; width: 860px; font-size: 44px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; color: #0a1220; }
+    #line .hi { color: #0b6bd6; }
+
+  </style>
+  <div id="root" data-composition-id="film" data-width="1080" data-height="1080">
+    <div id="film-stage" style="position:absolute; inset:0; overflow:hidden" data-layout-allow-overflow data-layout-allow-overlap data-layout-allow-occlusion>
+      <div id="brand"><img src="assets/images/logo.png" alt="MD View app icon" /><span class="bn">MD View</span><span class="bt">formula editor</span></div>
+      <div id="p-pal" class="panel" style="left:114.3px; top:228.0px; width:851.4px; height:55.0px; border-radius:12px; "><video id="p-pal-v" class="clip" style="position:absolute; left:-271.8px; top:-203.0px; width:1651.2px; height:860.0px" data-start="0.000" data-duration="13.233" data-media-start="0.200" data-track-index="1" muted playsinline src="assets/cap/light/eq-build.mp4"></video></div>
+      <div id="p-src" class="panel" style="left:111.6px; top:312.0px; width:856.8px; height:40.8px; border-radius:12px; "><video id="p-src-v" class="clip" style="position:absolute; left:-429.8px; top:-593.0px; width:2611.2px; height:1360.0px" data-start="0.000" data-duration="13.233" data-media-start="0.200" data-track-index="2" muted playsinline src="assets/cap/light/eq-build.mp4"></video></div>
+      <div id="p-out" class="panel" style="left:110.2px; top:384.0px; width:859.5px; height:448.8px; border-radius:18px; "><video id="p-out-v" class="clip" style="position:absolute; left:-1321.9px; top:-612.0px; width:2611.2px; height:1360.0px" data-start="0.000" data-duration="13.233" data-media-start="0.200" data-track-index="3" muted playsinline src="assets/cap/light/eq-build.mp4"></video></div>
+      <div id="line"><span>Point at the LaTeX.</span> <span class="hi">See what it draws.</span></div>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const tl = gsap.timeline({ paused: true });
+      
+      
+      window.__timelines["film"] = tl;
+    })();
+  </script>
+</template>

@@ -1,0 +1,81 @@
+[
+ {
+  "t": 0.1,
+  "kind": "type",
+  "text": "x = ",
+  "video_t": 1.117
+ },
+ {
+  "t": 1.154,
+  "kind": "click",
+  "target": "fraction",
+  "video_t": 2.171
+ },
+ {
+  "t": 1.854,
+  "kind": "type",
+  "text": "-b \\pm ",
+  "video_t": 2.871
+ },
+ {
+  "t": 2.932,
+  "kind": "click",
+  "target": "root",
+  "video_t": 3.949
+ },
+ {
+  "t": 3.633,
+  "kind": "type",
+  "text": "b^2-4ac",
+  "video_t": 4.65
+ },
+ {
+  "t": 4.326,
+  "kind": "key",
+  "key": "Tab",
+  "video_t": 5.343
+ },
+ {
+  "t": 4.735,
+  "kind": "type",
+  "text": "2a",
+  "video_t": 5.752
+ },
+ {
+  "t": 6.049,
+  "kind": "hover",
+  "label": "\u2212b \u00b1 \u2026",
+  "x": 560.94,
+  "y": 448,
+  "video_t": 7.066
+ },
+ {
+  "t": 7.316,
+  "kind": "hover",
+  "label": "\u221a",
+  "x": 619.54,
+  "y": 448,
+  "video_t": 8.333
+ },
+ {
+  "t": 8.582,
+  "kind": "hover",
+  "label": "\u00b2",
+  "x": 689.86,
+  "y": 448,
+  "video_t": 9.599
+ },
+ {
+  "t": 9.845,
+  "kind": "hover",
+  "label": "a",
+  "x": 795.34,
+  "y": 448,
+  "video_t": 10.862
+ },
+ {
+  "t": 11.817,
+  "kind": "clear",
+  "video_t": 12.834
+ }
+]

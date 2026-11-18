@@ -1,0 +1,7 @@
+.hyperframes/
+node_modules/
+.thumbnails/
+.transcode-cache/
+.waveform-cache/
+__pycache__/
+captures/

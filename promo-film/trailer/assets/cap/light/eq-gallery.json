@@ -1,0 +1,19 @@
+[
+ {
+  "t": 0.516,
+  "kind": "click",
+  "target": "gallery",
+  "video_t": 1.617
+ },
+ {
+  "t": 2.839,
+  "kind": "click",
+  "target": "pythagoras",
+  "video_t": 3.94
+ },
+ {
+  "t": 3.912,
+  "kind": "inserted",
+  "video_t": 5.013
+ }
+]

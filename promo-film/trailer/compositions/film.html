@@ -1,0 +1,128 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; font-family: Inter, sans-serif; }
+    .panel { position: absolute; overflow: hidden; opacity: 0; }
+    
+    #root { background: #eef2f7; color: #0a1220; }
+    #title { position: absolute; left: 192px; top: 330px; }
+    #t-word { transform-origin: 0 50%; font-size: 210px; font-weight: 900; letter-spacing: -0.05em; line-height: 1; }
+    #t-line { margin-top: 28px; font-size: 54px; font-weight: 700; letter-spacing: -0.02em; color: #3b4658; }
+    #t-line span { display: inline-block; }
+    .ch { position: absolute; left: 192px; top: 108px; opacity: 0; white-space: nowrap; }
+    .ch .num { display: inline-block; font-size: 44px; font-weight: 900; color: #e8336d; margin-right: 18px; }
+    .ch .tt { display: inline-block; font-size: 44px; font-weight: 900; letter-spacing: -0.02em; }
+    .ch .cl { display: inline-block; margin-left: 28px; font-size: 30px; font-weight: 500; color: #3b4658; }
+    #card { position: absolute; border-radius: 16px; overflow: hidden; background: #ffffff; opacity: 0;
+            box-shadow: 0 30px 80px rgba(10,18,32,0.22), 0 0 0 1px rgba(10,18,32,0.08); }
+    .cam { position: absolute; left: 0; top: 0; width: 1920px; height: 1000px; transform-origin: 0 0; }
+    .lay { position: absolute; left: 0; top: 0; width: 1920px; height: 1000px; opacity: 0; }
+    .vid { opacity: 1; }
+    .docclip { position: absolute; overflow: hidden; }
+    .doc { position: absolute; left: 0; top: 0; width: 1572px; height: 3744px; }
+    .st { position: absolute; width: 720px; opacity: 0; }
+    .sb { font-size: 150px; font-weight: 900; letter-spacing: -0.05em; line-height: 1; color: #0b6bd6; }
+    .ss { margin-top: 12px; font-size: 32px; font-weight: 600; color: #3b4658; }
+    #end { position: absolute; inset: 0; opacity: 0; }
+    .elogo { position: absolute; left: 870.0px; top: 200px; width: 180px; height: 180px; }
+    .ew, .ecta, .eos, .eurl { position: absolute; left: 0; width: 1920px; text-align: center; white-space: nowrap; }
+    .ew { top: 410px; font-size: 150px; font-weight: 900; letter-spacing: -0.045em; line-height: 1.1; }
+    .ecta { top: 620px; font-size: 52px; font-weight: 800; }
+    .eos { top: 700px; font-size: 36px; font-weight: 500; color: #3b4658; }
+    .eurl { top: 790px; font-family: "JetBrains Mono", monospace; font-size: 32px; color: #0b5cb8; }
+
+  </style>
+  <div id="root" data-composition-id="film" data-width="1920" data-height="1080">
+    <div id="film-stage" style="position:absolute; inset:0; overflow:hidden" data-layout-allow-overflow data-layout-allow-overlap data-layout-allow-occlusion>
+      
+      <div id="title"><div id="t-word">MD View</div>
+        <div id="t-line"><span>A native Markdown editor.</span> <span>No browser inside.</span></div></div>
+      <div class="ch" id="ch0"><span class="num">01</span><span class="tt">Read</span><div class="cl">GitHub-flavoured Markdown, LaTeX, and Mermaid, drawn natively.</div></div><div class="ch" id="ch1"><span class="num">02</span><span class="tt">Write</span><div class="cl">A real code editor: regex find and replace, split view in sync.</div></div><div class="ch" id="ch2"><span class="num">03</span><span class="tt">Math</span><div class="cl">An equation gallery and a formula editor that explains its LaTeX.</div></div><div class="ch" id="ch3"><span class="num">04</span><span class="tt">Find</span><div class="cl">Every command one keystroke away. Nine themes.</div></div><div class="ch" id="ch4"><span class="num">05</span><span class="tt">Fast</span><div class="cl">Measured in the release test run, not promised.</div></div>
+      <div id="card" style="left:172.8px; top:214px; width:1574.4px; height:820.0px">
+        <div class="cam"><img id="l-view" class="lay" src="assets/cap/light/01-view-top.png" alt="MD View reading view" /><div id="l-doc" class="lay"><div class="docclip" style="left:323px; top:101px; width:1572px; height:864px"><img class="doc" src="assets/cap/light/doc-tall.png" alt="" /></div></div><img id="l-edit" class="lay" src="assets/cap/light/07-edit-top.png" alt="MD View editor" /><img id="l-find" class="lay" src="assets/cap/light/08b-find-regex.png" alt="Regex find" /><img id="l-split" class="lay" src="assets/cap/light/11-split-top.png" alt="Split view" /><video id="l-splitv" class="clip lay vid" data-start="17.300" data-duration="3.700" data-media-start="0.333" data-track-index="1" muted playsinline src="assets/cap/light/split-scroll.mp4"></video><img id="l-eqedit" class="lay" src="assets/cap/light/eq-02-edit.png" alt="Equation buttons" /><video id="l-gal" class="clip lay vid" data-start="21.000" data-duration="5.500" data-media-start="0.717" data-track-index="2" muted playsinline src="assets/cap/light/eq-gallery.mp4"></video><video id="l-hov" class="clip lay vid" data-start="26.500" data-duration="6.000" data-media-start="1.147" data-track-index="3" muted playsinline src="assets/cap/light/eq-hover.mp4"></video><video id="l-bld" class="clip lay vid" data-start="32.500" data-duration="4.500" data-media-start="0.817" data-track-index="4" muted playsinline src="assets/cap/light/eq-build.mp4"></video><img id="l-pal" class="lay" src="assets/cap/light/13-palette.png" alt="Command palette" /><img id="l-palm" class="lay" src="assets/cap/light/14-palette-mode.png" alt="Command palette filtered" /><img id="l-srch" class="lay" src="assets/cap/light/16-search.png" alt="Workspace search" /><img id="l-thm" class="lay" src="assets/cap/light/17b-settings-themes.png" alt="Theme list" /></div>
+      </div>
+      <div class="st" id="st0" style="left:192px; top:330px"><div class="sb">5.4 ms</div><div class="ss">median frame time across the full E2E run</div></div><div class="st" id="st1" style="left:972px; top:330px"><div class="sb">245 MiB</div><div class="ss">peak memory with every feature exercised</div></div><div class="st" id="st2" style="left:192px; top:620px"><div class="sb">210,000</div><div class="ss">lines open and editable in large-file mode</div></div><div class="st" id="st3" style="left:972px; top:620px"><div class="sb">0</div><div class="ss">webviews, browsers, or JS engines inside</div></div>
+      <div id="end">
+        <img class="elogo" src="assets/images/logo.png" alt="MD View app icon" />
+        <div class="ew">MD View</div>
+        <div class="ecta">Download 1.0.0-rc.5</div>
+        <div class="eos">macOS · Windows · Linux · free &amp; open source</div>
+        <div class="eurl">github.com/jigonzalez930209/md-view-rs</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const tl = gsap.timeline({ paused: true });
+      gsap.set(".cam", { x: 0.0, y: 0.0, scale: 0.82 }); gsap.set(".doc", { y: 0 });
+      tl.set("#ch0", { opacity: 1 }, 4);
+      tl.fromTo("#ch0 .num, #ch0 .tt", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out", stagger: 0.08 }, 4);
+      tl.fromTo("#ch0 .cl", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.3 }, 4.25);
+      tl.to("#ch0", { opacity: 0, duration: 0.2 }, 12.75);
+      tl.set("#ch1", { opacity: 1 }, 13);
+      tl.fromTo("#ch1 .num, #ch1 .tt", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out", stagger: 0.08 }, 13);
+      tl.fromTo("#ch1 .cl", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.3 }, 13.25);
+      tl.to("#ch1", { opacity: 0, duration: 0.2 }, 20.75);
+      tl.set("#ch2", { opacity: 1 }, 21);
+      tl.fromTo("#ch2 .num, #ch2 .tt", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out", stagger: 0.08 }, 21);
+      tl.fromTo("#ch2 .cl", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.3 }, 21.25);
+      tl.to("#ch2", { opacity: 0, duration: 0.2 }, 36.75);
+      tl.set("#ch3", { opacity: 1 }, 37);
+      tl.fromTo("#ch3 .num, #ch3 .tt", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out", stagger: 0.08 }, 37);
+      tl.fromTo("#ch3 .cl", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.3 }, 37.25);
+      tl.to("#ch3", { opacity: 0, duration: 0.2 }, 42.75);
+      tl.set("#ch4", { opacity: 1 }, 43);
+      tl.fromTo("#ch4 .num, #ch4 .tt", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out", stagger: 0.08 }, 43);
+      tl.fromTo("#ch4 .cl", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.3 }, 43.25);
+      tl.to("#ch4", { opacity: 0, duration: 0.2 }, 50.75);
+      tl.fromTo("#t-word", { scale: 1.06 }, { scale: 1, duration: 1.4, ease: "power3.out" }, 0);
+      tl.fromTo("#t-line span", { opacity: 0, filter: "blur(10px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.25, stagger: 0.08 }, 0.6);
+      tl.to("#title", { opacity: 0, y: -40, duration: 0.35, ease: "power2.in" }, 3.0);
+      tl.fromTo("#card", { y: 700, opacity: 1 }, { y: 0, opacity: 1, duration: 0.8, ease: "power3.out", immediateRender: false }, 3.4);
+      tl.set("#l-view", { opacity: 1 }, 3.4);
+      tl.set("#l-doc", { opacity: 1 }, 3.4);
+      tl.to(".doc", { y: -715, duration: 1.0, ease: "power2.inOut" }, 4.6);
+      tl.to(".doc", { y: -1421, duration: 1.0, ease: "power2.inOut" }, 7.4);
+      tl.to(".doc", { y: -2551, duration: 1.0, ease: "power2.inOut" }, 10.2);
+      tl.to(".cam", { ...{ x: -238.7, y: -67.6, scale: 0.9184 }, duration: 1.0, ease: "power3.inOut" }, 4.6);
+      tl.set("#l-edit", { opacity: 1 }, 13);
+      tl.to(".cam", { ...{ x: 0.0, y: 0.0, scale: 0.82 }, duration: 0.6, ease: "power3.inOut" }, 13);
+      tl.set("#l-find", { opacity: 1 }, 15.0);
+      tl.to(".cam", { ...{ x: -1206.2, y: 47.6, scale: 1.394 }, duration: 0.8, ease: "power3.inOut" }, 15.0);
+      tl.set("#l-split", { opacity: 1 }, 17.3);
+      tl.to(".cam", { ...{ x: 0.0, y: 0.0, scale: 0.82 }, duration: 0.6, ease: "power3.inOut" }, 17.3);
+      tl.set("#l-eqedit", { opacity: 1 }, 21);
+      tl.to(".cam", { ...{ x: -289.1, y: -71.7, scale: 1.025 }, duration: 1.0, ease: "power3.inOut" }, 21.6);
+      tl.to(".cam", { ...{ x: 0.0, y: 0.0, scale: 0.82 }, duration: 0.6, ease: "power3.inOut" }, 26.5);
+      tl.to(".cam", { ...{ x: -236.2, y: -242.4, scale: 1.066 }, duration: 0.9, ease: "power3.inOut" }, 28.952);
+      tl.set("#l-pal", { opacity: 1 }, 37);
+      tl.to(".cam", { ...{ x: -196.8, y: -71.7, scale: 1.025 }, duration: 0.6, ease: "power3.inOut" }, 37);
+      tl.set("#l-palm", { opacity: 1 }, 38.0);
+      tl.set("#l-srch", { opacity: 1 }, 39.0);
+      tl.to(".cam", { ...{ x: -157.4, y: -13.1, scale: 0.984 }, duration: 0.5, ease: "power3.inOut" }, 39.0);
+      tl.set("#l-thm", { opacity: 1 }, 41.0);
+      tl.to(".cam", { ...{ x: -519.1, y: -110.3, scale: 1.107 }, duration: 0.5, ease: "power3.inOut" }, 41.0);
+      tl.to("#card", { y: 900, duration: 0.6, ease: "power3.in" }, 42.9);
+      tl.set("#st0", { opacity: 1 }, 43.60);
+      tl.fromTo("#st0 .sb", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.5, ease: "power3.out" }, 43.60);
+      tl.fromTo("#st0 .ss", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3 }, 43.85);
+      tl.to("#st0", { opacity: 0, duration: 0.2 }, 50.75);
+      tl.set("#st1", { opacity: 1 }, 44.80);
+      tl.fromTo("#st1 .sb", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.5, ease: "power3.out" }, 44.80);
+      tl.fromTo("#st1 .ss", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3 }, 45.05);
+      tl.to("#st1", { opacity: 0, duration: 0.2 }, 50.75);
+      tl.set("#st2", { opacity: 1 }, 46.00);
+      tl.fromTo("#st2 .sb", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.5, ease: "power3.out" }, 46.00);
+      tl.fromTo("#st2 .ss", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3 }, 46.25);
+      tl.to("#st2", { opacity: 0, duration: 0.2 }, 50.75);
+      tl.set("#st3", { opacity: 1 }, 47.20);
+      tl.fromTo("#st3 .sb", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.5, ease: "power3.out" }, 47.20);
+      tl.fromTo("#st3 .ss", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3 }, 47.45);
+      tl.to("#st3", { opacity: 0, duration: 0.2 }, 50.75);
+      tl.set("#end", { opacity: 1 }, 51);
+      tl.fromTo(".elogo", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.45, ease: "back.out(1.6)" }, 51);
+      tl.fromTo(".ew", { opacity: 0, clipPath: "inset(0 50% 0 50%)" }, { opacity: 1, clipPath: "inset(0 0% 0 0%)", duration: 0.5, ease: "power3.out" }, 51.3);
+      tl.fromTo(".ecta, .eos, .eurl", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.22, stagger: 0.12 }, 51.7);
+      window.__timelines["film"] = tl;
+    })();
+  </script>
+</template>

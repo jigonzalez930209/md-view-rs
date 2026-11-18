@@ -1,0 +1,101 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; font-family: Inter, sans-serif; }
+    .panel { position: absolute; overflow: hidden; opacity: 0; }
+    
+    #root { background: #0d1117; }
+    .cap { position: absolute; left: 120px; top: 300px; width: 768px; font-size: 80px; font-weight: 900; letter-spacing: -0.035em; line-height: 1.02; color: #ffffff; opacity: 0; }
+    .cap .ln { white-space: nowrap; }
+    .cap span { display: inline-block; }
+    .cap .ln:last-child span { color: #4c9bff; }
+    .lbl { position: absolute; left: 120px; font-size: 30px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #e8336d; opacity: 0; }
+    .panel { box-shadow: 0 24px 60px rgba(0,0,0,0.55); outline: 1px solid #30363d; }
+    .end { position: absolute; inset: 0; background: #ffffff; opacity: 0; }
+    .elogo { position: absolute; left: 120px; top: 330px; width: 200px; height: 200px; }
+    .ew, .ecta, .eos, .eurl { position: absolute; left: 120px; white-space: nowrap; }
+    .ew { top: 560px; font-size: 150px; font-weight: 900; letter-spacing: -0.045em; line-height: 1.1; color: #0a1220; }
+    .ecta { top: 880px; font-size: 52px; font-weight: 800; color: #0a1220; }
+    .eos { top: 960px; font-size: 40px; font-weight: 500; color: #3b4658; }
+    .eurl { top: 1150px; width: 660px; font-family: "JetBrains Mono", monospace; font-size: 28px; line-height: 1.3; white-space: normal; color: #0b5cb8; }
+
+  </style>
+  <div id="root" data-composition-id="film" data-width="1080" data-height="1920">
+    <div id="film-stage" style="position:absolute; inset:0; overflow:hidden" data-layout-allow-overflow data-layout-allow-overlap data-layout-allow-occlusion>
+      <div class="lbl" id="lbl-src" style="top:560px">LaTeX</div>
+      <div id="h-src" class="panel" style="left:30.0px; top:604.0px; width:1020.6px; height:94.0px; border-radius:18px; "><video id="h-src-v" class="clip" style="position:absolute; left:-511.9px; top:-706.3px; width:3110.4px; height:1620.0px" data-start="0.000" data-duration="7.000" data-media-start="3.451" data-track-index="1" muted playsinline src="assets/cap/dark/eq-hover.mp4"></video></div>
+      <div class="lbl" id="lbl-out" style="top:730px">what it draws</div>
+      <div id="h-out" class="panel" style="left:28.0px; top:774.0px; width:1023.8px; height:534.6px; border-radius:18px; "><video id="h-out-v" class="clip" style="position:absolute; left:-1574.6px; top:-729.0px; width:3110.4px; height:1620.0px" data-start="0.000" data-duration="7.000" data-media-start="3.451" data-track-index="2" muted playsinline src="assets/cap/dark/eq-hover.mp4"></video></div>
+      <div class="lbl" id="lbl-pal" style="top:560px">blocks</div>
+      <div id="b-pal" class="panel" style="left:25.0px; top:604.0px; width:1029.6px; height:66.6px; border-radius:14px; "><video id="b-pal-v" class="clip" style="position:absolute; left:-328.6px; top:-245.4px; width:1996.8px; height:1040.0px" data-start="7.000" data-duration="5.500" data-media-start="0.900" data-track-index="3" muted playsinline src="assets/cap/dark/eq-build.mp4"></video></div>
+      <div id="b-src" class="panel" style="left:30.0px; top:704.0px; width:1020.6px; height:48.6px; border-radius:14px; "><video id="b-src-v" class="clip" style="position:absolute; left:-511.9px; top:-706.3px; width:3110.4px; height:1620.0px" data-start="7.000" data-duration="5.500" data-media-start="0.900" data-track-index="4" muted playsinline src="assets/cap/dark/eq-build.mp4"></video></div>
+      <div id="b-out" class="panel" style="left:28.0px; top:790.0px; width:1023.8px; height:534.6px; border-radius:18px; "><video id="b-out-v" class="clip" style="position:absolute; left:-1574.6px; top:-729.0px; width:3110.4px; height:1620.0px" data-start="7.000" data-duration="5.500" data-media-start="0.900" data-track-index="5" muted playsinline src="assets/cap/dark/eq-build.mp4"></video></div>
+      <div id="g-pop" class="panel" style="left:87.8px; top:560.0px; width:904.4px; height:1047.2px; border-radius:18px; "><video id="g-pop-v" class="clip" style="position:absolute; left:-1150.8px; top:-218.4px; width:2688.0px; height:1400.0px" data-start="12.500" data-duration="3.000" data-media-start="1.550" data-track-index="6" muted playsinline src="assets/cap/dark/eq-gallery.mp4"></video></div>
+      <div id="m0" class="panel" style="left:40.0px; top:600.0px; width:1000.0px; height:520.8px; border-radius:16px; "><img style="position:absolute; left:0.0px; top:0.0px; width:1000.0px; height:520.8px" src="assets/cap/dark/01-view-top.png" alt="" /></div>
+      <div id="m1" class="panel" style="left:40.0px; top:600.0px; width:1000.0px; height:520.8px; border-radius:16px; "><img style="position:absolute; left:0.0px; top:0.0px; width:1000.0px; height:520.8px" src="assets/cap/dark/11-split-top.png" alt="" /></div>
+      <div id="m2" class="panel" style="left:40.0px; top:600.0px; width:1000.0px; height:520.8px; border-radius:16px; "><img style="position:absolute; left:0.0px; top:0.0px; width:1000.0px; height:520.8px" src="assets/cap/dark/14-palette-mode.png" alt="" /></div>
+      <div id="m3" class="panel" style="left:40.0px; top:600.0px; width:1000.0px; height:520.8px; border-radius:16px; "><img style="position:absolute; left:0.0px; top:0.0px; width:1000.0px; height:520.8px" src="assets/cap/dark/16-search.png" alt="" /></div>
+      <div class="cap" id="cap0"><div class="ln"><span>What</span> <span>does</span></div><div class="ln"><span>this</span> <span>LaTeX</span> <span>draw?</span></div></div>
+      <div class="cap" id="cap1"><div class="ln"><span>Point</span> <span>at</span> <span>it.</span></div><div class="ln"><span>It</span> <span>lights</span> <span>up.</span></div></div>
+      <div class="cap" id="cap2"><div class="ln"><span>Build</span> <span>it</span></div><div class="ln"><span>from</span> <span>blocks.</span></div></div>
+      <div class="cap" id="cap3"><div class="ln"><span>Or</span> <span>start</span></div><div class="ln"><span>from</span> <span>a</span> <span>classic.</span></div></div>
+      <div class="cap" id="cap4"><div class="ln"><span>Markdown.</span></div><div class="ln"><span>Native.</span> <span>Fast.</span></div></div>
+      <div class="end" id="end">
+        <img class="elogo" src="assets/images/logo.png" alt="MD View app icon" />
+        <div class="ew">MD View</div>
+        <div class="ecta">Free &amp; open source</div>
+        <div class="eos">macOS · Windows · Linux</div>
+        <div class="eurl">github.com/<br />jigonzalez930209/md-view-rs</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const tl = gsap.timeline({ paused: true });
+      
+      tl.set("#h-src", { opacity: 1 }, 0.00);
+      tl.set("#h-out", { opacity: 1 }, 0.00);
+      tl.set("#lbl-src, #lbl-out", { opacity: 1 }, 0);
+      tl.set("#h-src", { opacity: 0 }, 7.00);
+      tl.set("#h-out", { opacity: 0 }, 7.00);
+      tl.set("#lbl-src, #lbl-out", { opacity: 0 }, 7.00);
+      tl.set("#b-pal", { opacity: 1 }, 7.00);
+      tl.set("#b-pal", { opacity: 0 }, 12.50);
+      tl.set("#b-src", { opacity: 1 }, 7.00);
+      tl.set("#b-src", { opacity: 0 }, 12.50);
+      tl.set("#b-out", { opacity: 1 }, 7.00);
+      tl.set("#b-out", { opacity: 0 }, 12.50);
+      tl.set("#lbl-pal", { opacity: 1 }, 7.00);
+      tl.set("#lbl-pal", { opacity: 0 }, 12.50);
+      tl.fromTo("#g-pop", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, 12.50);
+      tl.set("#g-pop", { opacity: 0 }, 15.50);
+      tl.set("#m0", { opacity: 1 }, 15.50);
+      tl.set("#m0", { opacity: 0 }, 16.25);
+      tl.set("#m1", { opacity: 1 }, 16.25);
+      tl.set("#m1", { opacity: 0 }, 17.00);
+      tl.set("#m2", { opacity: 1 }, 17.00);
+      tl.set("#m2", { opacity: 0 }, 17.75);
+      tl.set("#m3", { opacity: 1 }, 17.75);
+      tl.set("#m3", { opacity: 0 }, 18.50);
+      tl.set("#cap0", { opacity: 1 }, 0);
+      tl.to("#cap0", { opacity: 0, filter: "blur(8px)", duration: 0.14, ease: "power2.in" }, 3.36);
+      tl.set("#cap1", { opacity: 1 }, 3.50);
+      tl.fromTo("#cap1 span", { opacity: 0, filter: "blur(10px)", y: 18 }, { opacity: 1, filter: "blur(0px)", y: 0, duration: 0.22, ease: "power3.out", stagger: 0.06 }, 3.50);
+      tl.to("#cap1", { opacity: 0, filter: "blur(8px)", duration: 0.14, ease: "power2.in" }, 6.86);
+      tl.set("#cap2", { opacity: 1 }, 7.00);
+      tl.fromTo("#cap2 span", { opacity: 0, filter: "blur(10px)", y: 18 }, { opacity: 1, filter: "blur(0px)", y: 0, duration: 0.22, ease: "power3.out", stagger: 0.06 }, 7.00);
+      tl.to("#cap2", { opacity: 0, filter: "blur(8px)", duration: 0.14, ease: "power2.in" }, 12.36);
+      tl.set("#cap3", { opacity: 1 }, 12.50);
+      tl.fromTo("#cap3 span", { opacity: 0, filter: "blur(10px)", y: 18 }, { opacity: 1, filter: "blur(0px)", y: 0, duration: 0.22, ease: "power3.out", stagger: 0.06 }, 12.50);
+      tl.to("#cap3", { opacity: 0, filter: "blur(8px)", duration: 0.14, ease: "power2.in" }, 15.36);
+      tl.set("#cap4", { opacity: 1 }, 15.50);
+      tl.fromTo("#cap4 span", { opacity: 0, filter: "blur(10px)", y: 18 }, { opacity: 1, filter: "blur(0px)", y: 0, duration: 0.22, ease: "power3.out", stagger: 0.06 }, 15.50);
+      tl.to("#cap4", { opacity: 0, filter: "blur(8px)", duration: 0.14, ease: "power2.in" }, 18.36);
+      tl.set("#end", { opacity: 1 }, 18.5);
+      tl.fromTo("#end", { clipPath: "inset(100% 0 0 0)" }, { clipPath: "inset(0% 0 0 0)", duration: 0.45, ease: "power3.inOut" }, 18.5);
+      tl.fromTo(".elogo", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(1.6)" }, 18.85);
+      tl.fromTo(".ew", { opacity: 0, clipPath: "inset(0 50% 0 50%)" }, { opacity: 1, clipPath: "inset(0 0% 0 0%)", duration: 0.45, ease: "power3.out" }, 19.1);
+      tl.fromTo(".ecta, .eos, .eurl", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, stagger: 0.12 }, 19.45);
+      window.__timelines["film"] = tl;
+    })();
+  </script>
+</template>
