@@ -87,42 +87,6 @@ def js(d):
     return "{ " + ", ".join(f"{k}: {v}" for k, v in d.items()) + " }"
 
 
-# Outlines + tags: id, group ("doc" = page coords, "win" = window coords), rect, label, framing scale.
-MARKS = [
-    ("explorer", "win", (6, 104, 312, 750), "explorer", 0.85),
-    ("table", "doc", (238, 878, 742, 366), "table", 0.85),
-    ("tasks", "doc", (238, 1314, 872, 100), "task list", 0.85),
-    ("latex", "doc", (238, 1744, 770, 214), "LaTeX", 0.85),
-    ("mermaid", "doc", (440, 2744, 718, 104), "mermaid", 0.85),
-    ("alert", "doc", (238, 3396, 1120, 104), "alert", 0.85),
-    ("find", "edit", (1200, 175, 690, 72), "regex", 1.0),
-    ("src", "split", (330, 104, 784, 858), "source", 0.49),
-    ("pre", "split", (1120, 104, 792, 858), "preview", 0.49),
-    ("pal", "cmd", (518, 198, 884, 604), "Ctrl+Shift+P", 0.72),
-    ("srch", "cmd", (554, 176, 814, 44), "Ctrl+Shift+F", 0.75),
-    ("thm", "cmd", (1146, 346, 258, 318), "9 themes", 0.7),
-    ("gal", "eq", (822, 156, 646, 748), "Σ gallery", 0.66),
-    ("hov", "eq", (316, 436, 630, 58), "hover the LaTeX", 0.74),
-    ("pv", "eq", (970, 438, 636, 344), "live preview", 0.74),
-]
-
-
-def mark_html(k, group):
-    out = []
-    for mid, g, (x, y, w, h), label, s in MARKS:
-        if g != group:
-            continue
-        bw = 4 / s
-        fs = 30 / s
-        side = f"right:{-bw:.1f}px" if g == "doc" else f"left:{-bw:.1f}px"
-        rad = f"{8 / s:.1f}px {8 / s:.1f}px 0 {8 / s:.1f}px" if g == "doc" else f"{8 / s:.1f}px {8 / s:.1f}px {8 / s:.1f}px 0"
-        out.append(
-            f'<div class="mk mk-{mid}" style="left:{x}px; top:{y}px; width:{w}px; height:{h}px; border-width:{bw:.1f}px">'
-            f'<div class="tg" style="font-size:{fs:.1f}px; padding:{8 / s:.1f}px {14 / s:.1f}px; top:{-fs * 1.0 - 16 / s - bw:.1f}px; {side}; border-radius:{rad}">{label}</div></div>'
-        )
-    return "".join(out)
-
-
 def flip(theme, name, fid, start, duration, media_start, fps, width):
     images, steps = flipbook(theme, name, fid, start, duration, media_start, fps, width)
     FLIPS[(theme, fid)] = steps
@@ -153,10 +117,8 @@ def card(k):
               <div class="docclip" style="left:{dx}px; top:{dy}px; width:{dw}px; height:{dh}px">
                 <div class="doc">
                   <img src="{cap}/doc-tall.png" alt="" style="width:1572px; height:3744px" />
-                  {mark_html(k, 'doc')}
                 </div>
               </div>
-              {mark_html(k, 'win')}
             </div>
             {strokes}
           </div>
@@ -164,18 +126,15 @@ def card(k):
             <img class="win e-07" src="{cap}/07-edit-top.png" alt="MD View editor, {k} theme" />
             <img class="win e-08" src="{cap}/08b-find-regex.png" alt="Regex find, {k} theme" />
             <img class="win e-09" src="{cap}/09-replace.png" alt="Find and replace, {k} theme" />
-            {mark_html(k, 'edit')}
           </div>
           <div class="grp g-split">
             <img class="win" src="{cap}/11-split-top.png" alt="MD View split view, {k} theme" />
             {flip(k, "split-scroll", "sp", 21.0, 4.5, 0.333, 30, 960)}
-            {mark_html(k, 'split')}
           </div>
           <div class="grp g-eq">
             <img class="win q-02" src="{cap}/eq-02-edit.png" alt="Equation buttons in the formatting bar, {k} theme" />
             <img class="win q-03" src="{cap}/eq-03-gallery.png" alt="Equation gallery, {k} theme" />
             {flip(k, "eq-hover", "eh", EQ_AT + 2.0, EQ_LEN - 2.0, video_time(k, "eq-hover", "dialog") - 0.2, 30, 1420)}
-            {mark_html(k, 'eq')}
           </div>
           <div class="g-cmd">
             <img class="win c-13" src="{cap}/13-palette.png" alt="Command palette, {k} theme" />
@@ -183,7 +142,6 @@ def card(k):
             <img class="win c-16" src="{cap}/16-search.png" alt="Workspace search, {k} theme" />
             <img class="win c-17" src="{cap}/17-settings.png" alt="Settings, {k} theme" />
             <img class="win c-17b" src="{cap}/17b-settings-themes.png" alt="Theme list, {k} theme" />
-            {mark_html(k, 'cmd')}
           </div>
         </div>
         <div class="scan"></div>
@@ -248,16 +206,6 @@ def move(name, t, d=0.6, ease="power3.inOut"):
     a(f'tl.to(".cam", {{ ...{js(cam(name))}, duration: {d}, ease: "{ease}" }}, {t});')
 
 
-def show_mark(mid, t):
-    a(f'tl.set(".mk-{mid}", {{ opacity: 1 }}, {t:.2f});')
-    a(f'tl.fromTo(".mk-{mid}", {{ clipPath: "inset(0 100% 100% 0)" }}, {{ clipPath: "inset(-200px -200px -200px -200px)", duration: 0.25, ease: "power2.out" }}, {t:.2f});')
-    a(f'tl.fromTo(".mk-{mid} .tg", {{ scale: 0.6, opacity: 0 }}, {{ scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.6)" }}, {t + 0.1:.2f});')
-
-
-def hide_mark(mid, t):
-    a(f'tl.to(".mk-{mid}", {{ opacity: 0, duration: 0.15, ease: "power1.in" }}, {t:.2f});')
-
-
 def sweep(group, t):
     a(f'tl.fromTo("{group}", {{ clipPath: "inset(0 0 100% 0)" }}, {{ clipPath: "inset(0 0 0% 0)", duration: 0.4, ease: "none" }}, {t});')
     a(f'tl.set(".scan", {{ opacity: 1, y: 0 }}, {t});')
@@ -267,61 +215,36 @@ def sweep(group, t):
 
 # ---- explorer
 move("side", 3.0)
-show_mark("explorer", 3.65)
-hide_mark("explorer", 5.35)
 # ---- reading tour: camera to the column, page scrolls in both cards
 move("doc", 5.5)
-STOPS = [(5.5, 715, ["table", "tasks"]), (8.0, 1421, ["latex"]), (10.5, 2551, ["mermaid"]), (13.0, 2880, ["alert"])]
-for t, y, marks in STOPS:
+STOPS = [(5.5, 715), (8.0, 1421), (10.5, 2551), (13.0, 2880)]
+for t, y in STOPS:
     a(f'tl.to(".doc", {{ y: {-y}, duration: 0.8, ease: "power2.inOut" }}, {t});')
-    for n, m in enumerate(marks):
-        show_mark(m, t + 0.85 + n * 0.35)
-nxt = {5.5: 7.85, 8.0: 10.35, 10.5: 12.85, 13.0: 14.85}
-for t, y, marks in STOPS:
-    for m in marks:
-        hide_mark(m, nxt[t])
 # ---- edit
 sweep(".g-edit", 15.0)
 move("full", 15.0)
 move("find", 17.5)
 a('tl.set(".e-08", { opacity: 1 }, 17.5);')
-show_mark("find", 18.1)
 a('tl.set(".e-09", { opacity: 1 }, 19.0);')
-hide_mark("find", 20.35)
 # ---- split
 sweep(".g-split", 20.5)
 move("full", 20.5)
-show_mark("src", 21.2)
-show_mark("pre", 21.45)
-hide_mark("src", 25.35)
-hide_mark("pre", 25.35)
 # ---- equations: the gallery, then the formula editor with the real hover recording
 sweep(".g-eq", EQ_AT)
 move("full", EQ_AT)
 a(f'tl.set(".q-03", {{ opacity: 1 }}, {EQ_AT + 0.6});')
 move("gallery", EQ_AT + 0.6)
-show_mark("gal", EQ_AT + 1.15)
-hide_mark("gal", EQ_AT + 1.85)
 move("dialog", EQ_AT + 2.0, 0.5)
-show_mark("hov", EQ_AT + 2.55)
-show_mark("pv", EQ_AT + 2.85)
-hide_mark("hov", EQ_AT + 5.85)
-hide_mark("pv", EQ_AT + 5.85)
 # ---- commands
 a('tl.set(".g-cmd", { opacity: 1 }, 31.5);')
 a('tl.set(".c-13", { opacity: 1 }, 31.5);')
 move("pal", 31.5, 0.5)
-show_mark("pal", 31.9)
 a('tl.set(".c-14", { opacity: 1 }, 32.5);')
-a('tl.set(".mk-pal", { opacity: 0 }, 32.5);')
 a('tl.set(".c-16", { opacity: 1 }, 34);')
 move("search", 34, 0.5)
-show_mark("srch", 34.4)
-hide_mark("srch", 36.35)
 a('tl.set(".c-17", { opacity: 1 }, 36.5);')
 move("set", 36.5, 0.5)
 a('tl.set(".c-17b", { opacity: 1 }, 37.5);')
-show_mark("thm", 37.6)
 a('tl.to(".cam", { opacity: 0, duration: 0.25, ease: "power1.in" }, 38.72);')
 
 # Build the cards first: they register the flipbook steps the timeline needs.
@@ -351,8 +274,6 @@ app = f"""<template>
     .grp {{ clip-path: inset(0 0 100% 0); }}
     .g-cmd {{ opacity: 0; }}
     .e-08, .e-09, .c-13, .c-14, .c-16, .c-17, .c-17b, .q-03 {{ opacity: 0; }}
-    .mk {{ position: absolute; border-style: solid; border-color: {ACCENT}; border-radius: 8px; opacity: 0; }}
-    .tg {{ position: absolute; background: {ACCENT}; color: #ffffff; font-weight: 800; letter-spacing: -0.01em; line-height: 1; white-space: nowrap; transform-origin: 0 100%; }}
     .scan {{ position: absolute; left: 0; top: 0; width: {CARD_W}px; height: 4px; background: {ACCENT}; opacity: 0; }}
     .edge {{ position: absolute; background: #ffffff; }}
     .e-top {{ left: 0; top: 0; width: 100%; height: 4px; transform-origin: 0 50%; }}
@@ -465,9 +386,6 @@ for i in range(5):
     s(f"sfx-reg{i}", 0.6 + i * 0.15 - 0.04, "click" if i % 2 == 0 else "key-press", 0.45, 0.14, 12)
 s("sfx-type", 0.9, "typing", 0.35, 1.4, 14)
 s("sfx-resolve", 2.18, "pop", 0.4, 0.7, 12)
-for i, t in enumerate([3.65, 6.35, 6.7, 8.85, 11.35, 13.85, 18.1, 21.2, EQ_AT + 1.15, EQ_AT + 2.55, EQ_AT + 2.85,
-                       later(25.9), later(28.4), later(31.6)]):
-    s(f"sfx-tag{i}", t + 0.06, "click-soft" if i % 2 == 0 else "key-press", 0.4, 0.2, 13)
 for i, t in enumerate([15.0, 20.5, EQ_AT]):
     s(f"sfx-sweep{i}", t + 0.04, "whoosh-short", 0.3, 0.57, 12)
 for i, t in enumerate([EQ_AT + 0.6, EQ_AT + 2.0, later(25.5), later(28.0), later(30.5)]):

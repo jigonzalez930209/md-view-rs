@@ -31,3 +31,11 @@ Rendered `../out/linkedin-4x5.mp4`: 1080 × 1350, 44.0 s, with the equations sec
 
 Checked frames from the render: 2.5, 7.2, 23 (both themes mid-scroll at the same line), 26.9
 (gallery), 28.6 and 30.6 (ħ, then ∂/∂t lit in both themes), 37.9, 43.5.
+
+## No pointing (2026-11-18)
+
+Removed the outlines, tags and the click per tag (`sfx-tag*`): nothing points at the screen;
+the captions name each feature. `check`: 0 errors, the same 2 warnings.
+Rendered `../out/linkedin-4x5.mp4`: 1080 × 1350, 44.0 s, −15.7 LUFS, −1.2 dBFS peak (measured,
+not heard). Checked frames 4.5, 7.2, 9.5, 14, 18.6, 23, 26.8, 29.5, 32.2, 35, 38.2, 43.75 in
+the preview and 7.2, 23, 38 from the render: no outline or tag left.
