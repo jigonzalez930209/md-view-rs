@@ -129,7 +129,19 @@ impl MaterialIcons {
         {
             return id;
         }
-        self.manifest.file.clone()
+        // Formats the icon theme does not list still get the icon of the viewer that opens them.
+        let viewer = if mdview_media::is_image_path(path) {
+            Some("image")
+        } else if mdview_media::is_video_path(path) {
+            Some("video")
+        } else if mdview_table::is_table_path(path) {
+            Some("table")
+        } else {
+            None
+        };
+        viewer
+            .filter(|id| self.manifest.definitions.contains_key(*id))
+            .map_or_else(|| self.manifest.file.clone(), str::to_owned)
     }
 
     /// Resolve the icon id for a folder name.
@@ -280,6 +292,22 @@ mod tests {
             icons.folder_icon("src", true, false, true)
         );
         assert_eq!(icons.folder_icon("whatever", false, true, true), "folder-root");
+    }
+
+    #[test]
+    fn formats_missing_from_the_theme_use_their_viewer_icon() {
+        let icons = MaterialIcons::new();
+        for name in ["anim.apng", "photo.qoi", "sky.hdr", "raw.pam", "pixels.ff", "old.dib"] {
+            assert_eq!(icons.file_icon(Path::new(name), true), "image", "{name}");
+        }
+        assert_eq!(icons.file_icon(Path::new("broadcast.m2ts"), true), "video");
+        assert_eq!(icons.file_icon(Path::new("phone.3gp"), true), "video");
+        assert_eq!(icons.file_icon(Path::new("data.ssv"), true), "table");
+        assert_eq!(
+            icons.file_icon(Path::new("index.ts"), true),
+            "typescript",
+            "the theme wins"
+        );
     }
 
     #[test]
