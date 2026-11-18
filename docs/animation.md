@@ -10,26 +10,34 @@ rasterizes that frame with `resvg`. Static SVG already uses the same parser and 
 
 | Feature | Details |
 |---|---|
-| `<animate>` | `opacity`, `fill`, `stroke`, `x`, `y`, `width`, `height`, `cx`, `cy`, `r` |
-| `<animateTransform>` | `translate`, `scale`, `rotate` (the values keep their extra arguments) |
-| `<set>` | Supported attributes, applied from `begin` onward |
-| Timing | `begin`, `dur` (`s`, `ms`), `repeatCount` (`indefinite` or a number) |
-| Interpolation | linear and discrete; `keyTimes`; numeric and `#rrggbb` color interpolation |
+| `<animate>` | Any attribute whose values are numbers, number lists (`stroke-dasharray`, `points`, `viewBox`), path data with the same command shape (morphing), or colors: `opacity`, `fill`, `stroke`, `stroke-width`, `stroke-dashoffset`, geometry (`x`, `y`, `width`, `height`, `cx`, `cy`, `r`, `rx`, `ry`, `x1`…`y2`), and so on |
+| `<animateTransform>` | `translate`, `scale`, `rotate`, `skewX`, `skewY` (the values keep their extra arguments) |
+| `<animateMotion>` | Along `path`, an `<mpath href="#id">`, or `values`/`from`/`to` points; `rotate="auto"`, `"auto-reverse"`, or an angle; applied in front of the element's own transform |
+| `<set>` | Any attribute, applied from `begin` onward |
+| Timing | `begin`, `dur` (`s`, `ms`), `repeatCount` (`indefinite` or a number), `fill="freeze"` (otherwise the value is removed after the end, and before `begin` the element keeps its own value, as in browsers) |
+| Interpolation | linear, discrete, and spline (`calcMode="spline"` with `keySplines`); `keyTimes`; colors as `#rgb`, `#rrggbb`, `rgb()`, or common names |
 
 ### CSS
 
 - `@keyframes` with percentage, `from`, and `to` selectors.
-- `opacity`, `fill`, `stroke`, and `transform` declarations.
-- Element `style="animation: name 2s infinite"` and simple class or ID rules:
-  `.name { animation: ... }` / `#name { animation: ... }`.
+- Properties: `opacity`, `fill`, `stroke`, `transform`, `fill-opacity`, `stroke-opacity`,
+  `stroke-width`, `stroke-dashoffset`, and `stroke-dasharray`.
+- The `animation` shorthand in any order (first time = duration, second = delay, a number = the
+  iteration count, `infinite`, `normal`/`reverse`/`alternate`/`alternate-reverse`,
+  `forwards`/`both`, and timing functions), plus the `animation-name`, `-duration`, `-delay`,
+  `-iteration-count`, `-direction`, `-timing-function`, and `-fill-mode` longhands.
+- Timing functions: `linear`, `ease` (the default), `ease-in`, `ease-out`, `ease-in-out`,
+  `cubic-bezier()`, `steps()`, `step-start`, `step-end`.
+- Inline `style`, and class, ID, and element-name rules; the first of several comma-separated
+  animations plays.
 - No transitions, `:hover`, events, media queries, or external stylesheets.
 
 ### Not supported
 
-`animateMotion`, `animateColor`, `discard`, `mpath`, path morphing, event-based timing, script,
-`foreignObject`, and external resources. A document that mixes an unsupported feature with a
-supported clip shows the first frame with an “Animation not fully supported” badge; the document
-does not break.
+`animateColor`, `discard`, `keyPoints`, `additive="sum"`, `accumulate="sum"`, event-based timing,
+script, `foreignObject`, and external resources. A document that uses one of them still plays
+its supported clips and shows an “Animation not fully supported” badge; the document does not
+break.
 
 ## Playback
 

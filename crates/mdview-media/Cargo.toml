@@ -25,6 +25,7 @@ resvg.workspace = true
 thiserror.workspace = true
 ureq.workspace = true
 usvg.workspace = true
+svgtypes.workspace = true
 
 [lints]
 workspace = true

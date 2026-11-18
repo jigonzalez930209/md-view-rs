@@ -35,7 +35,7 @@ The 1.0.0-rc.5 release candidate covers the following surface. The repository's
 | PDF viewer (continuous pages, zoom, page navigation) | Yes |
 | Video viewer with audio (needs FFmpeg installed) | Yes |
 | Cached remote images | Yes |
-| Animated SVG subset | Yes |
+| Animated SVG (SMIL motion, splines, CSS keyframes with easing) | Yes |
 | Image zoom, pan, fit, lightbox | Yes |
 
 ## Editor

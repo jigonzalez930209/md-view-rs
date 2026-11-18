@@ -3,38 +3,47 @@
 use super::*;
 
 impl Clip {
+    /// The value at `time`, or `None` when the clip does not apply and the element keeps its
+    /// own value: before `begin`, and after the active duration unless the clip freezes.
     pub(super) fn value_at(&self, time: f32) -> Option<String> {
         let local = time - self.begin;
         if local < 0.0 {
-            return if self.set_like {
-                None
-            } else {
-                self.values.first().cloned()
-            };
+            return None;
         }
         if self.set_like {
             return self.values.first().cloned();
         }
-        let cycle = match &self.repeat {
-            Repeat::Once => {
-                if local > self.duration {
-                    return self.values.last().cloned();
-                }
-                local
-            }
-            Repeat::Count(count) => {
-                let total = self.duration * *count as f32;
-                if local >= total {
-                    return self.values.last().cloned();
-                }
-                local % self.duration
-            }
-            Repeat::Indefinite => local % self.duration.max(0.001),
+        let duration = self.duration.max(0.001);
+        let iterations = match &self.repeat {
+            Repeat::Once => Some(1.0),
+            Repeat::Count(count) => Some(*count as f32),
+            Repeat::Indefinite => None,
         };
-        if self.duration <= 0.0 || self.values.len() == 1 {
-            return self.values.last().cloned();
+        let (iteration, cycle) = match iterations {
+            Some(count) if local > duration * count => {
+                if !self.freeze {
+                    return None;
+                }
+                (count.ceil() as u32 - 1, 1.0)
+            }
+            // The end of an iteration shows its last value, not the next iteration's first.
+            Some(count) if local >= duration * count => (count.ceil() as u32 - 1, 1.0),
+            _ => ((local / duration).floor() as u32, (local % duration) / duration),
+        };
+        let reversed = match self.direction {
+            Direction::Normal => false,
+            Direction::Reverse => true,
+            Direction::Alternate => iteration % 2 == 1,
+            Direction::AlternateReverse => iteration % 2 == 0,
+        };
+        let progress = if reversed { 1.0 - cycle } else { cycle }.clamp(0.0, 1.0);
+        if let Property::Motion(path, rotate) = &self.property {
+            let eased = self.easing.first().map_or(progress, |easing| easing.apply(progress));
+            return Some(path.transform(eased, *rotate));
         }
-        let progress = (cycle / self.duration).clamp(0.0, 1.0);
+        if self.values.len() == 1 {
+            return self.values.first().cloned();
+        }
         let times = if self.key_times.len() == self.values.len() {
             self.key_times.clone()
         } else {
@@ -42,16 +51,16 @@ impl Clip {
                 .map(|index| index as f32 / (self.values.len() - 1) as f32)
                 .collect()
         };
-        let mut segment = 0;
+        if matches!(self.calc, CalcMode::Discrete) {
+            let index = ((progress * self.values.len() as f32).floor() as usize).min(self.values.len() - 1);
+            return Some(self.values[index].clone());
+        }
+        let mut segment = times.len().saturating_sub(2);
         for index in 0..times.len().saturating_sub(1) {
             if progress >= times[index] && progress <= times[index + 1] {
                 segment = index;
                 break;
             }
-        }
-        if matches!(self.calc, CalcMode::Discrete) {
-            let index = ((progress * self.values.len() as f32).floor() as usize).min(self.values.len() - 1);
-            return Some(self.values[index].clone());
         }
         let start = times[segment];
         let end = times[segment + 1];
@@ -60,12 +69,18 @@ impl Clip {
         } else {
             0.0
         };
+        // SMIL gives one spline per segment; CSS gives one timing function for all of them.
+        let easing = self
+            .easing
+            .get(segment)
+            .or_else(|| (self.easing.len() == 1).then(|| &self.easing[0]));
+        let fraction = easing.map_or(fraction, |easing| easing.apply(fraction));
         Some(interpolate(&self.values[segment], &self.values[segment + 1], fraction))
     }
 }
 
 fn interpolate(from: &str, to: &str, fraction: f32) -> String {
-    if let (Some(from), Some(to)) = (parse_hex_color(from), parse_hex_color(to)) {
+    if let (Some(from), Some(to)) = (super::easing::parse_color(from), super::easing::parse_color(to)) {
         let mix = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * fraction).round() as u8;
         return format!(
             "#{:02x}{:02x}{:02x}",
@@ -124,17 +139,4 @@ fn parts(value: &str) -> Option<Vec<Part>> {
         result.push(Part::Text(text));
     }
     Some(result)
-}
-
-fn parse_hex_color(value: &str) -> Option<[u8; 3]> {
-    let value = value.trim();
-    let hex = value.strip_prefix('#')?;
-    if hex.len() != 6 {
-        return None;
-    }
-    Some([
-        u8::from_str_radix(&hex[0..2], 16).ok()?,
-        u8::from_str_radix(&hex[2..4], 16).ok()?,
-        u8::from_str_radix(&hex[4..6], 16).ok()?,
-    ])
 }

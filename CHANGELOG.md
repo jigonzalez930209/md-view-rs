@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Animated SVG covers much more of what icons and loaders use: `animateMotion` along a path or an
+  `<mpath>` with `rotate="auto"`, line drawing with `stroke-dashoffset`, `fill="freeze"`, spline
+  easing with `keySplines`, colors as `#rgb`, `rgb()`, or names, and in CSS the delay, iteration
+  count, direction (`alternate`), fill mode, and timing functions (`ease` by default,
+  `cubic-bezier()`, `steps()`), with stroke widths, dashes, and opacities. Timing now matches
+  browsers: an element keeps its own value before an animation begins and after it ends unless
+  the animation freezes.
 - Video files (MP4, MOV, MKV, WebM, AVI, WMV, FLV, MPEG, TS, 3GP, OGV, and more) open in a
   viewer with play/pause (click or Space), a seek bar, ±5 s on the arrow keys, a time counter, and
   mute. Frames are decoded by the system FFmpeg off the UI thread at the view's resolution and

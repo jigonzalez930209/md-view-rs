@@ -90,3 +90,25 @@ fn remove_attribute(tag: &str, name: &str) -> String {
 fn escape(value: &str) -> String {
     value.replace('&', "&amp;").replace('"', "&quot;").replace('<', "&lt;")
 }
+
+/// The value of attribute `name` on a start tag, matching the whole name (so `transform` is
+/// not found inside `gradientTransform`).
+pub(super) fn get_attribute(tag: &str, name: &str) -> Option<String> {
+    let mut search = 0;
+    while let Some(found) = tag[search..].find(name) {
+        let start = search + found;
+        let before = tag[..start].chars().next_back();
+        let after = &tag[start + name.len()..];
+        let after = after.trim_start();
+        if before.is_some_and(char::is_whitespace)
+            && let Some(rest) = after.strip_prefix('=')
+        {
+            let rest = rest.trim_start();
+            let quote = rest.chars().next().filter(|c| *c == '"' || *c == '\'')?;
+            let value = &rest[1..];
+            return value.find(quote).map(|end| value[..end].to_owned());
+        }
+        search = start + name.len();
+    }
+    None
+}

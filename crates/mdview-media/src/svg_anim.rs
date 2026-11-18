@@ -4,18 +4,24 @@
 //! subset with `roxmltree`, then rewrites the animated attributes for a requested time before the
 //! SVG is rasterized. It does not execute scripts, events, transitions, or external resources.
 //!
-//! Supported SMIL attributes: `opacity`, `fill`, `stroke`, `transform`, `x`, `y`, `width`,
-//! `height`, `cx`, `cy`, `r`. Supported CSS properties: `opacity`, `fill`, `stroke`, `transform`.
-//! Supported timing: `begin`, `dur`, `repeatCount`, `keyTimes`, linear/discrete interpolation.
+//! SMIL `<animate>` drives any attribute with numbers, lists of numbers, path data of the same
+//! shape, or colors; `<animateTransform>` and `<animateMotion>` move elements; CSS `@keyframes`
+//! drive opacity, colors, stroke dashes and widths, and transforms. Timing covers `begin`, `dur`,
+//! `repeatCount`, `fill="freeze"`, `keyTimes`, `keySplines`, CSS delays, iteration counts,
+//! directions, and timing functions.
 
 use std::collections::BTreeMap;
 
 mod css;
+mod easing;
 mod eval;
+mod motion;
 mod tag;
 
 use css::parse_css;
-use tag::{set_attribute, start_tag_end};
+use easing::Easing;
+use motion::{MotionPath, Rotate};
+use tag::{get_attribute, set_attribute, start_tag_end};
 
 /// A parsed animation timeline.
 #[derive(Clone, Debug, PartialEq)]
@@ -43,6 +49,18 @@ impl Animation {
 enum Property {
     Attribute(String),
     Transform,
+    /// `animateMotion`: a supplemental translation (and rotation) along a path.
+    Motion(MotionPath, Rotate),
+}
+
+/// Which way successive iterations run (CSS `animation-direction`).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+enum Direction {
+    #[default]
+    Normal,
+    Reverse,
+    Alternate,
+    AlternateReverse,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -69,6 +87,11 @@ struct Clip {
     key_times: Vec<f32>,
     calc: CalcMode,
     set_like: bool,
+    /// Easing per segment (SMIL `keySplines`) or one curve for every segment (CSS).
+    easing: Vec<Easing>,
+    direction: Direction,
+    /// Keep the final value after the active duration (`fill="freeze"`, CSS `forwards`).
+    freeze: bool,
 }
 
 /// Parse animations from an SVG document. Returns `Ok(None)` when the SVG is static.
@@ -83,16 +106,17 @@ pub fn parse(svg: &str) -> Result<Option<Animation>, String> {
             "animate" => parse_animate(&node, &mut clips),
             "animateTransform" => parse_animate_transform(&node, &mut clips),
             "set" => parse_set(&node, &mut clips),
+            "animateMotion" => parse_animate_motion(&document, &node, &mut clips),
             _ => {}
         }
     }
     parse_css(&document, &mut clips);
     let unsupported = document.descendants().any(|node| {
         node.is_element()
-            && matches!(
-                node.tag_name().name(),
-                "animateMotion" | "animateColor" | "discard" | "mpath"
-            )
+            && (matches!(node.tag_name().name(), "animateColor" | "discard")
+                || node.attribute("keyPoints").is_some()
+                || node.attribute("additive") == Some("sum")
+                || node.attribute("accumulate") == Some("sum"))
     });
     if clips.is_empty() {
         return Ok(None);
@@ -150,6 +174,43 @@ fn parse_animate_transform(node: &roxmltree::Node<'_, '_>, clips: &mut Vec<Clip>
     push_clip(node, target, Property::Transform, values, clips);
 }
 
+fn parse_animate_motion(document: &roxmltree::Document<'_>, node: &roxmltree::Node<'_, '_>, clips: &mut Vec<Clip>) {
+    let Some(target) = node.parent() else {
+        return;
+    };
+    // An `<mpath href="#id">` child wins over the `path` attribute, which wins over `values`.
+    let referenced = node
+        .children()
+        .find(|child| child.has_tag_name("mpath"))
+        .and_then(|mpath| {
+            mpath
+                .attribute("href")
+                .or_else(|| mpath.attribute(("http://www.w3.org/1999/xlink", "href")))
+        })
+        .and_then(|href| href.strip_prefix('#'))
+        .and_then(|id| {
+            document
+                .descendants()
+                .find(|element| element.attribute("id") == Some(id))
+        })
+        .and_then(|element| element.attribute("d"));
+    let path = referenced
+        .or_else(|| node.attribute("path"))
+        .and_then(MotionPath::from_path_data)
+        .or_else(|| MotionPath::from_values(&values_of(node)));
+    let Some(path) = path else {
+        return;
+    };
+    let rotate = Rotate::parse(node.attribute("rotate"));
+    push_clip(
+        node,
+        target,
+        Property::Motion(path, rotate),
+        vec![String::new(), String::new()],
+        clips,
+    );
+}
+
 fn parse_set(node: &roxmltree::Node<'_, '_>, clips: &mut Vec<Clip>) {
     let Some(target) = node.parent() else {
         return;
@@ -172,6 +233,9 @@ fn parse_set(node: &roxmltree::Node<'_, '_>, clips: &mut Vec<Clip>) {
         key_times: Vec::new(),
         calc: CalcMode::Discrete,
         set_like: true,
+        easing: Vec::new(),
+        direction: Direction::Normal,
+        freeze: true,
     });
 }
 
@@ -202,6 +266,13 @@ fn push_clip(
         "discrete" => CalcMode::Discrete,
         _ => CalcMode::Linear,
     };
+    let easing = if node.attribute("calcMode") == Some("spline") {
+        node.attribute("keySplines")
+            .map(|splines| splines.split(';').filter_map(Easing::from_spline).collect())
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
     clips.push(Clip {
         target: target.range().start,
         property,
@@ -212,6 +283,9 @@ fn push_clip(
         key_times,
         calc,
         set_like: false,
+        easing,
+        direction: Direction::Normal,
+        freeze: node.attribute("fill") == Some("freeze"),
     });
 }
 
@@ -246,6 +320,7 @@ fn parse_time(value: &str) -> f32 {
 /// Produce the SVG for one animation time. Returns the source unchanged when no clip applies.
 pub fn frame_svg(svg: &str, animation: &Animation, time: f32) -> String {
     let mut patches: BTreeMap<usize, BTreeMap<String, String>> = BTreeMap::new();
+    let mut motions: BTreeMap<usize, String> = BTreeMap::new();
     for clip in &animation.clips {
         let Some(value) = clip.value_at(time) else {
             continue;
@@ -253,6 +328,10 @@ pub fn frame_svg(svg: &str, animation: &Animation, time: f32) -> String {
         let attribute = match &clip.property {
             Property::Attribute(name) => name.clone(),
             Property::Transform => "transform".to_owned(),
+            Property::Motion(..) => {
+                motions.insert(clip.target, value);
+                continue;
+            }
         };
         let entry = patches.entry(clip.target).or_default();
         if attribute == "transform" {
@@ -266,6 +345,19 @@ pub fn frame_svg(svg: &str, animation: &Animation, time: f32) -> String {
         } else {
             entry.insert(attribute, value);
         }
+    }
+    // Motion is supplemental: it goes in front of the element's own (or animated) transform.
+    for (target, motion) in motions {
+        let base = patches
+            .get(&target)
+            .and_then(|attributes| attributes.get("transform").cloned())
+            .or_else(|| start_tag_end(svg, target).and_then(|end| get_attribute(&svg[target..=end], "transform")))
+            .unwrap_or_default();
+        let combined = format!("{motion} {base}").trim().to_owned();
+        patches
+            .entry(target)
+            .or_default()
+            .insert("transform".to_owned(), combined);
     }
     let mut output = svg.to_owned();
     for (target, attributes) in patches.iter().rev() {
@@ -284,3 +376,6 @@ pub fn frame_svg(svg: &str, animation: &Animation, time: f32) -> String {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod extended_tests;

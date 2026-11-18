@@ -25,14 +25,13 @@ pub(super) fn parse_css(document: &roxmltree::Document<'_>, clips: &mut Vec<Clip
         if node.has_tag_name("style") {
             continue;
         }
-        let animation = element_animation(&node, &rules);
-        let Some((name, duration, repeat)) = animation else {
+        let Some(animation) = element_animation(&node, &rules) else {
             continue;
         };
-        let Some(frames) = keyframes.get(&name) else {
+        let Some(frames) = keyframes.get(&animation.name) else {
             continue;
         };
-        for property in ["opacity", "fill", "stroke", "transform"] {
+        for property in PROPERTIES {
             let mut values = Vec::new();
             let mut times = Vec::new();
             for (time, declarations) in frames {
@@ -46,28 +45,68 @@ pub(super) fn parse_css(document: &roxmltree::Document<'_>, clips: &mut Vec<Clip
             }
             clips.push(Clip {
                 target: node.range().start,
-                property: if property == "transform" {
+                property: if *property == "transform" {
                     Property::Transform
                 } else {
-                    Property::Attribute(property.to_owned())
+                    Property::Attribute((*property).to_owned())
                 },
                 values,
-                begin: 0.0,
-                duration,
-                repeat: repeat.clone(),
+                begin: animation.delay,
+                duration: animation.duration,
+                repeat: animation.repeat.clone(),
                 key_times: times,
                 calc: CalcMode::Linear,
                 set_like: false,
+                easing: vec![animation.easing],
+                direction: animation.direction,
+                freeze: animation.freeze,
             });
         }
     }
 }
 
-fn element_animation(node: &roxmltree::Node<'_, '_>, rules: &[(String, String)]) -> Option<(String, f32, Repeat)> {
-    let mut declarations = Vec::new();
-    if let Some(style) = node.attribute("style") {
-        declarations.push(style.to_owned());
+/// Properties CSS keyframes may animate.
+const PROPERTIES: &[&str] = &[
+    "opacity",
+    "fill",
+    "stroke",
+    "transform",
+    "fill-opacity",
+    "stroke-opacity",
+    "stroke-width",
+    "stroke-dashoffset",
+    "stroke-dasharray",
+];
+
+/// One element's CSS animation, from the shorthand and any longhands after it.
+#[derive(Clone, Debug, PartialEq)]
+struct CssAnimation {
+    name: String,
+    duration: f32,
+    delay: f32,
+    repeat: Repeat,
+    direction: Direction,
+    easing: Easing,
+    freeze: bool,
+}
+
+impl Default for CssAnimation {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            duration: 0.0,
+            delay: 0.0,
+            repeat: Repeat::Once,
+            direction: Direction::Normal,
+            // CSS's initial timing function is `ease`.
+            easing: Easing::Bezier(0.25, 0.1, 0.25, 1.0),
+            freeze: false,
+        }
     }
+}
+
+fn element_animation(node: &roxmltree::Node<'_, '_>, rules: &[(String, String)]) -> Option<CssAnimation> {
+    let mut bodies = Vec::new();
     let id = node.attribute("id");
     let classes = node
         .attribute("class")
@@ -83,40 +122,125 @@ fn element_animation(node: &roxmltree::Node<'_, '_>, rules: &[(String, String)])
             selector == node.tag_name().name()
         };
         if matches {
-            declarations.push(body.clone());
+            bodies.push(body.clone());
         }
     }
-    for declaration in declarations {
-        if let Some(animation) = animation_shorthand(&declaration) {
-            return Some(animation);
+    // The inline style wins, so it is applied last.
+    if let Some(style) = node.attribute("style") {
+        bodies.push(style.to_owned());
+    }
+    let mut animation = CssAnimation::default();
+    for body in bodies {
+        for (property, value) in parse_declarations(&body) {
+            apply_declaration(&mut animation, &property, &value);
         }
     }
-    None
+    (!animation.name.is_empty() && animation.name != "none").then(|| CssAnimation {
+        duration: animation.duration.max(0.001),
+        ..animation
+    })
 }
 
-fn animation_shorthand(declaration: &str) -> Option<(String, f32, Repeat)> {
-    let index = declaration
-        .find("animation:")
-        .or_else(|| declaration.find("animation-name:"))?;
-    let tail = &declaration[index..];
-    let value = tail.split(';').next()?.split(':').nth(1)?.trim();
-    if value.is_empty() || value == "none" {
-        return None;
+fn apply_declaration(animation: &mut CssAnimation, property: &str, value: &str) {
+    // Only the first of several comma-separated animations is played.
+    let value = first_layer(value);
+    match property {
+        "animation" => {
+            let mut times = Vec::new();
+            *animation = CssAnimation::default();
+            for token in tokens(value) {
+                if let Some(seconds) = css_time(&token) {
+                    times.push(seconds);
+                } else if !apply_keyword(animation, &token) {
+                    animation.name = token;
+                }
+            }
+            if let Some(duration) = times.first() {
+                animation.duration = *duration;
+            }
+            if let Some(delay) = times.get(1) {
+                animation.delay = *delay;
+            }
+        }
+        "animation-name" => animation.name = value.trim().to_owned(),
+        "animation-duration" => animation.duration = css_time(value.trim()).unwrap_or(animation.duration),
+        "animation-delay" => animation.delay = css_time(value.trim()).unwrap_or(0.0),
+        "animation-iteration-count" | "animation-direction" | "animation-fill-mode" | "animation-timing-function" => {
+            apply_keyword(animation, value.trim());
+        }
+        _ => {}
     }
-    let tokens = value.split_whitespace().collect::<Vec<_>>();
-    let name = tokens.first()?.to_string();
-    let mut duration = 2.0;
-    let mut repeat = Repeat::Once;
-    for token in &tokens[1..] {
-        if let Some(seconds) = token.strip_suffix("ms") {
-            duration = seconds.parse::<f32>().unwrap_or(2.0) / 1000.0;
-        } else if let Some(seconds) = token.strip_suffix('s') {
-            duration = seconds.parse::<f32>().unwrap_or(2.0);
-        } else if *token == "infinite" {
-            repeat = Repeat::Indefinite;
+}
+
+/// Apply a shorthand keyword; false when the token is not one (it is then the name).
+fn apply_keyword(animation: &mut CssAnimation, token: &str) -> bool {
+    if let Some(easing) = Easing::from_css(token) {
+        animation.easing = easing;
+        return true;
+    }
+    match token {
+        "infinite" => animation.repeat = Repeat::Indefinite,
+        "normal" => animation.direction = Direction::Normal,
+        "reverse" => animation.direction = Direction::Reverse,
+        "alternate" => animation.direction = Direction::Alternate,
+        "alternate-reverse" => animation.direction = Direction::AlternateReverse,
+        "forwards" | "both" => animation.freeze = true,
+        "none" | "backwards" | "running" | "paused" => {}
+        _ => match token.parse::<f32>() {
+            Ok(count) if count > 0.0 => animation.repeat = Repeat::Count(count.ceil() as u32),
+            _ => return false,
+        },
+    }
+    true
+}
+
+/// Split a shorthand on spaces outside parentheses, so `cubic-bezier(0, 0, 1, 1)` stays whole.
+fn tokens(value: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0;
+    for character in value.chars() {
+        match character {
+            '(' => {
+                depth += 1;
+                current.push(character);
+            }
+            ')' => {
+                depth -= 1;
+                current.push(character);
+            }
+            c if c.is_whitespace() && depth == 0 => {
+                if !current.is_empty() {
+                    out.push(std::mem::take(&mut current));
+                }
+            }
+            c => current.push(c),
         }
     }
-    Some((name, duration.max(0.001), repeat))
+    if !current.is_empty() {
+        out.push(current);
+    }
+    out
+}
+
+fn first_layer(value: &str) -> &str {
+    let mut depth = 0;
+    for (index, character) in value.char_indices() {
+        match character {
+            '(' => depth += 1,
+            ')' => depth -= 1,
+            ',' if depth == 0 => return &value[..index],
+            _ => {}
+        }
+    }
+    value
+}
+
+fn css_time(token: &str) -> Option<f32> {
+    if let Some(millis) = token.strip_suffix("ms") {
+        return millis.parse::<f32>().ok().map(|value| value / 1000.0);
+    }
+    token.strip_suffix('s')?.parse::<f32>().ok()
 }
 
 fn collect_keyframes(text: &str, out: &mut Keyframes) {
