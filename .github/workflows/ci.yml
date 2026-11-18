@@ -25,7 +25,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libxkbcommon-dev libwayland-dev libx11-dev libxi-dev \
-            libgl1-mesa-dev libxcursor-dev libxrandr-dev libxinerama-dev
+            libgl1-mesa-dev libxcursor-dev libxrandr-dev libxinerama-dev \
+            libasound2-dev
       # Unit, frame, and snapshot tests only; the Xvfb E2E suite runs locally (`cargo xtask e2e`).
       - name: Local gate
         run: cargo xtask ci

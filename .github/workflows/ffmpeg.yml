@@ -1,0 +1,62 @@
+name: FFmpeg
+
+# Builds the LGPL FFmpeg that release packages ship for the video viewer
+# (scripts/ffmpeg/build.sh). The release workflow calls it; it can also run on its own
+# to check the build on every platform before a release.
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          # Same distribution as the Linux release job, so the binaries need glibc 2.35.
+          - target: linux-x86_64
+            os: ubuntu-22.04
+          - target: windows-x86_64
+            os: ubuntu-22.04
+          - target: macos-arm64
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: target/ffmpeg-out/${{ matrix.target }}
+          key: ffmpeg-${{ matrix.target }}-${{ matrix.os }}-${{ hashFiles('scripts/ffmpeg/build.sh') }}
+      - name: Install build tools (Linux)
+        if: steps.cache.outputs.cache-hit != 'true' && runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm meson ninja-build pkg-config
+          if [ "${{ matrix.target }}" = windows-x86_64 ]; then
+            sudo apt-get install -y mingw-w64
+          fi
+      - name: Install build tools (macOS)
+        if: steps.cache.outputs.cache-hit != 'true' && runner.os == 'macOS'
+        run: brew install meson ninja nasm pkg-config
+      - name: Build FFmpeg
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: scripts/ffmpeg/build.sh ${{ matrix.target }} target/ffmpeg-out/${{ matrix.target }}
+      - name: Check the build
+        if: matrix.target != 'windows-x86_64'
+        run: |
+          OUT=target/ffmpeg-out/${{ matrix.target }}
+          "$OUT/ffmpeg" -hide_banner -version | head -1
+          "$OUT/ffmpeg" -hide_banner -buildconf | grep -q -- --disable-gpl
+          for clip in examples/v1-workspace/media/video/*; do
+            "$OUT/ffprobe" -v error -show_entries stream=codec_name -of csv=p=0 "$clip"
+            "$OUT/ffmpeg" -v error -nostdin -i "$clip" -an -frames:v 3 -f rawvideo -pix_fmt rgba - | wc -c
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-${{ matrix.target }}
+          path: target/ffmpeg-out/${{ matrix.target }}
+          if-no-files-found: error

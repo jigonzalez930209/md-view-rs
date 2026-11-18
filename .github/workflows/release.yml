@@ -19,10 +19,18 @@ env:
   TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 jobs:
+  ffmpeg:
+    uses: ./.github/workflows/ffmpeg.yml
+
   linux:
+    needs: ffmpeg
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-linux-x86_64
+          path: target/ffmpeg-out/linux-x86_64
       - uses: dtolnay/rust-toolchain@1.97.1
       # rust-cache keys only on "Linux", not the distro. Without a separate prefix this
       # job restores build scripts compiled by CI on ubuntu-latest (glibc 2.39), which
@@ -39,7 +47,7 @@ jobs:
           sudo apt-get install -y \
             libxkbcommon-dev libwayland-dev libx11-dev libxi-dev \
             libgl1-mesa-dev libxcursor-dev libxrandr-dev libxinerama-dev \
-            rpm
+            libasound2-dev rpm
       - name: Install appimagetool
         run: |
           curl -L --fail --silent --show-error \
@@ -49,6 +57,7 @@ jobs:
       - name: Build packages
         env:
           APPIMAGE_EXTRACT_AND_RUN: '1'
+          MDVIEW_FFMPEG_DIR: target/ffmpeg-out/linux-x86_64
           MDVIEW_UPDATE_BASE_URL: https://github.com/jigonzalez930209/md-view-rs/releases/download/${{ env.TAG }}
         run: |
           cargo xtask package
@@ -66,9 +75,14 @@ jobs:
             dist/sbom.cdx.json
 
   macos:
+    needs: ffmpeg
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-macos-arm64
+          path: target/ffmpeg-out/macos-arm64
       - uses: dtolnay/rust-toolchain@1.97.1
       - uses: Swatinem/rust-cache@v2
       - name: Build application and icons
@@ -85,6 +99,12 @@ jobs:
           cp target/release/mdview "$APP/Contents/MacOS/mdview"
           cp packaging/macos/Info.plist "$APP/Contents/Info.plist"
           cp assets/icons/mdview.icns "$APP/Contents/Resources/mdview.icns"
+          FFMPEG=target/ffmpeg-out/macos-arm64
+          for tool in ffmpeg ffprobe; do
+            install -m 755 "$FFMPEG/$tool" "$APP/Contents/MacOS/$tool"
+          done
+          mkdir -p "$APP/Contents/Resources/ffmpeg"
+          cp "$FFMPEG/BUILDINFO" "$FFMPEG"/licenses/* "$APP/Contents/Resources/ffmpeg/"
           plutil -replace CFBundleShortVersionString -string "1.0.0" "$APP/Contents/Info.plist"
           plutil -replace CFBundleVersion -string "1.0.0" "$APP/Contents/Info.plist"
           codesign --force --deep --sign - "$APP" || true
@@ -100,9 +120,14 @@ jobs:
             dist/*macOS-arm64.zip
 
   windows:
+    needs: ffmpeg
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-windows-x86_64
+          path: target/ffmpeg-out/windows-x86_64
       - uses: dtolnay/rust-toolchain@1.97.1
       - uses: Swatinem/rust-cache@v2
       - name: Build application and icons
@@ -113,7 +138,10 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          Compress-Archive -Path target/release/mdview.exe,README.md,LICENSE-MIT,LICENSE-APACHE `
+          $ffmpeg = "target/ffmpeg-out/windows-x86_64"
+          New-Item -ItemType Directory -Force target/ffmpeg-licenses | Out-Null
+          Copy-Item "$ffmpeg/BUILDINFO", "$ffmpeg/licenses/*" target/ffmpeg-licenses
+          Compress-Archive -Path target/release/mdview.exe,"$ffmpeg/ffmpeg.exe","$ffmpeg/ffprobe.exe",README.md,LICENSE-MIT,LICENSE-APACHE,target/ffmpeg-licenses `
             -DestinationPath "dist/MD-View-$env:VERSION-windows-x86_64.zip" -Force
           dotnet tool install --global wix --version 4.*
           $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
@@ -133,8 +161,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
+          name: linux
           path: release-assets
-          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos
+          path: release-assets
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows
+          path: release-assets
+      - name: Add the FFmpeg and dav1d sources the packages were built from
+        run: scripts/ffmpeg/build.sh sources release-assets
       - name: Assemble checksums and update manifest
         env:
           VERSION: ${{ env.VERSION }}
