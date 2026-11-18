@@ -13,6 +13,7 @@
 #![deny(missing_docs)]
 
 mod ast;
+mod math;
 mod parse;
 mod slug;
 
@@ -20,6 +21,7 @@ pub use ast::{
     Alignment, Block, BlockKind, FrontMatter, Heading, Inline, Link, LinkKind, ListItem, MarkdownDocument, QuoteKind,
     Span, plain_text,
 };
+pub use math::{MathDelimiter, MathSource, format_math, math_source_at, math_sources};
 pub use parse::{classify, options, parse as parse_with_options};
 pub use slug::{Slugger, github_slug};
 
