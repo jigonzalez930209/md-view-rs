@@ -31,8 +31,20 @@ pub fn math_baseline(tex: &str) -> Option<f32> {
     (total > 0.0).then(|| ((height + MATH_PADDING) / total).clamp(0.0, 1.0))
 }
 
-/// Render a TeX expression to an RGBA raster.
+/// Render a TeX expression to an RGBA raster at [`MATH_UNITS_PER_EM`] pixels per em.
 pub fn render_math(tex: &str, dark: bool, max_width: u32) -> Result<Raster, MediaError> {
+    render_math_sized(tex, dark, MATH_UNITS_PER_EM, max_width)
+}
+
+/// Render a TeX expression at `pixels_per_em`, for a raster drawn at its exact pixel size.
+///
+/// UI thumbnails use it instead of minifying a [`render_math`] raster, which blurs thin
+/// strokes. The padding scales with the size, so the formula keeps its proportions.
+pub fn render_math_at(tex: &str, dark: bool, pixels_per_em: f32) -> Result<Raster, MediaError> {
+    render_math_sized(tex, dark, pixels_per_em.clamp(4.0, 200.0), 4096)
+}
+
+fn render_math_sized(tex: &str, dark: bool, pixels_per_em: f32, max_width: u32) -> Result<Raster, MediaError> {
     let tex = tex.trim();
     if tex.is_empty() {
         return Err(MediaError::Empty);
@@ -46,8 +58,8 @@ pub fn render_math(tex: &str, dark: bool, max_width: u32) -> Result<Raster, Medi
     let root = layout(&nodes, &options);
     let display = to_display_list(&root);
     let svg_options = SvgOptions {
-        font_size: f64::from(MATH_UNITS_PER_EM),
-        padding: f64::from(MATH_PADDING),
+        font_size: f64::from(pixels_per_em),
+        padding: f64::from(MATH_PADDING * pixels_per_em / MATH_UNITS_PER_EM),
         embed_glyphs: true,
         ..SvgOptions::default()
     };
@@ -111,6 +123,18 @@ mod tests {
         assert!(plain > 0.5 && plain < 1.0, "{plain}");
         assert!(fraction > 0.3 && fraction < 0.8, "{fraction}");
         assert!(raster.height > 0);
+    }
+
+    #[test]
+    fn sized_renders_scale_with_the_requested_em() {
+        let full = render_math("\\frac{a}{b}", false, 1024).expect("render");
+        let half = render_math_at("\\frac{a}{b}", false, MATH_UNITS_PER_EM / 2.0).expect("render");
+        let expected = full.width as f32 / 2.0;
+        assert!(
+            (half.width as f32 - expected).abs() <= 2.0,
+            "{} vs {expected}",
+            half.width
+        );
     }
 
     #[test]

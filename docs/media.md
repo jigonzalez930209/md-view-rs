@@ -43,6 +43,15 @@ plays under the same Media settings. Unsupported or corrupt files show a bounded
 - The dark theme sets the formula color to white; the light theme uses black.
 - A 100-formula corpus test covers fractions, roots, integrals, sums, matrices, cases, text, and
   delimiters.
+- The formula editor maps a source position to the formula part it draws. RaTeX locates leaf
+  nodes and braced groups; spans of composites (`\frac`, `\sqrt`, scripts, `\left…\right`,
+  environments) are derived from their children and the command around them. A part is
+  highlighted with `\textcolor` only in a wrap form whose layout is identical to the original
+  (glyph positions and sizes compared on the display list with colors removed); otherwise the
+  enclosing part is used.
+- Formula editor thumbnails and its preview are rasterized at their exact display size
+  (`render_math_at`) instead of being minified from the reading-view raster, which blurs thin
+  strokes.
 
 ## Mermaid
 

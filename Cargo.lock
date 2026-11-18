@@ -2427,6 +2427,7 @@ dependencies = [
  "ratex-types",
  "resvg",
  "roxmltree 0.21.2",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.21",
  "ureq",
