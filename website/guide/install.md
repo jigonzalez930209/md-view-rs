@@ -54,15 +54,15 @@ Run anyway** after verifying the checksum.
 
 ## Video playback
 
-Video files play through the system FFmpeg, which MD View does not bundle. Install it to watch
-videos (`ffplay` adds sound); every other viewer works without it.
+Every package includes its own FFmpeg for the video viewer, so videos and their sound play with
+nothing else to install. It is a reduced LGPL build that only decodes: MP4, MOV, MKV, WebM, AVI,
+WMV, MPEG, Ogg, and FLV with H.264, HEVC, VP8, VP9, AV1, MPEG-2/4, WMV, and Theora video and
+AAC, MP3, Opus, Vorbis, FLAC, AC-3, and WMA sound. Its license, build record, and the exact
+sources ship with the app and the release.
 
-| Platform | Command |
-|---|---|
-| Debian / Ubuntu | `sudo apt install ffmpeg` |
-| Fedora | `sudo dnf install ffmpeg` |
-| macOS | `brew install ffmpeg` |
-| Windows | `winget install ffmpeg` |
+A build from source has no bundled FFmpeg and uses the one on the PATH instead
+(`sudo apt install ffmpeg`, `sudo dnf install ffmpeg`, `brew install ffmpeg`, or
+`winget install ffmpeg`), or the folder named by `MDVIEW_FFMPEG_DIR`.
 
 ## Verify the download
 
@@ -85,6 +85,8 @@ Requirements:
 - Rust 1.97.1 (see `rust-toolchain.toml`)
 - The platform dependencies for egui/winit
 - A C compiler for the Oniguruma syntax engine
+- Linux: the ALSA development files for video sound (`libasound2-dev` on Debian/Ubuntu,
+  `alsa-lib-devel` on Fedora)
 
 ```sh
 git clone https://github.com/jigonzalez930209/md-view-rs.git
