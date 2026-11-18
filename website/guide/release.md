@@ -1,30 +1,31 @@
-# Release 1.0.0-rc.5
+# Release 1.0.0-rc.6
 
-**Release date:** 2026-11-17
+**Release date:** 2026-11-18
 
-MD View 1.0.0-rc.5 is the fifth public release candidate. It is a native Rust desktop editor with
+MD View 1.0.0-rc.6 is the sixth public release candidate. It is a native Rust desktop editor with
 a GitHub-parity Markdown reading view, a virtualized code editor, a workspace explorer, and a
-self-contained media renderer. This candidate adds an equation gallery and a formula editor that
-shows which part of the LaTeX source draws which symbol.
+self-contained media renderer. This candidate opens far more kinds of files: delimited data in an
+editable grid, PDF, video, animated images, and more image formats.
 
 ## Highlights
 
-- **Equation gallery.** The **Σ** button in the Markdown formatting bar lists common formulas in
-  the style of Word's built-in equations. Click one to insert it, or open it in the formula editor
-  first.
-- **Formula editor.** The **√x** button, `Alt+=`, **Edit → Equation Editor…**, or the command
-  palette opens the LaTeX source beside a live preview, with a template palette in nine
-  categories whose placeholders are filled in order with Tab. See the
-  [editor guide](/guide/editor#equation-editor).
-- **Source-to-formula hover.** Point at any part of the source and the formula part it draws lights
-  up in the theme accent. Coloring never changes the formula's layout.
-- **Double-click to edit.** Double-click a formula in the editor or the reading view to edit it;
-  math blocks offer **Edit equation** in their context menu.
-- **A local gate that stops only on real memory pressure.** `cargo xtask ci` no longer stops
-  while memory is plentiful just because its own systemd scope throttles the build.
+- **Spreadsheet grid for CSV and TSV.** Delimited files open in an editable grid with detected
+  delimiters, in-place editing, block copy and paste with spreadsheet applications, row and column
+  insertion and deletion, and resizable columns. Edits change only the touched fields of the text.
+  See the [editor guide](/guide/editor#delimited-files-csv-tsv).
+- **PDF viewer.** Continuous pages, fit-width or manual zoom, and page navigation, rendered in the
+  background in pure Rust.
+- **Video viewer.** Every format the system FFmpeg reads plays with play/pause, seeking, ±5 s keys,
+  and mute.
+- **Animated GIF, WebP, and APNG**, plus ICO/CUR, TGA, HDR, EXR, PNM, QOI, Farbfeld, and JPEG XL.
+- **Richer animated SVG.** Motion paths, line drawing, spline easing, `fill="freeze"`, and CSS
+  delays, iteration counts, directions, and timing functions.
+- **Formula editor fix.** Pointing at `\frac` highlights the whole fraction.
 
 ### Included from earlier candidates
 
+- **Equation gallery and formula editor (rc.5).** The Σ gallery, the √x formula editor with a
+  live preview and template palette, source-to-formula hover, and double-click editing.
 - **The system clipboard (rc.4).** Copy, cut, and paste exchange text with other applications.
 - **Editor behavior (rc.3).** Enter and Space no longer move the cursor to the mouse pointer,
   typing no longer recentres the view, soft wrap breaks at word boundaries, and Tab, arrows,
@@ -46,7 +47,7 @@ shows which part of the LaTeX source draws which symbol.
 
 ## Downloads
 
-Use the [GitHub release page](https://github.com/jigonzalez930209/md-view-rs/releases/tag/v1.0.0-rc.5)
+Use the [GitHub release page](https://github.com/jigonzalez930209/md-view-rs/releases/tag/v1.0.0-rc.6)
 and verify every file against `SHA256SUMS`.
 
 | Platform | Assets |
