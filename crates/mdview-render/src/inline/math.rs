@@ -5,9 +5,11 @@ use mdview_media::MediaKind;
 use mdview_theme::Theme;
 
 use super::Segment;
-use crate::{MediaContext, MediaState};
+use crate::{MediaContext, MediaState, PreviewOutput};
 
 /// Paint one formula and return its rectangle.
+///
+/// A double-click or the context menu reports the formula in `output` for editing.
 ///
 /// Formulas scale by font size, not by a fixed box height: one em of the raster
 /// maps to the reading math size, so tall formulas (fractions, integrals, matrices)
@@ -16,9 +18,12 @@ pub(super) fn show_math(
     ui: &mut Ui,
     segment: &Segment,
     theme: &Theme,
+    output: &mut PreviewOutput,
     media: Option<&mut MediaContext<'_>>,
-    typography: mdview_theme::ReadingTypography,
-    media_sizes: &std::collections::HashMap<String, (f32, f32)>,
+    (typography, media_sizes): (
+        mdview_theme::ReadingTypography,
+        &std::collections::HashMap<String, (f32, f32)>,
+    ),
 ) -> egui::Rect {
     let Some(media_context) = media else {
         return ui
@@ -68,8 +73,9 @@ pub(super) fn show_math(
             if segment.display_math {
                 let height =
                     crate::layout::display_media_height(MediaKind::Math, natural.x, natural.y, full_width, typography);
-                let (rect, _) = ui.allocate_exact_size(egui::vec2(full_width, height), egui::Sense::hover());
+                let (rect, response) = ui.allocate_exact_size(egui::vec2(full_width, height), egui::Sense::click());
                 paint(ui, &texture, egui::Rect::from_center_size(rect.center(), size));
+                crate::media::math_edit_request(&response, &segment.text, output);
                 rect
             } else {
                 // Let the raster padding and short superscripts overlap the line gap
@@ -77,7 +83,9 @@ pub(super) fn show_math(
                 // placed on a row, so a taller row would lift the text before it.
                 let row = crate::inline::line_height(typography);
                 let height = (size.y - typography.body * 0.5).max(row);
-                let (rect, _) = ui.allocate_exact_size(egui::vec2(size.x.max(1.0), height), egui::Sense::hover());
+                let (rect, response) =
+                    ui.allocate_exact_size(egui::vec2(size.x.max(1.0), height), egui::Sense::click());
+                crate::media::math_edit_request(&response, &segment.text, output);
                 // Items are centered on the row, so the row's text baseline is the row
                 // center shifted by the body font's baseline within one line box. The
                 // formula's own baseline is placed on it, like MathJax inline math.

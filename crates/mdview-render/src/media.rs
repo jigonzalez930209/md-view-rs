@@ -102,6 +102,15 @@ pub struct MediaLightbox {
     pub alt: String,
 }
 
+/// A formula the user asked to edit from the preview.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MathActivation {
+    /// The formula's TeX, as the preview received it.
+    pub tex: String,
+    /// Byte range of the top-level block that holds the formula in the source.
+    pub block: Option<std::ops::Range<usize>>,
+}
+
 /// What the preview reported during one paint.
 #[derive(Clone, Debug, Default)]
 pub struct PreviewOutput {
@@ -113,6 +122,10 @@ pub struct PreviewOutput {
     pub copied: bool,
     /// An image the user asked to inspect.
     pub lightbox: Option<MediaLightbox>,
+    /// A formula the user double-clicked or chose to edit.
+    pub math: Option<MathActivation>,
+    /// Translated label of the formula context menu, copied in before painting.
+    pub(crate) math_edit_label: String,
     pub(crate) anchors_screen: Vec<(String, f32)>,
 }
 
@@ -129,4 +142,21 @@ pub struct PreviewScrollMetrics {
     pub content_height: f32,
     /// Bottom of the last top-level block.
     pub last_block_bottom: f32,
+}
+
+/// Report `response` as an edit request for `tex` on a double-click or the context menu.
+pub(crate) fn math_edit_request(response: &egui::Response, tex: &str, output: &mut PreviewOutput) {
+    let mut edit = response.double_clicked();
+    response.context_menu(|ui| {
+        if ui.button(&output.math_edit_label).clicked() {
+            edit = true;
+            ui.close();
+        }
+    });
+    if edit {
+        output.math = Some(MathActivation {
+            tex: tex.to_owned(),
+            block: None,
+        });
+    }
 }

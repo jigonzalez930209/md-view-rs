@@ -338,7 +338,14 @@ fn show_segment(
     let media_sizes = style.media_sizes;
     let size = typography.body;
     if segment.math {
-        return Some(math::show_math(ui, segment, theme, media, typography, media_sizes));
+        return Some(math::show_math(
+            ui,
+            segment,
+            theme,
+            output,
+            media,
+            (typography, media_sizes),
+        ));
     }
     if segment.image {
         let before = ui.cursor().min;

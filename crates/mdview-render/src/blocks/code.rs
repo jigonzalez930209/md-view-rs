@@ -81,7 +81,10 @@ fn show_media_block(
                     egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
                     egui::Color32::WHITE,
                 );
-                if response.on_hover_cursor(egui::CursorIcon::ZoomIn).clicked() {
+                // Click inspects the formula; the context menu edits it (a double-click
+                // cannot, because the first click already opened the lightbox).
+                crate::media::math_edit_request(&response, source, ctx.output);
+                if response.on_hover_cursor(egui::CursorIcon::ZoomIn).clicked() && ctx.output.math.is_none() {
                     ctx.output.lightbox = Some(MediaLightbox {
                         request,
                         alt: format!("{} view", kind.label()),

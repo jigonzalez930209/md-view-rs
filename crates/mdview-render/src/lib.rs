@@ -39,7 +39,8 @@ use mdview_syntax::Highlighter;
 use mdview_theme::Theme;
 
 pub use media::{
-    AnimationStatus, LinkActivation, MediaContext, MediaLightbox, MediaProvider, MediaState, PreviewOutput,
+    AnimationStatus, LinkActivation, MathActivation, MediaContext, MediaLightbox, MediaProvider, MediaState,
+    PreviewOutput,
 };
 pub use source_map::{BlockAnchor, PreviewAnchor, SourceMap, validate_map};
 
@@ -83,6 +84,7 @@ pub struct Preview {
     painted_blocks: usize,
     last_frame_time: std::time::Duration,
     overshoot_paints: u64,
+    math_edit_label: String,
 }
 
 impl Default for Preview {
@@ -112,6 +114,7 @@ impl Default for Preview {
             painted_blocks: 0,
             last_frame_time: std::time::Duration::ZERO,
             overshoot_paints: 0,
+            math_edit_label: "Edit equation".to_owned(),
         }
     }
 }
@@ -120,6 +123,13 @@ impl Preview {
     /// Build a new preview.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Set the translated label of the formula context menu ("Edit equation").
+    pub fn set_math_edit_label(&mut self, label: &str) {
+        if self.math_edit_label != label {
+            label.clone_into(&mut self.math_edit_label);
+        }
     }
 
     /// The heading and footnote anchors from the last paint.
@@ -246,7 +256,10 @@ impl Preview {
             });
             return PreviewOutput::default();
         }
-        let mut output = PreviewOutput::default();
+        let mut output = PreviewOutput {
+            math_edit_label: self.math_edit_label.clone(),
+            ..PreviewOutput::default()
+        };
         let mut block_screens: Vec<BlockScreen> = Vec::new();
         let search_query = self.search_query.clone();
         let mut heights = std::mem::take(&mut self.heights);
@@ -313,6 +326,11 @@ impl Preview {
                                 let response = ui
                                     .scope(|ui| blocks::show_block(ui, block, &mut ctx, &mut media))
                                     .response;
+                                if let Some(math) = ctx.output.math.as_mut()
+                                    && math.block.is_none()
+                                {
+                                    math.block = Some(block.span.start..block.span.end);
+                                }
                                 let measured = response.rect.height().max(1.0);
                                 heights.insert(block.id, measured);
                                 block_screens.push(BlockScreen {
