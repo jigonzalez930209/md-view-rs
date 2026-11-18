@@ -30,6 +30,8 @@ The 1.0.0-rc.5 release candidate covers the following surface. The repository's
 | LaTeX inline and display math | Yes |
 | Mermaid flowcharts and sequence diagrams | Yes |
 | Local PNG/JPEG/GIF/WebP/BMP/TIFF/SVG | Yes |
+| ICO, TGA, DDS, HDR, EXR, PNM, QOI, Farbfeld, JPEG XL | Yes |
+| Animated GIF, WebP, and APNG | Yes |
 | Cached remote images | Yes |
 | Animated SVG subset | Yes |
 | Image zoom, pan, fit, lightbox | Yes |

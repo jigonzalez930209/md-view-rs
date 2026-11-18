@@ -5,9 +5,14 @@ JavaScript runtime. Media never edits the document; the source buffer remains au
 
 ## Image documents
 
-PNG, JPEG, GIF, WebP, BMP, TIFF, and SVG files can be opened directly and render in a fitted
-image viewer instead of the text editor. Clicking the image opens the lightbox; animated SVG
-plays under the same Media settings. Unsupported or corrupt files show a bounded diagnostic.
+PNG/APNG, JPEG, GIF, WebP, BMP, TIFF, SVG, ICO/CUR, TGA, DDS, Radiance HDR, OpenEXR, PNM
+(PBM/PGM/PPM/PAM), QOI, Farbfeld, and JPEG XL files open directly in a fitted image viewer instead
+of the text editor, and the same formats render in Markdown. Raster formats decode with pure-Rust
+codecs (`image`, and `jxl-oxide` for JPEG XL); TGA, which has no signature, is recognised by its
+extension. HDR and EXR are shown clamped to 8 bits, without tone mapping. AVIF and HEIC are not
+supported: their decoders need native libraries (dav1d, libheif). Clicking the image opens the
+lightbox; animated images play under the same Media settings. Unsupported or corrupt files show a
+bounded diagnostic.
 
 ## Images
 
@@ -82,8 +87,11 @@ parser; the UI never blocks on disk, network, or rasterization.
 ## Animation
 
 Animated SVG uses the bounded SMIL/CSS runtime documented in [`animation.md`](animation.md).
-Frames advance at 30 fps only while visible; play/pause and reduced motion live under
-**View → Media**.
+Animated GIF, WebP, and APNG decode once into frames with their own delays (delays under 20 ms
+are raised to 20 ms); playback picks the frame for the current time and uploads a texture only
+when the frame changes. Decoding stops at 1,000 frames or 256 MiB of pixels, keeping the frames
+decoded so far, and an animation that cannot be decoded shows its first frame. Frames advance at
+up to 30 fps only while visible; play/pause and reduced motion live under **View → Media**.
 
 ## Visual references
 
