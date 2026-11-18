@@ -263,6 +263,23 @@ fn the_cursor_follows_a_long_line_horizontally() {
 }
 
 #[test]
+fn only_a_long_line_enables_the_horizontal_scrollbar() {
+    let (_harness, editor) = setup("notes.txt", &numbered(20), false);
+    assert!(
+        !editor.borrow().horizontal_scroll,
+        "short lines must not show a horizontal scrollbar"
+    );
+    let long = format!("{}\nshort\n", "x".repeat(400));
+    let (_harness, editor) = setup("notes.txt", &long, false);
+    assert!(
+        editor.borrow().horizontal_scroll,
+        "a long line needs a horizontal scrollbar"
+    );
+    let (_harness, editor) = setup("notes.txt", &long, true);
+    assert!(!editor.borrow().horizontal_scroll, "soft wrap never scrolls sideways");
+}
+
+#[test]
 fn page_down_moves_one_viewport() {
     let (mut harness, editor) = setup("notes.rs", &numbered(300), false);
     let rows = {

@@ -112,6 +112,8 @@ pub struct Editor {
     /// Display column kept by Up and Down across shorter lines.
     pub(crate) preferred_column: Option<usize>,
     pub(crate) scroll_x: f32,
+    /// Whether the last paint enabled horizontal scrolling (a line wider than the view).
+    pub(crate) horizontal_scroll: bool,
     /// Reveal the cursor in the middle of the viewport if it is off screen.
     pub(crate) center_cursor: bool,
     pub(crate) language_key: Option<(u64, Option<std::path::PathBuf>)>,
@@ -184,6 +186,7 @@ impl Editor {
             overshoot_paints: 0,
             preferred_column: None,
             scroll_x: 0.0,
+            horizontal_scroll: false,
             center_cursor: false,
             language_key: None,
             char_advance_cache: None,

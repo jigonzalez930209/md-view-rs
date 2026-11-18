@@ -46,11 +46,13 @@ impl Editor {
         self.ensure_wrap(columns);
         let total_rows = self.total_rows(columns);
         let max_width = self.display_widths.iter().copied().max().unwrap_or(0);
-        let content_width = if columns > 0 {
-            available
-        } else {
-            (gutter + max_width as f32 * char_width + 40.0).max(available)
-        };
+        // The vertical bar is always allocated, so the text viewport is `text_area` wide.
+        // Only a line wider than that needs horizontal scrolling; otherwise the axis stays
+        // disabled so no horizontal scrollbar is drawn under the editor.
+        let natural_width = gutter + max_width as f32 * char_width + 40.0;
+        let horizontal = columns == 0 && natural_width > text_area;
+        let content_width = if horizontal { natural_width } else { text_area };
+        self.horizontal_scroll = horizontal;
         // Keep the content height independent of transient scrollbar allocation. The old
         // `.max(available_height)` made the maximum offset oscillate when the horizontal
         // scrollbar appeared, which looked like flicker at the end of the document.
@@ -66,11 +68,12 @@ impl Editor {
 
         let mut response = None;
         let mut geometry = None;
-        let mut area = ScrollArea::both()
+        let mut area = ScrollArea::new([horizontal, true])
             .auto_shrink([false, false])
             // A transient horizontal scrollbar changes the inner height by a few points,
             // which makes the maximum offset oscillate at the end of the document. Keep
-            // both bars allocated so the maximum is stable.
+            // the enabled bars allocated so the maximum is stable; the horizontal axis
+            // only toggles when the longest line crosses the viewport width.
             .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
             // Programmatic split-sync targets must not animate toward the target: the
             // animation overshoots at the end of the document and looks like flicker.
@@ -111,6 +114,10 @@ impl Editor {
                 area = area.horizontal_scroll_offset(offset);
             }
             self.center_cursor = false;
+        }
+        if !horizontal && self.scroll_x > 0.0 {
+            // A disabled axis keeps its stored offset; bring the line starts back.
+            area = area.horizontal_scroll_offset(0.0);
         }
         let mut painted_offset = 0.0_f32;
         let output = area.show_viewport(ui, |ui, viewport| {
