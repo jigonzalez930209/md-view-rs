@@ -27,9 +27,12 @@ impl MdViewApp {
                         icons: &mut self.icons,
                         light,
                         mode: self.tabs.active().mode,
-                        can_view: self.tabs.active().is_markdown() || self.tabs.active().is_viewer(),
+                        can_view: self.tabs.active().is_markdown()
+                            || self.tabs.active().is_viewer()
+                            || self.tabs.active().is_table(),
                         can_edit: !self.tabs.active().is_viewer(),
-                        can_split: self.tabs.active().is_markdown() && !self.tabs.active().is_large(),
+                        can_split: (self.tabs.active().is_markdown() && !self.tabs.active().is_large())
+                            || self.tabs.active().is_table(),
                     },
                 );
             });
@@ -258,10 +261,15 @@ impl eframe::App for MdViewApp {
                         document_name: &document_name,
                         dirty: self.tabs.editor().document().is_dirty(),
                         mode: self.tabs.active().mode,
-                        is_markdown: self.tabs.active().is_markdown() || self.tabs.active().viewer_name().is_some(),
-                        can_view: self.tabs.active().is_markdown() || self.tabs.active().is_viewer(),
+                        is_markdown: self.tabs.active().is_markdown()
+                            || self.tabs.active().viewer_name().is_some()
+                            || self.tabs.active().is_table(),
+                        can_view: self.tabs.active().is_markdown()
+                            || self.tabs.active().is_viewer()
+                            || self.tabs.active().is_table(),
                         can_edit: !self.tabs.active().is_viewer(),
-                        can_split: self.tabs.active().is_markdown() && !self.tabs.active().is_large(),
+                        can_split: (self.tabs.active().is_markdown() && !self.tabs.active().is_large())
+                            || self.tabs.active().is_table(),
                         sidebar_open: self.sidebar.open,
                         workspace_open: self.workspace.is_some(),
                         workspace_name: workspace_name.as_deref(),
@@ -333,6 +341,10 @@ impl eframe::App for MdViewApp {
                                 editor.bottom_clearance()
                             );
                         }
+                    }
+                    mdview_ui::ViewMode::View if self.tabs.active().is_table() => {
+                        let index = self.tabs.active_index();
+                        self.show_grid_pane(ui, index);
                     }
                     mdview_ui::ViewMode::View => {
                         let theme = mdview_theme::Theme::for_id(self.effective_theme);

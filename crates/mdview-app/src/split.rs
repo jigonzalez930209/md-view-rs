@@ -227,6 +227,15 @@ impl MdViewApp {
         theme: &mdview_theme::Theme,
         light: bool,
     ) -> Option<mdview_render::PreviewOutput> {
+        if self
+            .tabs
+            .tabs()
+            .get(index)
+            .is_some_and(crate::tabs::DocumentTab::is_table)
+        {
+            self.show_grid_pane(ui, index);
+            return None;
+        }
         let base = self
             .tabs
             .tabs()

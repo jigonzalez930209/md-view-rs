@@ -129,6 +129,29 @@ The dialog has:
   existing formula, `Ctrl/Cmd+Enter`) writes the formula in one undo step; a ```` ```math ````
   block keeps its fence.
 
+## Delimited files (CSV, TSV)
+
+`.csv`, `.tsv`, `.tab`, `.psv`, `.dsv`, and `.ssv` files open in a spreadsheet grid in **View**
+mode; **Edit** shows the text and **Split** shows both side by side. The delimiter (comma,
+semicolon, tab, or pipe) and the line endings are detected from the file.
+
+| Action | Keys and mouse |
+|---|---|
+| Select | Click, Shift+click, or drag; click a column letter or row number for the whole column or row |
+| Move | Arrows, Home/End, Ctrl/Cmd+Home/End, PageUp/PageDown, Tab and Shift+Tab |
+| Edit a cell | Start typing (replaces the value), Enter, F2, or double-click |
+| Commit | Enter (moves down), Tab (moves right), or click another cell |
+| Line break in a cell | Shift+Enter while editing |
+| Cancel | Escape |
+| Copy, cut, paste | Ctrl/Cmd+C, X, V as tab-separated text, compatible with spreadsheets |
+| Clear | Delete or Backspace |
+| Rows and columns | Right-click: insert above, below, left, or right; delete |
+| Undo, redo | Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y |
+
+The grid edits the file's text: only changed fields are rewritten, quoted only when they contain
+the delimiter, a quote, a line break, or edge spaces, so the rest of the file keeps its bytes.
+Files over 32 MB open in the text editor.
+
 ## Quick Open and the palette
 
 `Ctrl/Cmd+P` opens workspace Quick Open. `Ctrl/Cmd+Shift+P` opens the command palette with every

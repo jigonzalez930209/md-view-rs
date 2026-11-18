@@ -9,6 +9,7 @@ mod conflict;
 mod document_ops;
 mod editor_pane;
 mod file_ops;
+mod grid_view;
 mod history;
 mod install;
 mod lightbox;

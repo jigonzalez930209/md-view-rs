@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- CSV, TSV, and other delimited files (`.csv`, `.tsv`, `.tab`, `.psv`, `.dsv`, `.ssv`) open in a
+  spreadsheet grid. The delimiter (comma, semicolon, tab, or pipe) and CRLF line endings are
+  detected. Cells are edited in place by typing, Enter, F2, or a double-click; arrows, Tab, and
+  Enter move; copy, cut, and paste exchange tab-separated blocks with Excel, LibreOffice, and
+  Google Sheets; the context menu inserts and deletes rows and columns; columns resize by
+  dragging their header edge. The grid edits the document's own text with minimal changes, so
+  untouched fields keep their bytes and quoting, and saving, undo, external changes, and the
+  unsaved-changes prompt work as for any file. Edit mode shows the text and Split shows both.
+
 ## 1.0.0-rc.5 — 2026-11-17
 
 - Markdown documents get a formula editor. The formatting bar adds an equation gallery (Σ) with

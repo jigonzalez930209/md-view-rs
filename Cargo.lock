@@ -2601,6 +2601,7 @@ dependencies = [
  "mdview-media",
  "mdview-model",
  "mdview-render",
+ "mdview-table",
  "mdview-theme",
  "mdview-ui",
  "mdview-workspace",

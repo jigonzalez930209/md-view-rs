@@ -29,6 +29,8 @@ pub struct DocumentTab {
     pub preview: Preview,
     /// Plugin viewer for read-only formats (images today; PDF or video later).
     pub viewer: Option<Box<dyn ViewerInstance>>,
+    /// Spreadsheet view of a delimited file (CSV, TSV, …); `None` for other documents.
+    pub(crate) grid: Option<crate::grid_view::GridView>,
     /// The active presentation.
     pub mode: ViewMode,
     /// The file modification time recorded after the last load or save.
@@ -61,7 +63,10 @@ impl DocumentTab {
         static NEXT_ID: AtomicU64 = AtomicU64::new(1);
         let large = document.len_bytes() > PREVIEW_MAX_BYTES || document.line_count() > PREVIEW_MAX_LINES;
         let viewer = document.path().and_then(crate::viewers::create);
-        let previewable = viewer.is_some() || (!large && document.path().is_some_and(is_markdown_path));
+        let grid = crate::grid_view::GridView::applies(document.path(), document.len_bytes())
+            .then(crate::grid_view::GridView::default);
+        let previewable =
+            viewer.is_some() || grid.is_some() || (!large && document.path().is_some_and(is_markdown_path));
         let mode = if previewable { ViewMode::View } else { ViewMode::Edit };
         log::debug!(
             "document mode path={} mode={} can_edit={} can_view={} can_split={}",
@@ -80,6 +85,7 @@ impl DocumentTab {
             editor,
             preview: Preview::new(),
             viewer,
+            grid,
             mode,
             disk_mtime,
             conflict: false,
@@ -108,6 +114,11 @@ impl DocumentTab {
         self.editor.document().path().is_some_and(is_markdown_path)
     }
 
+    /// Whether the document has a grid view (a delimited file within the grid size limit).
+    pub fn is_table(&self) -> bool {
+        self.grid.is_some()
+    }
+
     /// Whether the document is painted by a read-only viewer plugin.
     pub fn is_viewer(&self) -> bool {
         self.viewer.is_some()
@@ -129,7 +140,7 @@ impl DocumentTab {
     pub fn set_mode(&mut self, mode: ViewMode) {
         self.mode = if self.is_viewer() {
             ViewMode::View
-        } else if mode.shows_preview() && (!self.is_markdown() || self.is_large()) {
+        } else if mode.shows_preview() && !self.is_table() && (!self.is_markdown() || self.is_large()) {
             ViewMode::Edit
         } else {
             mode

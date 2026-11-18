@@ -32,6 +32,7 @@ mdview-i18n.workspace = true
 mdview-markdown.workspace = true
 mdview-media.workspace = true
 mdview-model.workspace = true
+mdview-table.workspace = true
 mdview-render.workspace = true
 mdview-workspace.workspace = true
 open.workspace = true

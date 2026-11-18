@@ -49,6 +49,7 @@ The 1.0.0-rc.5 release candidate covers the following surface. The repository's
 | IME commit and surrounding delete coverage | Yes |
 | Scroll-beyond-last-line and split sync | Yes |
 | Equation gallery and formula editor (live preview, source-to-formula hover) | Yes |
+| CSV/TSV spreadsheet grid with in-place editing | Yes |
 
 ## Packaging
 

@@ -83,7 +83,8 @@ impl MdViewApp {
             self.request_save(false);
         } else if self.consume_shortcut(ctx, "Cmd+W") {
             self.close_tab(self.tabs.active_index(), ctx);
-        } else if ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::F2)) {
+        } else if !self.grid_focused() && ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::F2))
+        {
             self.handle_command(ctx, Command::RenameFile);
         } else if self.consume_shortcut(ctx, "Alt+Left") {
             self.handle_command(ctx, Command::Back);
