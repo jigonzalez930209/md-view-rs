@@ -7,6 +7,7 @@ mod about;
 mod close_prompt;
 mod controls;
 mod format_bar;
+mod grid;
 mod header;
 mod keyboard_menu;
 mod loading;
@@ -28,6 +29,10 @@ pub use controls::{
     CONTROL_HEIGHT, compact_menu, menu_item, numeric_stepper, primary_button, secondary_button, text_field,
 };
 pub use format_bar::{FORMAT_BAR_HEIGHT, FORMAT_BAR_LABELS, FormatBarAction, show_format_bar};
+pub use grid::{
+    CellPos, GRID_LABELS, GridAction, GridState, Motion, Selection, column_name, from_clipboard, show_grid,
+    to_clipboard,
+};
 pub use header::{TitleBarState, show_title_bar};
 pub use keyboard_menu::{KeyboardMenuState, MenuEntry, MenuGroup, show_keyboard_menu};
 pub use loading::show_loading;

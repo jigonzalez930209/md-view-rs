@@ -13,6 +13,7 @@ mdview-editor.workspace = true
 mdview-i18n.workspace = true
 mdview-media.workspace = true
 mdview-model.workspace = true
+mdview-table.workspace = true
 mdview-theme.workspace = true
 rust-embed = "8"
 serde.workspace = true
