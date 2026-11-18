@@ -31,7 +31,7 @@ impl RowPaint<'_> {
     }
 
     /// The x position of a display column of the line, on this wrapped row.
-    fn x(&self, display: usize) -> f32 {
+    pub(crate) fn x(&self, display: usize) -> f32 {
         let local = display.saturating_sub(self.segment_start);
         self.origin.x + self.gutter + 8.0 + local as f32 * self.char_width
     }

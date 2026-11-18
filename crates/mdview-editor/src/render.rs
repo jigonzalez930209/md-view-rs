@@ -12,6 +12,7 @@ impl Editor {
         let started = std::time::Instant::now();
         let (response, geometry) = self.paint(ui);
         self.handle_input(ui, &response, &geometry);
+        self.track_math_pointer(ui, &response, &geometry);
         self.show_goto(ui.ctx());
         self.last_frame_time = started.elapsed();
         response
@@ -195,6 +196,7 @@ impl Editor {
                         self.paint_indent_guides(&paint_row);
                     }
                     self.paint_brackets(&paint_row);
+                    self.paint_marked(&paint_row);
                     self.paint_selection(
                         &paint_row,
                         selection_start,

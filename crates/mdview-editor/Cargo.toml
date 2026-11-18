@@ -8,6 +8,7 @@ publish.workspace = true
 
 [dependencies]
 egui.workspace = true
+mdview-markdown.workspace = true
 mdview-model.workspace = true
 mdview-syntax.workspace = true
 regex.workspace = true

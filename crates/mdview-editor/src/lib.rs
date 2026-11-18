@@ -13,6 +13,7 @@ mod input;
 mod layout;
 mod md_format;
 mod md_lists;
+mod md_math;
 mod md_syntax;
 mod md_table;
 mod motion;
@@ -34,6 +35,7 @@ pub(crate) use layout::{cell_width, display_col, display_width};
 pub use find::{FindState, SearchOptions};
 pub use goto::GotoState;
 pub use md_format::{MarkdownAction, MarkdownState};
+pub use md_math::MathTarget;
 pub use style::{BOTTOM_CLEARANCE, EditorStyle, WhitespaceMode};
 
 /// The visible editor status for the shell's status bar.
@@ -122,6 +124,12 @@ pub struct Editor {
     pub(crate) focused: bool,
     /// Full layout rebuilds, for tests that the incremental path is used.
     pub(crate) layout_rebuilds: u64,
+    /// A formula double-clicked since the application last asked.
+    pub(crate) math_request: Option<MathTarget>,
+    /// The character under the pointer in the last frame.
+    pub(crate) hovered_char: Option<usize>,
+    /// A range tinted for the formula editor's source-to-preview hover.
+    pub(crate) marked: Option<md_math::MarkedRange>,
 }
 
 impl Editor {
@@ -183,6 +191,9 @@ impl Editor {
             wrap_key: None,
             focused: false,
             layout_rebuilds: 0,
+            math_request: None,
+            hovered_char: None,
+            marked: None,
         };
         editor.highlight_enabled = editor.highlight_budget_allows();
         editor.ensure_layout();
@@ -457,3 +468,6 @@ mod markdown_tests;
 
 #[cfg(test)]
 mod feature_tests;
+
+#[cfg(test)]
+mod md_math_tests;
