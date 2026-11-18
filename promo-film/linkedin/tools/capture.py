@@ -21,7 +21,10 @@ def text(t, wait=0.4): x("text", t); time.sleep(wait)
 def click(a, b, wait=0.5): x("click", a, b); time.sleep(wait)
 def wheel(a, b, n, wait=0.8): x("wheel", a, b, n); time.sleep(wait)
 def wheelup(a, b, n, wait=0.8): x("wheelup", a, b, n); time.sleep(wait)
-def park(): subprocess.run(["xdotool", "mousemove", "160", "940"], env=env); time.sleep(0.3)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from xdrive import Display  # noqa: E402
+display = Display(disp)
+def park(): display.park()
 def shot(name, wait=0.5):
     time.sleep(wait)
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "x11grab", "-draw_mouse", "0",
@@ -37,8 +40,7 @@ def record(name, seconds, actions):
 def mode(name):
     key("ctrl+shift+p"); text(name); key("Return", 0.7)
 
-wid = subprocess.run(["xdotool", "search", "--name", "MD View"], env=env, capture_output=True, text=True).stdout.split()[0]
-x("focus", hex(int(wid)))
+display.focus()
 park()
 shot("01-view-top", 1.0)
 for name, n in [("02-view-tables", 4), ("03-view-tasks", 4), ("04-view-latex", 4), ("04b-view-images", 4), ("05-view-mermaid", 4), ("06-view-alerts", 4)]:
@@ -47,7 +49,7 @@ wheelup(1100, 520, 60); park()
 
 key("ctrl+e", 0.8); click(1200, 400); key("ctrl+Home"); park(); shot("07-edit-top")
 key("ctrl+f", 0.6); text("level"); park(); shot("08-find")
-key("ctrl+a"); text("level\\d"); click(1677, 159, 0.6); park(); shot("08b-find-regex")
+key("ctrl+a"); text("level\\d"); click(1610, 212, 0.6); park(); shot("08b-find-regex")
 key("Escape")
 key("ctrl+h", 0.6); park(); shot("09-replace")
 key("Escape")

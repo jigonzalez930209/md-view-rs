@@ -5,10 +5,59 @@ All app geometry is in capture pixels (1920 x 1000 window at 150 % UI scale). Bo
 Run from the project root: python3 tools/gen_film.py
 """
 import json
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BARS = json.loads((ROOT / "tools/bars.json").read_text())
+VERSION = "1.0.0-rc.5"
+# Equations section (25.5 - 31.5): every later section moves by EQ_LEN.
+EQ_AT, EQ_LEN = 25.5, 6.0
+END_AT = 33.0 + EQ_LEN
+TOTAL = END_AT + 5.0
+
+
+def video_time(theme, name, kind):
+    """Time of the first logged event of `kind` in a capture's video (see tools/sync_events.py)."""
+    events = json.loads((ROOT / f"assets/cap/{theme}/{name}.json").read_text())
+    return next(e["video_t"] for e in events if e["kind"] == kind)
+
+
+def flipbook(theme, name, fid, start, duration, media_start, fps, width):
+    """A recording as a flipbook of JPEG frames, shown by the timeline instead of <video>.
+
+    The renderer never finished initializing this composition with its four <video> elements
+    (the other films render theirs), so the recordings play as frames: deterministic, seekable,
+    and with no media pipeline in the browser. Frames are extracted from the MP4 at display
+    resolution into assets/frames/ (generated, not committed).
+    """
+    folder = ROOT / "assets/frames"
+    folder.mkdir(parents=True, exist_ok=True)
+    pattern = f"{theme}-{fid}-%03d.jpg"
+    for old in folder.glob(f"{theme}-{fid}-*.jpg"):
+        old.unlink()
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{media_start:.3f}", "-i",
+                    str(ROOT / f"assets/cap/{theme}/{name}.mp4"), "-t", f"{duration:.3f}", "-vf",
+                    f"fps={fps},scale={width}:-2", "-q:v", "3", str(folder / pattern)], check=True)
+    count = len(list(folder.glob(f"{theme}-{fid}-*.jpg")))
+    images = "".join(f'<img class="win fb fb-{fid}-{theme}" id="{fid}-{theme}-{i}" '
+                     f'src="assets/frames/{theme}-{fid}-{i + 1:03d}.jpg" alt="" />' for i in range(count))
+    steps = []
+    for i in range(count):
+        t = start + i / fps
+        steps.append(f'tl.set("#{fid}-{theme}-{i}", {{ opacity: 1 }}, {t:.3f});')
+        if i:
+            steps.append(f'tl.set("#{fid}-{theme}-{i - 1}", {{ opacity: 0 }}, {t:.3f});')
+    steps.append(f'tl.set("#{fid}-{theme}-{count - 1}", {{ opacity: 0 }}, {start + duration:.3f});')
+    return images, steps
+
+
+FLIPS = {}
+
+
+def later(t):
+    """Shift a time from the pre-equations cut into this one."""
+    return t + EQ_LEN if t >= EQ_AT else t
 
 W, H = 1080, 1350
 CARD_W, CARD_H = 980, 490
@@ -24,7 +73,8 @@ DOC = (323, 101, 1572, 864)  # doc pane in the window (x, y, w, h)
 
 FRAMES = {  # scale, focus x, focus y (window px)
     "full": (0.49, 960, 500), "side": (0.85, 576, 500), "doc": (0.85, 1117, 500),
-    "find": (1.0, 1430, 290), "pal": (0.72, 960, 490), "search": (0.75, 960, 430), "set": (0.7, 960, 500),
+    "find": (1.0, 1430, 300), "pal": (0.72, 960, 490), "search": (0.75, 960, 430), "set": (0.7, 960, 500),
+    "gallery": (0.66, 1145, 530), "dialog": (0.74, 960, 612),
 }
 
 
@@ -45,12 +95,15 @@ MARKS = [
     ("latex", "doc", (238, 1744, 770, 214), "LaTeX", 0.85),
     ("mermaid", "doc", (440, 2744, 718, 104), "mermaid", 0.85),
     ("alert", "doc", (238, 3396, 1120, 104), "alert", 0.85),
-    ("find", "edit", (1258, 122, 660, 136), "regex", 1.0),
+    ("find", "edit", (1200, 175, 690, 72), "regex", 1.0),
     ("src", "split", (330, 104, 784, 858), "source", 0.49),
     ("pre", "split", (1120, 104, 792, 858), "preview", 0.49),
     ("pal", "cmd", (518, 198, 884, 604), "Ctrl+Shift+P", 0.72),
     ("srch", "cmd", (554, 176, 814, 44), "Ctrl+Shift+F", 0.75),
     ("thm", "cmd", (1146, 346, 258, 318), "9 themes", 0.7),
+    ("gal", "eq", (822, 156, 646, 748), "Σ gallery", 0.66),
+    ("hov", "eq", (316, 436, 630, 58), "hover the LaTeX", 0.74),
+    ("pv", "eq", (970, 438, 636, 344), "live preview", 0.74),
 ]
 
 
@@ -68,6 +121,12 @@ def mark_html(k, group):
             f'<div class="tg" style="font-size:{fs:.1f}px; padding:{8 / s:.1f}px {14 / s:.1f}px; top:{-fs * 1.0 - 16 / s - bw:.1f}px; {side}; border-radius:{rad}">{label}</div></div>'
         )
     return "".join(out)
+
+
+def flip(theme, name, fid, start, duration, media_start, fps, width):
+    images, steps = flipbook(theme, name, fid, start, duration, media_start, fps, width)
+    FLIPS[(theme, fid)] = steps
+    return images
 
 
 def card(k):
@@ -109,8 +168,14 @@ def card(k):
           </div>
           <div class="grp g-split">
             <img class="win" src="{cap}/11-split-top.png" alt="MD View split view, {k} theme" />
-            <video id="vid-{k}" class="clip win" data-start="21.0" data-duration="4.5" data-media-start="{0.333 if k == "light" else 0.3}" data-track-index="{1 if k == "light" else 2}" muted playsinline src="{cap}/split-scroll.mp4"></video>
+            {flip(k, "split-scroll", "sp", 21.0, 4.5, 0.333, 30, 960)}
             {mark_html(k, 'split')}
+          </div>
+          <div class="grp g-eq">
+            <img class="win q-02" src="{cap}/eq-02-edit.png" alt="Equation buttons in the formatting bar, {k} theme" />
+            <img class="win q-03" src="{cap}/eq-03-gallery.png" alt="Equation gallery, {k} theme" />
+            {flip(k, "eq-hover", "eh", EQ_AT + 2.0, EQ_LEN - 2.0, video_time(k, "eq-hover", "dialog") - 0.2, 30, 1420)}
+            {mark_html(k, 'eq')}
           </div>
           <div class="g-cmd">
             <img class="win c-13" src="{cap}/13-palette.png" alt="Command palette, {k} theme" />
@@ -136,9 +201,12 @@ CAPS = [
     (15.0, 17.5, ["A real editor", "underneath."]),
     (17.5, 20.5, ["Regex find", "and replace."]),
     (20.5, 25.5, ["Source and preview,", "scrolling in sync."]),
-    (25.5, 28.0, ["Every command,", "one keystroke."]),
-    (28.0, 30.5, ["Search the", "whole workspace."]),
-    (30.5, 33.0, ["Nine themes.", "Light or dark."]),
+    (25.5, 27.5, ["Classic formulas,", "one click."]),
+    (27.5, 29.5, ["Point at the LaTeX,", "see what it draws."]),
+    (29.5, 31.5, ["Edit any equation", "in place."]),
+    (31.5, 34.0, ["Every command,", "one keystroke."]),
+    (34.0, 36.5, ["Search the", "whole workspace."]),
+    (36.5, 39.0, ["Nine themes.", "Light or dark."]),
 ]
 
 cap_html = "".join(
@@ -227,23 +295,39 @@ show_mark("src", 21.2)
 show_mark("pre", 21.45)
 hide_mark("src", 25.35)
 hide_mark("pre", 25.35)
+# ---- equations: the gallery, then the formula editor with the real hover recording
+sweep(".g-eq", EQ_AT)
+move("full", EQ_AT)
+a(f'tl.set(".q-03", {{ opacity: 1 }}, {EQ_AT + 0.6});')
+move("gallery", EQ_AT + 0.6)
+show_mark("gal", EQ_AT + 1.15)
+hide_mark("gal", EQ_AT + 1.85)
+move("dialog", EQ_AT + 2.0, 0.5)
+show_mark("hov", EQ_AT + 2.55)
+show_mark("pv", EQ_AT + 2.85)
+hide_mark("hov", EQ_AT + 5.85)
+hide_mark("pv", EQ_AT + 5.85)
 # ---- commands
-a('tl.set(".g-cmd", { opacity: 1 }, 25.5);')
-a('tl.set(".c-13", { opacity: 1 }, 25.5);')
-move("pal", 25.5, 0.5)
-show_mark("pal", 25.9)
-a('tl.set(".c-14", { opacity: 1 }, 26.5);')
-a('tl.set(".mk-pal", { opacity: 0 }, 26.5);')
-a('tl.set(".c-16", { opacity: 1 }, 28.0);')
-move("search", 28.0, 0.5)
-show_mark("srch", 28.4)
-hide_mark("srch", 30.35)
-a('tl.set(".c-17", { opacity: 1 }, 30.5);')
-move("set", 30.5, 0.5)
-a('tl.set(".c-17b", { opacity: 1 }, 31.5);')
-show_mark("thm", 31.6)
-a('tl.to(".cam", { opacity: 0, duration: 0.25, ease: "power1.in" }, 32.72);')
+a('tl.set(".g-cmd", { opacity: 1 }, 31.5);')
+a('tl.set(".c-13", { opacity: 1 }, 31.5);')
+move("pal", 31.5, 0.5)
+show_mark("pal", 31.9)
+a('tl.set(".c-14", { opacity: 1 }, 32.5);')
+a('tl.set(".mk-pal", { opacity: 0 }, 32.5);')
+a('tl.set(".c-16", { opacity: 1 }, 34);')
+move("search", 34, 0.5)
+show_mark("srch", 34.4)
+hide_mark("srch", 36.35)
+a('tl.set(".c-17", { opacity: 1 }, 36.5);')
+move("set", 36.5, 0.5)
+a('tl.set(".c-17b", { opacity: 1 }, 37.5);')
+show_mark("thm", 37.6)
+a('tl.to(".cam", { opacity: 0, duration: 0.25, ease: "power1.in" }, 38.72);')
 
+# Build the cards first: they register the flipbook steps the timeline needs.
+CARD_HTML = {k: card(k) for k in ("light", "dark")}
+for steps in FLIPS.values():
+    T.extend(steps)
 app_js = "\n      ".join(T)
 initial = cam("full")
 
@@ -256,6 +340,7 @@ app = f"""<template>
     .cam {{ position: absolute; left: 0; top: 0; width: 1920px; height: 1000px; transform-origin: 0 0; }}
     .g-view, .grp, .g-cmd, .real {{ position: absolute; left: 0; top: 0; width: 1920px; height: 1000px; }}
     .win {{ position: absolute; left: 0; top: 0; width: 1920px; height: 1000px; }}
+    .fb {{ opacity: 0; }}
     .fl, .br, .rs {{ position: absolute; opacity: 0; }}
     .br {{ border-radius: 6px; }}
     .rs {{ border: 6px solid {ACCENT}; }}
@@ -265,7 +350,7 @@ app = f"""<template>
     .doc img {{ position: absolute; left: 0; top: 0; }}
     .grp {{ clip-path: inset(0 0 100% 0); }}
     .g-cmd {{ opacity: 0; }}
-    .e-08, .e-09, .c-13, .c-14, .c-16, .c-17, .c-17b {{ opacity: 0; }}
+    .e-08, .e-09, .c-13, .c-14, .c-16, .c-17, .c-17b, .q-03 {{ opacity: 0; }}
     .mk {{ position: absolute; border-style: solid; border-color: {ACCENT}; border-radius: 8px; opacity: 0; }}
     .tg {{ position: absolute; background: {ACCENT}; color: #ffffff; font-weight: 800; letter-spacing: -0.01em; line-height: 1; white-space: nowrap; transform-origin: 0 100%; }}
     .scan {{ position: absolute; left: 0; top: 0; width: {CARD_W}px; height: 4px; background: {ACCENT}; opacity: 0; }}
@@ -280,8 +365,8 @@ app = f"""<template>
   </style>
   <div id="root" data-composition-id="app" data-width="{W}" data-height="{H}">
     <div id="app-stage" data-layout-allow-overflow data-layout-allow-overlap data-layout-allow-occlusion>
-      {card('light')}
-      {card('dark')}
+      {CARD_HTML['light']}
+      {CARD_HTML['dark']}
       {cap_html}
     </div>
   </div>
@@ -331,7 +416,7 @@ end = f"""<template>
       <div class="escan"></div>
       <img class="elogo" src="assets/images/logo.png" alt="MD View app icon" />
       <div class="et ew">MD View</div>
-      <div class="et ecta">Download 1.0.0-rc.2</div>
+      <div class="et ecta">Download {VERSION}</div>
       <div class="et eos">macOS · Windows · Linux · free &amp; open source</div>
       <div class="et eurl">github.com/jigonzalez930209/md-view-rs</div>
     </div>
@@ -380,13 +465,14 @@ for i in range(5):
     s(f"sfx-reg{i}", 0.6 + i * 0.15 - 0.04, "click" if i % 2 == 0 else "key-press", 0.45, 0.14, 12)
 s("sfx-type", 0.9, "typing", 0.35, 1.4, 14)
 s("sfx-resolve", 2.18, "pop", 0.4, 0.7, 12)
-for i, t in enumerate([3.65, 6.35, 6.7, 8.85, 11.35, 13.85, 18.1, 21.2, 25.9, 28.4, 31.6]):
+for i, t in enumerate([3.65, 6.35, 6.7, 8.85, 11.35, 13.85, 18.1, 21.2, EQ_AT + 1.15, EQ_AT + 2.55, EQ_AT + 2.85,
+                       later(25.9), later(28.4), later(31.6)]):
     s(f"sfx-tag{i}", t + 0.06, "click-soft" if i % 2 == 0 else "key-press", 0.4, 0.2, 13)
-for i, t in enumerate([15.0, 20.5]):
+for i, t in enumerate([15.0, 20.5, EQ_AT]):
     s(f"sfx-sweep{i}", t + 0.04, "whoosh-short", 0.3, 0.57, 12)
-for i, t in enumerate([25.5, 28.0, 30.5]):
+for i, t in enumerate([EQ_AT + 0.6, EQ_AT + 2.0, later(25.5), later(28.0), later(30.5)]):
     s(f"sfx-ui{i}", t - 0.04, "click", 0.5, 0.2, 12)
-s("sfx-logo", 33.0 + 0.85 + 0.5 * (762 - 90) / 1350 - 0.05, "impact-bass-1", 0.6, 2.1)
+s("sfx-logo", END_AT + 0.85 + 0.5 * (762 - 90) / 1350 - 0.05, "impact-bass-1", 0.6, 2.1)
 
 index = f"""<!doctype html>
 <html lang="en">
@@ -402,11 +488,11 @@ index = f"""<!doctype html>
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-start="0" data-duration="38" data-width="{W}" data-height="{H}">
-      <div id="app" data-composition-id="app" data-composition-src="compositions/app.html" data-start="0" data-duration="33" data-track-index="0" data-track-kind="graphics" data-width="{W}" data-height="{H}"></div>
-      <div id="end" data-composition-id="end" data-composition-src="compositions/end.html" data-start="33" data-duration="5" data-track-index="0" data-track-kind="graphics" data-width="{W}" data-height="{H}"></div>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="{TOTAL:g}" data-width="{W}" data-height="{H}">
+      <div id="app" data-composition-id="app" data-composition-src="compositions/app.html" data-start="0" data-duration="{END_AT:g}" data-track-index="0" data-track-kind="graphics" data-width="{W}" data-height="{H}"></div>
+      <div id="end" data-composition-id="end" data-composition-src="compositions/end.html" data-start="{END_AT:g}" data-duration="5" data-track-index="0" data-track-kind="graphics" data-width="{W}" data-height="{H}"></div>
 
-      <audio id="music" class="clip" data-start="0" data-duration="38" data-media-start="0.125" data-track-index="10" data-volume="0.8" data-fade-out="2" src="assets/audio/chronos.mp3"></audio>
+      <audio id="music" class="clip" data-start="0" data-duration="{TOTAL:g}" data-media-start="0.125" data-track-index="10" data-volume="0.8" data-fade-out="2" src="assets/audio/chronos.mp3"></audio>
 {chr(10).join(sfx)}
     </div>
     <script>

@@ -4,3 +4,5 @@ node_modules/
 .transcode-cache/
 .waveform-cache/
 __pycache__/
+captures/
+assets/frames/

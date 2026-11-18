@@ -14,3 +14,20 @@ Known:
 - Frame 0 is the caption plus the first card edges on blue — readable, sparse as a thumbnail.
 - UI text inside the cards is ~9–18 px at 1080 wide; on a phone it reads as UI, not as text. Captions carry the words.
 - Raw view captures 02–06 were removed after stitching doc-tall.png; tools/capture.py regenerates them (tools/stitch.py expects them in captures/<theme>/).
+
+## 1.0.0-rc.5 update
+
+Rendered `../out/linkedin-4x5.mp4`: 1080 × 1350, 44.0 s, with the equations section (25.5–31.5 s).
+
+- The renderer never finished initializing this composition with its four `<video>` elements:
+  `pollVideosReady` kept waiting on a page blocked in the probe (screenshot mode, higher
+  timeouts, WebM, re-encoding without B-frames, and HyperFrames 0.9.65 all hung the same way;
+  the same markup without videos rendered in 22 s, and the other three films render theirs).
+  The split and hover recordings now play as flipbooks: `gen_film.py` extracts JPEG frames at
+  display resolution into `assets/frames/` (generated, ignored by git) and the timeline shows
+  one per frame. Deterministic, seek-safe, and frame-exact between the two themes.
+- Recordings are encoded without B-frames and with a 15-frame GOP (`tools/xdrive.py`,
+  `tools/record_split.py`) so seeks stay cheap.
+
+Checked frames from the render: 2.5, 7.2, 23 (both themes mid-scroll at the same line), 26.9
+(gallery), 28.6 and 30.6 (ħ, then ∂/∂t lit in both themes), 37.9, 43.5.

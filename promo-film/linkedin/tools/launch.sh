@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 # Launch MD View in a private Xvfb display with a given theme.
-# Usage: launch.sh <theme> <display> <workdir>
+# Usage: launch.sh <theme> <display> <workdir> [document]
+# The optional document is copied into the workspace root and opened instead of the showcase.
 set -euo pipefail
-THEME=$1; DISP=$2; WORK=$3
+THEME=$1; DISP=$2; WORK=$3; DOCUMENT=${4:-}
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 mkdir -p "$WORK"/{config,logs,runtime}
 chmod 700 "$WORK/runtime"
 rm -rf "$WORK/ws"; cp -r "$ROOT/examples/v1-workspace" "$WORK/ws"
 SHOW="$WORK/ws/level1/level2/level3/level4/level5/showcase.md"
+if [[ -n "$DOCUMENT" ]]; then
+  cp "$DOCUMENT" "$WORK/ws/"
+  SHOW="$WORK/ws/$(basename "$DOCUMENT")"
+fi
 cat > "$WORK/config/config.toml" <<EOF
 schema_version = 1
 
@@ -43,6 +48,8 @@ EOF
 Xvfb "$DISP" -screen 0 1920x1000x24 >"$WORK/xvfb.log" 2>&1 &
 echo $! > "$WORK/xvfb.pid"
 sleep 0.8
+# A themed arrow instead of the bare X server's "X" cursor; the app inherits the root cursor.
+DISPLAY="$DISP" XCURSOR_THEME=Yaru XCURSOR_SIZE=48 xsetroot -cursor_name left_ptr
 env -u WAYLAND_DISPLAY XDG_SESSION_TYPE=x11 DISPLAY="$DISP" USER=mdview_promo \
   XDG_RUNTIME_DIR="$WORK/runtime" MDVIEW_CONFIG_DIR="$WORK/config" MDVIEW_LOG_DIR="$WORK/logs" \
   RUST_LOG=warn "$ROOT/target/release/mdview" "$WORK/ws" "$SHOW" >"$WORK/app.log" 2>&1 &
