@@ -41,7 +41,8 @@ pages; and a landscape page. Check ◀ ▶, the page counter, −/+, Fit width, 
 | `portrait.mov` | Landscape frames with a 90° rotation flag; must show upright, taller than wide |
 
 Check play/pause (button, click, Space), the clock, seeking with the slider and ←/→, and Mute.
-Without FFmpeg installed, each file shows the install hint instead.
+Release packages bring their own FFmpeg. A build from source without FFmpeg on the PATH (or in
+`MDVIEW_FFMPEG_DIR`) shows the install hint for each file instead.
 
 ## `tables/`: the editable grid
 
