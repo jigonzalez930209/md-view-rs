@@ -31,7 +31,8 @@ final 1.0.0 release-operator steps. See [`docs/release.md`](docs/release.md).
 Requirements:
 
 - Rust 1.97.1 (see `rust-toolchain.toml`)
-- Linux: the usual egui/winit build dependencies for X11 or Wayland
+- Linux: the usual egui/winit build dependencies for X11 or Wayland, plus the ALSA
+  development files for video sound (`libasound2-dev` on Debian/Ubuntu)
 - macOS and Windows: the platform toolchains required by eframe/winit
 - A C compiler for the Oniguruma syntax engine
 

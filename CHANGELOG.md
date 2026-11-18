@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Video plays with nothing to install: every package ships a reduced LGPL FFmpeg 9.0.2 (with
+  dav1d 1.5.5 for AV1) built by `scripts/ffmpeg/build.sh`, and the viewer uses it before any
+  FFmpeg on the PATH. Sound no longer needs `ffplay`: `ffmpeg` decodes it to PCM and cpal plays
+  it on the default output device. The release attaches the FFmpeg and dav1d sources. Building
+  on Linux now needs the ALSA development files (`libasound2-dev`).
+
 ## 1.0.0-rc.7 — 2026-11-18
 
 - The editor no longer shows a horizontal scrollbar when every line fits; it appears only when a
