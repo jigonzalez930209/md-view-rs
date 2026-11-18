@@ -1,7 +1,7 @@
 //! Read-only viewer plugins.
 //!
-//! Markdown and text stay in the editor. Formats that need a dedicated presentation (images
-//! today; PDF, video, or diagrams later) register a [`ViewerPlugin`] here. A plugin creates one
+//! Markdown and text stay in the editor. Formats that need a dedicated presentation (images and
+//! PDF today; video or diagrams later) register a [`ViewerPlugin`] here. A plugin creates one
 //! [`ViewerInstance`] per tab, and the application paints it through [`ViewerContext`].
 
 use std::path::Path;
@@ -13,6 +13,7 @@ use mdview_render::MediaLightbox;
 use crate::media_runtime::MediaRuntime;
 
 mod image;
+mod pdf;
 
 /// Per-frame services a viewer may use.
 pub struct ViewerContext<'a> {
@@ -69,7 +70,7 @@ impl ViewerRegistry {
     /// Build the built-in registry.
     pub fn new() -> Self {
         Self {
-            plugins: vec![Box::new(image::ImagePlugin)],
+            plugins: vec![Box::new(image::ImagePlugin), Box::new(pdf::PdfPlugin)],
         }
     }
 

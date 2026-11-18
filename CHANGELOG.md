@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- PDF files open in a viewer: continuous pages, fit-width by default, zoom out and in, 100%, and
+  previous/next page with a page counter. Pages render off the UI thread with hayro, a pure-Rust
+  rasterizer, only near the viewport and at the current zoom, so long documents stay responsive.
+  Encrypted PDFs are not supported yet.
 - Animated GIF, WebP, and APNG images play in the image viewer and the Markdown preview with
   their own frame delays, under the same play/pause and reduced-motion settings as animated SVG.
   Frames are decoded once (at most 1,000 frames and 256 MiB) and a texture is uploaded only when

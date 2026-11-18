@@ -14,6 +14,16 @@ supported: their decoders need native libraries (dav1d, libheif). Clicking the i
 lightbox; animated images play under the same Media settings. Unsupported or corrupt files show a
 bounded diagnostic.
 
+## PDF documents
+
+PDF files open in a read-only viewer with continuous pages, fit-width by default, zoom out/in,
+100%, and previous/next page with a counter. A worker thread owns the document and renders, with
+hayro (pure Rust, CPU only), only the pages near the viewport at the current zoom, quantised to
+1/16 pixel per point; the view keeps textures for the visible pages and two on each side, and a
+newer request for a page replaces an older one. Pages are capped at 64 megapixels, files at
+512 MB. Encrypted PDFs and some advanced features (blending, knockout groups) are not supported
+by the renderer yet; pages still show what it can draw.
+
 ## Images
 
 - Relative and absolute local paths and `file:` URLs are validated with `craft-docpath`.
