@@ -44,6 +44,7 @@ pub fn run(no_build: bool) -> Result<(), String> {
     let _ = fs::remove_dir_all(&stage);
     fs::create_dir_all(&stage).map_err(|error| error.to_string())?;
     install_tree(&stage, &binary)?;
+    let ffmpeg = install_ffmpeg(&stage)?;
     icons::install(&stage)?;
     let tarball = format!("mdview-{VERSION}-linux-{arch}.tar.gz");
     tar_gz(&stage, &PathBuf::from("dist").join(&tarball))?;
@@ -51,7 +52,7 @@ pub fn run(no_build: bool) -> Result<(), String> {
     let deb = format!("mdview_{}_amd64.deb", release_version());
     let deb_path = debian(&stage, Path::new("dist"), &deb, arch)?;
     let rpm_name = format!("mdview-{}-1.{}.rpm", release_version(), rpm_arch(arch));
-    let rpm_path = rpm(&stage, Path::new("dist"), arch)?;
+    let rpm_path = rpm(&stage, Path::new("dist"), arch, ffmpeg)?;
     let appimage = appdir(&stage, arch)?;
     let mut artifacts = vec![
         (
@@ -98,6 +99,32 @@ fn install_tree(stage: &Path, binary: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Copy the FFmpeg built by `scripts/ffmpeg/build.sh` (the folder in `MDVIEW_FFMPEG_DIR`) to
+/// `usr/lib/mdview`, where the video viewer looks first, with its licenses and build record.
+/// Returns whether FFmpeg was bundled; without the variable the packages fall back to the
+/// FFmpeg on the user's PATH.
+fn install_ffmpeg(stage: &Path) -> Result<bool, String> {
+    let Some(source) = std::env::var_os("MDVIEW_FFMPEG_DIR").map(PathBuf::from) else {
+        println!("MDVIEW_FFMPEG_DIR is not set; packaging without a bundled FFmpeg");
+        return Ok(false);
+    };
+    let lib = stage.join("usr/lib/mdview");
+    let doc = stage.join("usr/share/doc/mdview/ffmpeg");
+    fs::create_dir_all(&lib).map_err(|error| error.to_string())?;
+    fs::create_dir_all(&doc).map_err(|error| error.to_string())?;
+    for tool in ["ffmpeg", "ffprobe"] {
+        let from = source.join(tool);
+        fs::copy(&from, lib.join(tool)).map_err(|error| format!("{}: {error}", from.display()))?;
+        make_executable(&lib.join(tool))?;
+    }
+    fs::copy(source.join("BUILDINFO"), doc.join("BUILDINFO")).map_err(|error| error.to_string())?;
+    for entry in fs::read_dir(source.join("licenses")).map_err(|error| error.to_string())? {
+        let entry = entry.map_err(|error| error.to_string())?;
+        fs::copy(entry.path(), doc.join(entry.file_name())).map_err(|error| error.to_string())?;
+    }
+    Ok(true)
+}
+
 fn tar_gz(source: &Path, destination: &Path) -> Result<(), String> {
     if let Some(parent) = destination.parent() {
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
@@ -122,7 +149,7 @@ fn debian(stage: &Path, dist: &Path, name: &str, arch: &str) -> Result<PathBuf, 
     fs::write(
         control.join("control"),
         format!(
-            "Package: mdview\nVersion: {version}\nSection: editors\nPriority: optional\nArchitecture: {}\nMaintainer: MD View <mdview@localhost>\nInstalled-Size: {}\nDepends: libc6, libx11-6, libxkbcommon0, libwayland-client0, libgl1\nDescription: Native Markdown, text, and code editor\n MD View opens folders as workspaces, edits Markdown in tabs, and renders\n CommonMark and GFM with images, SVG, math, and Mermaid without a webview.\n",
+            "Package: mdview\nVersion: {version}\nSection: editors\nPriority: optional\nArchitecture: {}\nMaintainer: MD View <mdview@localhost>\nInstalled-Size: {}\nDepends: libc6, libx11-6, libxkbcommon0, libwayland-client0, libgl1, libasound2t64 | libasound2\nDescription: Native Markdown, text, and code editor\n MD View opens folders as workspaces, edits Markdown in tabs, and renders\n CommonMark and GFM with images, SVG, math, and Mermaid without a webview.\n",
             if arch == "aarch64" { "arm64" } else { "amd64" },
             tree_size(&root)? / 1024
         ),
@@ -153,7 +180,7 @@ fn debian(stage: &Path, dist: &Path, name: &str, arch: &str) -> Result<PathBuf, 
     Ok(output)
 }
 
-fn rpm(stage: &Path, dist: &Path, arch: &str) -> Result<PathBuf, String> {
+fn rpm(stage: &Path, dist: &Path, arch: &str, ffmpeg: bool) -> Result<PathBuf, String> {
     let top = dist.join("rpm-top");
     let _ = fs::remove_dir_all(&top);
     for directory in ["BUILD", "BUILDROOT", "RPMS", "SOURCES", "SPECS", "SRPMS", "rpmdb"] {
@@ -166,9 +193,10 @@ fn rpm(stage: &Path, dist: &Path, arch: &str) -> Result<PathBuf, String> {
     fs::write(
         &spec,
         format!(
-            "Name: mdview\nVersion: {version}\nRelease: 1\nSummary: Native Markdown, text, and code editor\nLicense: MIT OR Apache-2.0\nBuildArch: {}\n\n%description\nMD View opens folders as workspaces, edits Markdown in tabs, and renders CommonMark and GFM without a webview.\n\n%install\nmkdir -p %{{buildroot}}\ncp -a {}/usr %{{buildroot}}/\n\n%post\ncommand -v update-mime-database >/dev/null && update-mime-database /usr/share/mime || true\n\n%postun\ncommand -v update-mime-database >/dev/null && update-mime-database /usr/share/mime || true\n\n%files\n/usr/bin/mdview\n/usr/share/applications/mdview.desktop\n/usr/share/mime/packages/mdview.xml\n/usr/share/metainfo/org.mdview.MDView.metainfo.xml\n/usr/share/icons/hicolor/*/apps/mdview.png\n/usr/share/doc/mdview/*\n",
+            "Name: mdview\nVersion: {version}\nRelease: 1\nSummary: Native Markdown, text, and code editor\nLicense: MIT OR Apache-2.0\nBuildArch: {}\n\n%description\nMD View opens folders as workspaces, edits Markdown in tabs, and renders CommonMark and GFM without a webview.\n\n%install\nmkdir -p %{{buildroot}}\ncp -a {}/usr %{{buildroot}}/\n\n%post\ncommand -v update-mime-database >/dev/null && update-mime-database /usr/share/mime || true\n\n%postun\ncommand -v update-mime-database >/dev/null && update-mime-database /usr/share/mime || true\n\n%files\n/usr/bin/mdview\n/usr/share/applications/mdview.desktop\n/usr/share/mime/packages/mdview.xml\n/usr/share/metainfo/org.mdview.MDView.metainfo.xml\n/usr/share/icons/hicolor/*/apps/mdview.png\n/usr/share/doc/mdview/*\n{}",
             rpm_arch(arch),
-            stage_absolute.display()
+            stage_absolute.display(),
+            if ffmpeg { "/usr/lib/mdview/ffmpeg\n/usr/lib/mdview/ffprobe\n" } else { "" }
         ),
     )
     .map_err(|error| error.to_string())?;
@@ -292,6 +320,7 @@ pub fn sbom(destination: &Path) -> Result<(), String> {
             }));
         }
     }
+    components.extend(bundled_components());
     let document = json!({
         "bomFormat": "CycloneDX",
         "specVersion": "1.5",
@@ -306,6 +335,31 @@ pub fn sbom(destination: &Path) -> Result<(), String> {
         serde_json::to_string_pretty(&document).map_err(|error| error.to_string())?,
     )
     .map_err(|error| error.to_string())
+}
+
+/// SBOM entries for the bundled FFmpeg and dav1d, read from the BUILDINFO that
+/// `scripts/ffmpeg/build.sh` writes. Empty when FFmpeg is not bundled.
+fn bundled_components() -> Vec<Value> {
+    let Some(directory) = std::env::var_os("MDVIEW_FFMPEG_DIR") else {
+        return Vec::new();
+    };
+    let info = fs::read_to_string(Path::new(&directory).join("BUILDINFO")).unwrap_or_default();
+    [("FFmpeg", "LGPL-2.1-or-later"), ("dav1d", "BSD-2-Clause")]
+        .iter()
+        .filter_map(|(name, license)| {
+            let version = info
+                .lines()
+                .find_map(|line| line.strip_prefix(&format!("{name} ")))?
+                .split_whitespace()
+                .next()?;
+            Some(json!({
+                "type": "application",
+                "name": name,
+                "version": version,
+                "licenses": [{"license": {"id": license}}],
+            }))
+        })
+        .collect()
 }
 
 fn sha256(path: &Path) -> Result<String, String> {
