@@ -206,7 +206,7 @@ impl Editor {
     }
 
     /// Put the cursor where undo or redo changed the text and bring it into view.
-    fn after_history(&mut self) {
+    pub(crate) fn after_history(&mut self) {
         self.cursor = self.document.last_edit_end();
         self.anchor = self.cursor;
         self.preferred_column = None;

@@ -13,6 +13,37 @@ impl Editor {
         self.focus_requested = false;
     }
 
+    /// Replace several character ranges as one undo step, for views that edit the document
+    /// structurally (the grid view of a CSV file). The cursor moves to the end of the edit.
+    pub fn apply_edits(&mut self, edits: &[(usize, usize, String)]) {
+        if edits.is_empty() {
+            return;
+        }
+        self.document.replace_ranges(edits);
+        self.cursor = self.document.last_edit_end().min(self.document.len_chars());
+        self.anchor = self.cursor;
+        self.preferred_column = None;
+        self.document.break_undo_group();
+    }
+
+    /// Undo the last edit; false when there is nothing to undo.
+    pub fn undo(&mut self) -> bool {
+        let changed = self.document.undo();
+        if changed {
+            self.after_history();
+        }
+        changed
+    }
+
+    /// Redo the last undone edit; false when there is nothing to redo.
+    pub fn redo(&mut self) -> bool {
+        let changed = self.document.redo();
+        if changed {
+            self.after_history();
+        }
+        changed
+    }
+
     /// Insert a display-math block on its own lines and place the cursor inside it.
     pub fn insert_latex_block(&mut self) {
         let (line, _) = self.document.line_col(self.cursor);
