@@ -83,6 +83,17 @@ fn coloring_never_changes_the_layout() {
 }
 
 #[test]
+fn fractions_keep_their_inner_spacing() {
+    // A fraction is an inner atom with a thin space on each side; a colored one must keep it.
+    let tex = "i\\hbar\\frac{\\partial}{\\partial t}\\Psi = -\\frac{\\hbar^2}{2m}\\nabla^2\\Psi";
+    assert_eq!(highlighted(tex, "\\frac"), "\\frac{\\partial}{\\partial t}");
+    assert_eq!(highlighted(tex, "-\\frac"), "-");
+    let second = tex.rfind("\\frac").expect("second fraction");
+    let highlight = highlight_math_at(tex, second, "#ff0000").expect("highlight");
+    assert_eq!(&tex[highlight.span], "\\frac{\\hbar^2}{2m}");
+}
+
+#[test]
 fn invalid_or_blank_positions_find_nothing() {
     assert!(math_spans_at("\\frac{1", 2).is_empty());
     assert!(highlight_math_at("a  +  b", 2, "#000000").is_none());

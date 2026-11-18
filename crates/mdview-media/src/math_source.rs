@@ -80,8 +80,9 @@ fn wrap_forms(tex: &str, span: &Range<usize>, color: &str) -> Vec<String> {
     }
     forms.push(format!("{before}\\textcolor{{{color}}}{{{inside}}}{after}"));
     forms.push(format!("{before}{{\\textcolor{{{color}}}{{{inside}}}}}{after}"));
-    // A colored atom becomes ordinary; restore its class so spacing and limits stay put.
-    for class in ["mathbin", "mathrel", "mathopen", "mathclose", "mathpunct"] {
+    // A colored atom becomes ordinary; restore its class so spacing and limits stay put (a
+    // fraction is an inner atom, with a thin space on each side).
+    for class in ["mathinner", "mathbin", "mathrel", "mathopen", "mathclose", "mathpunct"] {
         forms.push(format!(
             "{before}\\{class}{{\\textcolor{{{color}}}{{{inside}}}}}{after}"
         ));
