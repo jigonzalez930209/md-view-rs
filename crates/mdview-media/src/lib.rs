@@ -28,7 +28,14 @@ pub use svg::rasterize_svg;
 pub use svg_anim::{Animation, frame_svg, parse as parse_animation};
 
 /// Image extensions that the application can open as an image document.
-pub const SUPPORTED_IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "svg"];
+///
+/// Raster formats decode with pure-Rust codecs: `image` for the common, game, HDR, and
+/// scientific formats, `jxl-oxide` for JPEG XL. AVIF and HEIC are not listed: their decoders
+/// need native libraries (dav1d, libheif).
+pub const SUPPORTED_IMAGE_EXTENSIONS: &[&str] = &[
+    "png", "apng", "jpg", "jpeg", "jfif", "gif", "webp", "bmp", "dib", "tif", "tiff", "svg", "ico", "cur", "tga",
+    "dds", "hdr", "exr", "pbm", "pgm", "ppm", "pnm", "pam", "qoi", "ff", "farbfeld", "jxl",
+];
 
 /// Whether a path has a supported image extension and should open as an image document.
 pub fn is_image_path(path: &Path) -> bool {

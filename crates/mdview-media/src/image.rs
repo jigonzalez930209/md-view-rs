@@ -155,13 +155,21 @@ pub fn load_bytes(bytes: &[u8], request: &MediaRequest) -> Result<Raster, MediaE
     if looks_like_svg(bytes) {
         return rasterize_svg(bytes, request);
     }
-    let format = image::guess_format(bytes).map_err(|error| MediaError::Decode(error.to_string()))?;
-    let mut reader = image::ImageReader::with_format(std::io::Cursor::new(bytes), format);
     let mut limits = image::Limits::default();
     limits.max_image_width = Some(MAX_IMAGE_SIDE);
     limits.max_image_height = Some(MAX_IMAGE_SIDE);
-    reader.limits(limits);
-    let decoded = reader.decode().map_err(|error| MediaError::Decode(error.to_string()))?;
+    let decoded = if is_jpeg_xl(bytes) {
+        decode_jpeg_xl(bytes, limits)?
+    } else {
+        // TGA has no signature: when the content does not identify the format, the source's
+        // extension does.
+        let format = image::guess_format(bytes)
+            .or_else(|error| image::ImageFormat::from_path(request.source.trim()).map_err(|_| error))
+            .map_err(|error| MediaError::Decode(error.to_string()))?;
+        let mut reader = image::ImageReader::with_format(std::io::Cursor::new(bytes), format);
+        reader.limits(limits);
+        reader.decode().map_err(|error| MediaError::Decode(error.to_string()))?
+    };
     let max_width = request.max_width.max(1);
     let max_height = request.max_height.max(1);
     let scaled = if decoded.width() > max_width || decoded.height() > max_height {
@@ -175,6 +183,21 @@ pub fn load_bytes(bytes: &[u8], request: &MediaRequest) -> Result<Raster, MediaE
         height: rgba.height(),
         rgba: rgba.into_raw(),
     })
+}
+
+/// JPEG XL, as a bare codestream or in its ISO BMFF container.
+fn is_jpeg_xl(bytes: &[u8]) -> bool {
+    bytes.starts_with(&[0xFF, 0x0A]) || bytes.starts_with(b"\0\0\0\x0cJXL \r\n\x87\n")
+}
+
+fn decode_jpeg_xl(bytes: &[u8], limits: image::Limits) -> Result<image::DynamicImage, MediaError> {
+    use image::ImageDecoder;
+    let mut decoder = jxl_oxide::integration::JxlDecoder::new(std::io::Cursor::new(bytes))
+        .map_err(|error| MediaError::Decode(error.to_string()))?;
+    decoder
+        .set_limits(limits)
+        .map_err(|error| MediaError::Decode(error.to_string()))?;
+    image::DynamicImage::from_decoder(decoder).map_err(|error| MediaError::Decode(error.to_string()))
 }
 
 pub(crate) fn looks_like_svg(bytes: &[u8]) -> bool {
