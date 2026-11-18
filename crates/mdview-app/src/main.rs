@@ -15,6 +15,7 @@ mod lightbox;
 mod links;
 mod load_job;
 mod logging;
+mod math_flow;
 mod media_runtime;
 mod menu_keyboard;
 mod navigation;

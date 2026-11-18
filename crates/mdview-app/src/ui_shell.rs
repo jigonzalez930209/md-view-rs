@@ -298,6 +298,7 @@ impl eframe::App for MdViewApp {
 
         let mut open_requested = false;
         let mut preview_output = None;
+        let mut math_open = None;
         egui::CentralPanel::default().show(ui, |ui| {
             self.show_conflict(ui);
             let document = self.tabs.editor().document();
@@ -315,13 +316,13 @@ impl eframe::App for MdViewApp {
                 }
                 match self.tabs.active().mode {
                     mdview_ui::ViewMode::Edit => {
-                        let menu_open = self.keyboard_menu.open;
+                        let menu_open = self.keyboard_menu.open || self.math_editor.is_some();
                         let (translations, lang) = (&self.translations, self.lang);
                         let t = |source: &str| translations.t(lang, source);
                         let editor = self.tabs.editor_mut();
                         editor.set_split_mode(false);
                         editor.set_ignore_input(menu_open);
-                        crate::editor_pane::show_editor_pane(ui, editor, &mut self.icons, &t, menu_open);
+                        math_open = crate::editor_pane::show_editor_pane(ui, editor, &mut self.icons, &t, menu_open);
                         editor.take_user_scroll();
                         if editor.is_at_end() && editor.scrolling_recently(std::time::Duration::from_millis(350)) {
                             log::debug!(
@@ -344,8 +345,10 @@ impl eframe::App for MdViewApp {
                             .path()
                             .and_then(std::path::Path::parent)
                             .map(std::path::Path::to_path_buf);
+                        let edit_label = self.t("Edit equation");
                         let tab = self.tabs.active_mut();
                         tab.ensure_preview();
+                        tab.preview.set_math_edit_label(&edit_label);
                         tab.preview.set_reading_style(
                             self.prefs.get().reading.margins(),
                             self.prefs.get().reading.typography(),
@@ -438,6 +441,10 @@ impl eframe::App for MdViewApp {
                 self.handle_command(ctx, command);
             }
         }
+        if let Some((editor, open)) = math_open {
+            self.open_math_editor(editor, open);
+        }
+        self.show_math_editor_flow(ui.ctx());
         self.show_palette_flow(ui.ctx());
         if self.about_open {
             mdview_ui::show_about(ui.ctx(), &self.translations, self.lang, &mut self.about_open);

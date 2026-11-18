@@ -69,6 +69,7 @@ pub struct MdViewApp {
     pub(crate) history: crate::history::HistoryState,
     pub(crate) search: crate::search::SearchState,
     pub(crate) keyboard_menu: mdview_ui::KeyboardMenuState,
+    pub(crate) math_editor: Option<crate::math_flow::MathSession>,
 }
 
 impl MdViewApp {
@@ -160,6 +161,7 @@ impl MdViewApp {
             history: crate::history::HistoryState::default(),
             search: crate::search::SearchState::default(),
             keyboard_menu: mdview_ui::KeyboardMenuState::default(),
+            math_editor: None,
         };
 
         mdview_theme::apply_theme(&cc.egui_ctx, theme_id, follow_system);

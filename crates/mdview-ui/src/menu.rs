@@ -226,6 +226,10 @@ pub fn show_menu(ui: &mut Ui, state: MenuState<'_>) -> Option<Command> {
                 command = Some(Command::InsertLatexBlock);
                 ui.close();
             }
+            if ui.button(t("Equation Editor…")).clicked() {
+                command = Some(Command::EquationEditor);
+                ui.close();
+            }
         });
 
         ui.menu_button(t("View"), |ui| {

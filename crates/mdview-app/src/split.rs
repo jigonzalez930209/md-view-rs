@@ -18,8 +18,9 @@ impl MdViewApp {
             .unwrap_or(0.5);
         let width = ui.available_width().max(320.0);
         let height = ui.available_height().max(200.0);
-        let menu_open = self.keyboard_menu.open;
+        let menu_open = self.keyboard_menu.open || self.math_editor.is_some();
         let mut preview_output = None;
+        let mut math_open = None;
         let t = crate::editor_pane::format_labels(&self.translations, self.lang);
 
         if width < 620.0 {
@@ -33,7 +34,8 @@ impl MdViewApp {
                     if let Some(tab) = self.tabs.tab_mut(index) {
                         tab.editor.set_split_mode(true);
                         tab.editor.set_ignore_input(menu_open);
-                        crate::editor_pane::show_editor_pane(ui, &mut tab.editor, &mut self.icons, &t, menu_open);
+                        math_open =
+                            crate::editor_pane::show_editor_pane(ui, &mut tab.editor, &mut self.icons, &t, menu_open);
                     }
                 },
             );
@@ -65,7 +67,13 @@ impl MdViewApp {
                         if let Some(tab) = self.tabs.tab_mut(index) {
                             tab.editor.set_split_mode(true);
                             tab.editor.set_ignore_input(menu_open);
-                            crate::editor_pane::show_editor_pane(ui, &mut tab.editor, &mut self.icons, &t, menu_open);
+                            math_open = crate::editor_pane::show_editor_pane(
+                                ui,
+                                &mut tab.editor,
+                                &mut self.icons,
+                                &t,
+                                menu_open,
+                            );
                         }
                     },
                 );
@@ -102,6 +110,9 @@ impl MdViewApp {
             }
         });
 
+        if let Some((editor, open)) = math_open {
+            self.open_math_editor(editor, open);
+        }
         if let Some(output) = preview_output {
             if let Some(lightbox) = output.lightbox.clone() {
                 log::debug!("lightbox open alt={}", lightbox.alt);
@@ -223,8 +234,10 @@ impl MdViewApp {
             .and_then(|tab| tab.editor.document().path())
             .and_then(std::path::Path::parent)
             .map(std::path::Path::to_path_buf);
+        let edit_label = self.t("Edit equation");
         let tab = self.tabs.tab_mut(index)?;
         tab.ensure_preview();
+        tab.preview.set_math_edit_label(&edit_label);
         tab.preview.set_reading_style(
             self.prefs.get().reading.margins(),
             self.prefs.get().reading.typography(),

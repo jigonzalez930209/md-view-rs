@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Markdown documents get a formula editor. The formatting bar adds an equation gallery (Σ) with
+  common formulas in the style of Word's built-in equations: insert one as a display formula with
+  a click, or open it in the editor first. The second button (√x), `Alt+=`, the command palette,
+  and the Edit menu open the formula editor on the formula at the cursor or for a new one. The
+  dialog pairs a LaTeX source editor (the document editor widget, with highlighting and undo)
+  with a live RaTeX preview, a categorized template palette whose `\square` placeholders are
+  filled in order with Tab, an inline/display switch, and `Ctrl/Cmd+Enter` to confirm. Palette
+  and gallery formulas share one type size and are rasterized at their display size, so they
+  are sharp and compare as they will in the formula; the palette keeps one height for every
+  category.
+- Hovering any part of the formula source highlights, in the theme accent, the part of the
+  formula it draws, and underlines the matching source, so readers who do not know LaTeX can see
+  which command makes which symbol. Coloring never changes the formula's shape: a wrap form is
+  used only when the colored formula lays out exactly like the original, so an optional root
+  index stays an index, operator limits stay above and below, and binary operators keep their
+  spacing.
+- Double-clicking a formula in the editor or the preview opens it for editing, and the preview's
+  context menu edits ```` ```math ```` fences too; the update replaces the formula in one undo step
+  and keeps its delimiters.
 - The local gate no longer stops on memory pressure alone while memory is plentiful. Pressure is
   system-wide and also counts stalls caused by the gate's own systemd scope reaching `MemoryHigh`;
   it now stops below 2 GiB available, or at 20% full pressure with less than 6 GiB available.

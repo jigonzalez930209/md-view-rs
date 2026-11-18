@@ -31,7 +31,7 @@ impl MdViewApp {
     }
 
     pub(crate) fn handle_shortcuts(&mut self, ctx: &egui::Context) {
-        if self.dialogs.is_open() || self.close_prompt_open {
+        if self.dialogs.is_open() || self.close_prompt_open || self.math_editor_open() {
             return;
         }
         let alt_menu = if self.consume_shortcut(ctx, "Alt+F") {
@@ -99,6 +99,10 @@ impl MdViewApp {
             self.handle_command(ctx, Command::GotoLine);
         } else if self.consume_shortcut(ctx, "Cmd+Shift+M") {
             self.handle_command(ctx, Command::InsertLatexBlock);
+        } else if self.consume_shortcut(ctx, "Alt+=") {
+            // Word's "insert new equation". Alt+= also types "=" on some backends.
+            consume_text_events(ctx);
+            self.handle_command(ctx, Command::EquationEditor);
         } else if self.consume_shortcut(ctx, "Cmd+Shift+E") {
             self.handle_command(ctx, Command::SetMode(mdview_ui::ViewMode::Split));
         } else if self.consume_shortcut(ctx, "Cmd+E") {

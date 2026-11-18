@@ -11,8 +11,12 @@ use crate::links::{LinkAction, link_error, resolve_link};
 use crate::tabs::ViewMode;
 
 impl MdViewApp {
-    /// React to link clicks and copy actions from the rendered preview.
+    /// React to link clicks, copy actions, and formula edit requests from the preview.
     pub(crate) fn handle_preview_output(&mut self, output: PreviewOutput, ctx: &egui::Context) {
+        if let Some(math) = &output.math {
+            self.open_math_from_preview(math);
+            return;
+        }
         let Some(link) = output.link else {
             return;
         };

@@ -37,6 +37,7 @@ impl MdViewApp {
                     entry("Search in Workspace…", Command::SearchWorkspace),
                     entry("Go to Line", Command::GotoLine),
                     entry("Insert LaTeX Block", Command::InsertLatexBlock),
+                    entry("Equation Editor…", Command::EquationEditor),
                     entry("Command Palette…", Command::CommandPalette),
                 ],
             },

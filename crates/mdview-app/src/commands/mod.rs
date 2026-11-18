@@ -228,6 +228,18 @@ impl MdViewApp {
                 editor.insert_latex_block();
                 editor.request_focus();
             }
+            Command::EquationEditor => {
+                if self.tabs.active().is_viewer() || !self.tabs.editor().is_markdown() {
+                    return;
+                }
+                self.ensure_edit_mode(ctx);
+                let editor = self.tabs.editor_mut();
+                let identity = editor.identity();
+                let action = mdview_ui::FormatBarAction::EditEquation(None);
+                if let Some(open) = crate::math_flow::equation_action(editor, action) {
+                    self.open_math_editor(identity, open);
+                }
+            }
             Command::ToggleWrap => {
                 let wrap = !self.tabs.editor().status().wrap;
                 let line_numbers = self.tabs.editor().status().line_numbers;

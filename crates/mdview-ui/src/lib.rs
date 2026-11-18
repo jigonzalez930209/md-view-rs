@@ -11,6 +11,7 @@ mod header;
 mod keyboard_menu;
 mod loading;
 mod material_icons;
+mod math_editor;
 mod menu;
 mod metrics;
 mod mode;
@@ -26,11 +27,15 @@ pub use close_prompt::{CloseChoice, show_close_prompt};
 pub use controls::{
     CONTROL_HEIGHT, compact_menu, menu_item, numeric_stepper, primary_button, secondary_button, text_field,
 };
-pub use format_bar::{FORMAT_BAR_HEIGHT, FORMAT_BAR_LABELS, show_format_bar};
+pub use format_bar::{FORMAT_BAR_HEIGHT, FORMAT_BAR_LABELS, FormatBarAction, show_format_bar};
 pub use header::{TitleBarState, show_title_bar};
 pub use keyboard_menu::{KeyboardMenuState, MenuEntry, MenuGroup, show_keyboard_menu};
 pub use loading::show_loading;
 pub use material_icons::MaterialIcons;
+pub use math_editor::{
+    GALLERY, GalleryEquation, MATH_EDITOR_LABELS, MathEditorOutcome, MathEditorState, PALETTE, PLACEHOLDER,
+    PaletteCategory, next_placeholder, show_math_editor,
+};
 pub use menu::{MenuState, show_menu};
 pub use metrics::{ACTION_BUTTON, ICON_LARGE, ICON_MEDIUM, ICON_SMALL, TAB_HEIGHT, TITLE_HEIGHT, TREE_ROW_HEIGHT};
 pub use mode::ViewMode;
@@ -102,6 +107,8 @@ pub enum Command {
     GotoLine,
     /// Insert a display LaTeX block at the cursor.
     InsertLatexBlock,
+    /// Open the formula editor on the formula at the cursor, or for a new formula.
+    EquationEditor,
     /// Apply a Markdown formatting action in the editor.
     Format(mdview_editor::MarkdownAction),
     /// Toggle soft wrap.

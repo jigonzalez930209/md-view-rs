@@ -105,7 +105,7 @@ pub fn show_confirm_prompt(ctx: &Context, prompt: &ConfirmPrompt) -> Option<Prom
     action
 }
 
-fn dialog_frame(visuals: egui::Visuals) -> Frame {
+pub(crate) fn dialog_frame(visuals: egui::Visuals) -> Frame {
     Frame::new()
         .fill(visuals.window_fill)
         .stroke(Stroke::new(1.0, visuals.window_stroke.color))
@@ -119,7 +119,7 @@ fn dialog_frame(visuals: egui::Visuals) -> Frame {
         })
 }
 
-fn ui_frame(ctx: &Context) -> egui::Visuals {
+pub(crate) fn ui_frame(ctx: &Context) -> egui::Visuals {
     ctx.style_of(ctx.theme()).visuals.clone()
 }
 

@@ -65,6 +65,7 @@ impl MdViewApp {
                     ("Replace", mdview_ui::Command::Replace),
                     ("Go to Line", mdview_ui::Command::GotoLine),
                     ("Insert LaTeX Block", mdview_ui::Command::InsertLatexBlock),
+                    ("Equation Editor…", mdview_ui::Command::EquationEditor),
                     ("Format: Bold", format(MarkdownAction::Bold)),
                     ("Format: Italic", format(MarkdownAction::Italic)),
                     ("Format: Underline", format(MarkdownAction::Underline)),

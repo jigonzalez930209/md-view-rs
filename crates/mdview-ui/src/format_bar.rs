@@ -1,13 +1,27 @@
 //! The Markdown formatting bar shown above the editor for Markdown documents.
 //!
 //! It follows GitHub's comment toolbar (heading, bold, italic, quote, code, link, and the
-//! three list kinds) and adds underline and a Word-style table picker: hover or arrow over
-//! a grid to choose rows and columns, then click or press Enter.
+//! three list kinds) and adds underline, a Word-style table picker (hover or arrow over a
+//! grid to choose rows and columns, then click or press Enter), and equations: a gallery of
+//! common formulas and the formula editor.
 
 use egui::{Color32, CornerRadius, Id, Key, Pos2, Rect, Sense, Stroke, Ui, Vec2};
 use mdview_editor::{MarkdownAction, MarkdownState};
 
 use crate::MaterialIcons;
+use crate::math_editor::GalleryPick;
+
+/// What the user picked in the formatting bar this frame.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FormatBarAction {
+    /// Apply a Markdown formatting action.
+    Format(MarkdownAction),
+    /// Insert a gallery equation as a display formula.
+    InsertEquation(&'static str),
+    /// Open the formula editor: on this template, or on the formula at the cursor (a new
+    /// one when the cursor is not in a formula) with `None`.
+    EditEquation(Option<&'static str>),
+}
 
 /// Every label the bar translates, so callers can resolve them ahead of time.
 pub const FORMAT_BAR_LABELS: &[&str] = &[
@@ -24,6 +38,10 @@ pub const FORMAT_BAR_LABELS: &[&str] = &[
     "Bulleted list",
     "Numbered list",
     "Task list",
+    "Equation",
+    "Equation editor",
+    "New equation",
+    "Edit before inserting",
 ];
 
 /// Height of the bar, in points.
@@ -43,7 +61,7 @@ pub fn show_format_bar(
     state: MarkdownState,
     t: &dyn Fn(&str) -> String,
     shortcut: &dyn Fn(&str) -> String,
-) -> Option<MarkdownAction> {
+) -> Option<FormatBarAction> {
     let mut action = None;
     let width = ui.available_width();
     let (rect, _) = ui.allocate_exact_size(Vec2::new(width, FORMAT_BAR_HEIGHT), Sense::hover());
@@ -97,7 +115,18 @@ pub fn show_format_bar(
     if button(ui, icons, "fmt-list-task", state.task, &t("Task list")).clicked() {
         action = Some(MarkdownAction::TaskList);
     }
-    action
+    separator(ui);
+    let gallery = button(ui, icons, "fmt-equation", false, &t("Equation"));
+    let equation = match crate::math_editor::show_gallery(&gallery, icons, t) {
+        Some(GalleryPick::Insert(tex)) => Some(FormatBarAction::InsertEquation(tex)),
+        Some(GalleryPick::Edit(tex)) => Some(FormatBarAction::EditEquation(Some(tex))),
+        Some(GalleryPick::New) => Some(FormatBarAction::EditEquation(None)),
+        None => None,
+    };
+    if button(ui, icons, "fmt-equation-edit", false, &t("Equation editor")).clicked() {
+        return Some(FormatBarAction::EditEquation(None));
+    }
+    equation.or(action.map(FormatBarAction::Format))
 }
 
 /// A square icon button; `active` draws it pressed, like a set format in Word.
@@ -245,13 +274,13 @@ mod tests {
     use egui_kittest::kittest::Queryable;
     use mdview_editor::{MarkdownAction, MarkdownState};
 
-    use super::show_format_bar;
+    use super::{FormatBarAction, show_format_bar};
     use crate::MaterialIcons;
 
-    fn harness(picked: Rc<RefCell<Vec<MarkdownAction>>>) -> Harness<'static> {
+    fn harness(picked: Rc<RefCell<Vec<FormatBarAction>>>) -> Harness<'static> {
         let mut icons = MaterialIcons::new();
         Harness::builder()
-            .with_size(egui::vec2(520.0, 260.0))
+            .with_size(egui::vec2(560.0, 640.0))
             .build_ui(move |ui| {
                 let state = MarkdownState {
                     bold: true,
@@ -281,7 +310,7 @@ mod tests {
         harness.run();
         assert_eq!(
             picked.borrow().as_slice(),
-            &[MarkdownAction::Table { rows: 2, columns: 3 }]
+            &[FormatBarAction::Format(MarkdownAction::Table { rows: 2, columns: 3 })]
         );
     }
 
@@ -313,6 +342,36 @@ mod tests {
                 MarkdownAction::BulletList,
                 MarkdownAction::TaskList,
                 MarkdownAction::Heading(2),
+            ]
+            .map(FormatBarAction::Format)
+        );
+    }
+
+    #[test]
+    fn equation_buttons_open_the_gallery_and_the_editor() {
+        let picked = Rc::new(RefCell::new(Vec::new()));
+        let mut harness = harness(picked.clone());
+        harness.run();
+        harness.get_by_label("Equation").click();
+        harness.run();
+        harness.get_by_label("Pythagorean theorem").click();
+        harness.run();
+        harness.get_by_label("Equation").click();
+        harness.run();
+        harness
+            .get_all_by_label("Edit before inserting")
+            .next()
+            .expect("edit button")
+            .click();
+        harness.run();
+        harness.get_by_label("Equation editor").click();
+        harness.run();
+        assert_eq!(
+            picked.borrow().as_slice(),
+            &[
+                FormatBarAction::InsertEquation("a^2 + b^2 = c^2"),
+                FormatBarAction::EditEquation(Some(crate::GALLERY[0].tex)),
+                FormatBarAction::EditEquation(None),
             ]
         );
     }
