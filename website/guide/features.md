@@ -30,7 +30,7 @@ The 1.0.0-rc.5 release candidate covers the following surface. The repository's
 | LaTeX inline and display math | Yes |
 | Mermaid flowcharts and sequence diagrams | Yes |
 | Local PNG/JPEG/GIF/WebP/BMP/TIFF/SVG | Yes |
-| ICO, TGA, DDS, HDR, EXR, PNM, QOI, Farbfeld, JPEG XL | Yes |
+| ICO, TGA, HDR, EXR, PNM, QOI, Farbfeld, JPEG XL | Yes |
 | Animated GIF, WebP, and APNG | Yes |
 | PDF viewer (continuous pages, zoom, page navigation) | Yes |
 | Video viewer with audio (needs FFmpeg installed) | Yes |

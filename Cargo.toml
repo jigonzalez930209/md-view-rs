@@ -36,7 +36,7 @@ mdview-i18n = { path = "crates/mdview-i18n" }
 mdview-app = { path = "crates/mdview-app" }
 
 pulldown-cmark = "0.13"
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "tiff", "ico", "tga", "dds", "hdr", "exr", "pnm", "qoi", "ff"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "tiff", "ico", "tga", "hdr", "exr", "pnm", "qoi", "ff"] }
 jxl-oxide = { version = "0.12", default-features = false, features = ["image"] }
 hayro = "0.9"
 usvg = "=0.48.1"

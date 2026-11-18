@@ -43,7 +43,7 @@ pub use video::{
 /// need native libraries (dav1d, libheif).
 pub const SUPPORTED_IMAGE_EXTENSIONS: &[&str] = &[
     "png", "apng", "jpg", "jpeg", "jfif", "gif", "webp", "bmp", "dib", "tif", "tiff", "svg", "ico", "cur", "tga",
-    "dds", "hdr", "exr", "pbm", "pgm", "ppm", "pnm", "pam", "qoi", "ff", "farbfeld", "jxl",
+    "hdr", "exr", "pbm", "pgm", "ppm", "pnm", "pam", "qoi", "ff", "farbfeld", "jxl",
 ];
 
 /// Whether a path has a supported image extension and should open as an image document.

@@ -5,7 +5,7 @@ JavaScript runtime. Media never edits the document; the source buffer remains au
 
 ## Image documents
 
-PNG/APNG, JPEG, GIF, WebP, BMP, TIFF, SVG, ICO/CUR, TGA, DDS, Radiance HDR, OpenEXR, PNM
+PNG/APNG, JPEG, GIF, WebP, BMP, TIFF, SVG, ICO/CUR, TGA, Radiance HDR, OpenEXR, PNM
 (PBM/PGM/PPM/PAM), QOI, Farbfeld, and JPEG XL files open directly in a fitted image viewer instead
 of the text editor, and the same formats render in Markdown. Raster formats decode with pure-Rust
 codecs (`image`, and `jxl-oxide` for JPEG XL); TGA, which has no signature, is recognised by its

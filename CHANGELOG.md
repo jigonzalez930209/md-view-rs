@@ -22,9 +22,10 @@
   their own frame delays, under the same play/pause and reduced-motion settings as animated SVG.
   Frames are decoded once (at most 1,000 frames and 256 MiB) and a texture is uploaded only when
   the frame changes.
-- More image formats open in the viewer and the preview: ICO/CUR, TGA, DDS, Radiance HDR,
+- More image formats open in the viewer and the preview: ICO/CUR, TGA, Radiance HDR,
   OpenEXR, PNM (PBM/PGM/PPM/PAM), QOI, Farbfeld, and JPEG XL, all with pure-Rust decoders. AVIF and
-  HEIC stay unsupported because their decoders need native libraries.
+  HEIC stay unsupported because their decoders need native libraries, and DDS because the `image`
+  crate no longer decodes it.
 - CSV, TSV, and other delimited files (`.csv`, `.tsv`, `.tab`, `.psv`, `.dsv`, `.ssv`) open in a
   spreadsheet grid. The delimiter (comma, semicolon, tab, or pipe) and CRLF line endings are
   detected. Cells are edited in place by typing, Enter, F2, or a double-click; arrows, Tab, and
