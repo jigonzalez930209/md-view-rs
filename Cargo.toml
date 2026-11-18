@@ -24,6 +24,7 @@ unreachable = "deny"
 [workspace.dependencies]
 mdview-model = { path = "crates/mdview-model" }
 mdview-markdown = { path = "crates/mdview-markdown" }
+mdview-table = { path = "crates/mdview-table" }
 mdview-syntax = { path = "crates/mdview-syntax" }
 mdview-workspace = { path = "crates/mdview-workspace" }
 mdview-media = { path = "crates/mdview-media" }

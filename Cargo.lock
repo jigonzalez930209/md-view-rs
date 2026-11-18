@@ -2701,6 +2701,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "mdview-table"
+version = "1.0.0-rc.5"
+
+[[package]]
 name = "mdview-theme"
 version = "1.0.0-rc.5"
 dependencies = [
