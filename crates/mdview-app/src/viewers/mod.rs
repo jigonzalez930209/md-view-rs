@@ -15,6 +15,7 @@ use crate::media_runtime::MediaRuntime;
 mod image;
 mod pdf;
 mod video;
+mod video_audio;
 mod video_worker;
 
 /// Per-frame services a viewer may use.

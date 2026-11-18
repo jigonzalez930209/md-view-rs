@@ -1,9 +1,11 @@
-//! The video viewer: frames from the system FFmpeg, audio from `ffplay`, both off the UI thread.
+//! The video viewer: frames and sound decoded by FFmpeg, both off the UI thread.
 //!
-//! A worker thread decodes raw RGBA frames through a pipe and hands each one over at its
-//! presentation time; the pipe's backpressure keeps decoding at playback speed. Audio plays in
-//! a windowless `ffplay` started and stopped with the video. Pausing stops both; seeking while
-//! paused decodes a single frame. Without FFmpeg the viewer says how to install it.
+//! Release packages ship their own FFmpeg; a build from source uses the one on the PATH. A
+//! worker thread decodes raw RGBA frames through a pipe and hands each one over at its
+//! presentation time; the pipe's backpressure keeps decoding at playback speed. A second
+//! FFmpeg decodes the soundtrack to PCM for the output device, started and stopped with the
+//! video. Pausing stops both; seeking while paused decodes a single frame. Without FFmpeg the
+//! viewer says how to install it.
 
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, Sender};

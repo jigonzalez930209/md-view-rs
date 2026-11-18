@@ -2,17 +2,21 @@
 
 use std::io::Read;
 use std::path::Path;
-use std::process::{Child, ChildStdout, Command, Stdio};
+use std::process::{Child, ChildStdout, Stdio};
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use std::time::{Duration, Instant};
 
 use eframe::egui;
 use mdview_media::VideoInfo;
 
-/// Shown when FFmpeg is missing.
-const INSTALL_HINT: &str = "Video playback uses FFmpeg, which was not found. Install it (Debian/Ubuntu: \
-`sudo apt install ffmpeg`, Fedora: `sudo dnf install ffmpeg`, macOS: `brew install ffmpeg`, Windows: \
-`winget install ffmpeg`) and open the file again.";
+use super::video_audio::AudioPlayer;
+
+/// Shown when neither a bundled FFmpeg nor one on the PATH is found: release packages ship
+/// FFmpeg, so this only happens in a build from source.
+const INSTALL_HINT: &str = "Video playback uses FFmpeg, which this build does not include and which was not \
+found. Install it (Debian/Ubuntu: `sudo apt install ffmpeg`, Fedora: `sudo dnf install ffmpeg`, macOS: \
+`brew install ffmpeg`, Windows: `winget install ffmpeg`) or point `MDVIEW_FFMPEG_DIR` at a folder that \
+contains it, then open the file again.";
 
 pub(super) enum Order {
     Play { from: f64, width: u32, audio: bool },
@@ -34,21 +38,17 @@ pub(super) enum Reply {
 /// Child processes that die with their owner, so closing a tab never leaves FFmpeg running.
 struct Processes {
     decoder: Option<(Child, ChildStdout)>,
-    audio: Option<Child>,
+    audio: Option<AudioPlayer>,
 }
 
 impl Processes {
     fn stop(&mut self) {
-        for mut child in self
-            .decoder
-            .take()
-            .map(|(child, _)| child)
-            .into_iter()
-            .chain(self.audio.take())
-        {
+        if let Some((mut child, _)) = self.decoder.take() {
             let _ = child.kill();
             let _ = child.wait();
         }
+        // Dropping the player stops its device stream and its FFmpeg.
+        self.audio = None;
     }
 }
 
@@ -122,13 +122,7 @@ pub(super) fn worker(path: &Path, orders: &Receiver<Order>, replies: &Sender<Rep
                 size = mdview_media::decode_size(&info, width);
                 processes.decoder = spawn_decoder(path, from, size);
                 if audio && info.has_audio {
-                    processes.audio = Command::new("ffplay")
-                        .args(mdview_media::audio_args(path, from))
-                        .stdin(Stdio::null())
-                        .stdout(Stdio::null())
-                        .stderr(Stdio::null())
-                        .spawn()
-                        .ok();
+                    processes.audio = AudioPlayer::start(path, from);
                 }
                 clock = Some((Instant::now(), from, 0));
             }
@@ -163,7 +157,7 @@ pub(super) fn worker(path: &Path, orders: &Receiver<Order>, replies: &Sender<Rep
 }
 
 fn spawn_decoder(path: &Path, from: f64, size: (u32, u32)) -> Option<(Child, ChildStdout)> {
-    let mut child = Command::new("ffmpeg")
+    let mut child = mdview_media::ffmpeg_command()
         .args(mdview_media::decode_args(path, from, size, None))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -175,7 +169,7 @@ fn spawn_decoder(path: &Path, from: f64, size: (u32, u32)) -> Option<(Child, Chi
 }
 
 fn decode_still(path: &Path, at: f64, size: (u32, u32)) -> Option<Vec<u8>> {
-    let output = Command::new("ffmpeg")
+    let output = mdview_media::ffmpeg_command()
         .args(mdview_media::decode_args(path, at, size, Some(1)))
         .stdin(Stdio::null())
         .stderr(Stdio::null())
