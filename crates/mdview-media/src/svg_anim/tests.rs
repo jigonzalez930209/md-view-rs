@@ -19,7 +19,7 @@ fn smil_opacity_linear() {
     let svg = r##"<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"><animate attributeName="opacity" values="0;1" dur="2s"/></rect></svg>"##;
     assert_eq!(attr(&frame(svg, 0.0), "opacity"), "0.000");
     assert_eq!(attr(&frame(svg, 1.0), "opacity"), "0.500");
-    assert_eq!(attr(&frame(svg, 2.0), "opacity"), "1");
+    assert_eq!(attr(&frame(svg, 2.0), "opacity"), "1.000");
 }
 
 #[test]
@@ -44,8 +44,9 @@ fn indefinite_repeat_loops() {
 
 #[test]
 fn begin_delays_the_clip() {
+    // Before `begin` the element keeps its own value, as browsers show it (SMIL).
     let svg = r##"<svg xmlns="http://www.w3.org/2000/svg"><rect><animate attributeName="opacity" values="0;1" begin="1s" dur="1s"/></rect></svg>"##;
-    assert_eq!(attr(&frame(svg, 0.5), "opacity"), "0");
+    assert!(!frame(svg, 0.5).contains("opacity="));
     assert_eq!(attr(&frame(svg, 1.5), "opacity"), "0.500");
 }
 
@@ -94,19 +95,19 @@ fn geometry_animation() {
 
 #[test]
 fn css_keyframes_opacity() {
-    let svg = r##"<svg xmlns="http://www.w3.org/2000/svg"><style>@keyframes fade { from { opacity: 0; } to { opacity: 1; } } .fade { animation: fade 2s infinite; }</style><rect class="fade"/></svg>"##;
+    let svg = r##"<svg xmlns="http://www.w3.org/2000/svg"><style>@keyframes fade { from { opacity: 0; } to { opacity: 1; } } .fade { animation: fade 2s linear infinite; }</style><rect class="fade"/></svg>"##;
     assert_eq!(attr(&frame(svg, 1.0), "opacity"), "0.500");
 }
 
 #[test]
 fn css_keyframes_transform() {
-    let svg = r##"<svg xmlns="http://www.w3.org/2000/svg"><style>@keyframes spin { 0% { transform: rotate(0); } 100% { transform: rotate(90); } } #spin { animation: spin 2s infinite; }</style><rect id="spin"/></svg>"##;
+    let svg = r##"<svg xmlns="http://www.w3.org/2000/svg"><style>@keyframes spin { 0% { transform: rotate(0); } 100% { transform: rotate(90); } } #spin { animation: spin 2s infinite linear; }</style><rect id="spin"/></svg>"##;
     assert_eq!(attr(&frame(svg, 1.0), "transform"), "rotate(45.000)");
 }
 
 #[test]
 fn css_inline_animation() {
-    let svg = r##"<svg xmlns="http://www.w3.org/2000/svg"><style>@keyframes glow { from { fill: #000000; } to { fill: #ffffff; } }</style><rect style="animation: glow 1s infinite"/></svg>"##;
+    let svg = r##"<svg xmlns="http://www.w3.org/2000/svg"><style>@keyframes glow { from { fill: #000000; } to { fill: #ffffff; } }</style><rect style="animation: glow 1s infinite linear"/></svg>"##;
     assert_eq!(attr(&frame(svg, 0.5), "fill"), "#808080");
 }
 
@@ -136,12 +137,9 @@ fn raster_frames_differ_over_time() {
 }
 
 #[test]
-fn unsupported_motion_is_reported() {
-    let svg = r##"<svg xmlns="http://www.w3.org/2000/svg"><rect><animateMotion path="M0 0 L10 10"/></rect></svg>"##;
-    // AnimateMotion alone has no supported clip, so the document stays static; when combined
-    // with a supported clip the unsupported flag is exposed.
-    assert!(parse(svg).expect("parse").is_none());
-    let mixed = r##"<svg xmlns="http://www.w3.org/2000/svg"><rect><animate attributeName="opacity" values="0;1" dur="1s"/><animateMotion path="M0 0 L10 10"/></rect></svg>"##;
-    let animation = parse(mixed).expect("parse").expect("animation");
+fn partial_motion_features_are_reported() {
+    // keyPoints is not supported: the motion still plays, and the document is flagged.
+    let svg = r##"<svg xmlns="http://www.w3.org/2000/svg"><rect><animateMotion path="M0 0 L10 10" dur="1s" keyPoints="0;1" keyTimes="0;1"/></rect></svg>"##;
+    let animation = parse(svg).expect("parse").expect("animation");
     assert!(animation.unsupported);
 }

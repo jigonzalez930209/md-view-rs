@@ -2811,6 +2811,7 @@ dependencies = [
  "resvg",
  "roxmltree 0.21.2",
  "serde_json",
+ "svgtypes",
  "tempfile",
  "thiserror 2.0.21",
  "ureq",
