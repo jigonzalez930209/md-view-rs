@@ -13,6 +13,7 @@ craft-svg.workspace = true
 fontdb.workspace = true
 image.workspace = true
 jxl-oxide.workspace = true
+hayro.workspace = true
 mermaid-rs-renderer.workspace = true
 ratex-layout.workspace = true
 ratex-parser.workspace = true
