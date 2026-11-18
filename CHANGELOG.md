@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.0-rc.6 — 2026-11-18
+
+- The formula editor's source hover now highlights a whole `\frac` (numerator, bar, and
+  denominator) when the pointer is on the command, instead of nothing.
 - `examples/v1-workspace/media` has sample files for every new viewer: one still image per
   format, animated GIF/WebP/APNG and SVG samples, a six-page PDF, four videos, and five
   delimited tables, with a checklist in its `README.md`. Tests open each one through the real
