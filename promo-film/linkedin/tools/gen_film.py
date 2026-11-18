@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BARS = json.loads((ROOT / "tools/bars.json").read_text())
-VERSION = "1.0.0-rc.5"
+VERSION = "1.0.0-rc.7"
 # Equations section (25.5 - 31.5): every later section moves by EQ_LEN.
 EQ_AT, EQ_LEN = 25.5, 6.0
 END_AT = 33.0 + EQ_LEN

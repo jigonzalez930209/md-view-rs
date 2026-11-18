@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.0.0-rc.7 — 2026-11-18
+
+- The editor no longer shows a horizontal scrollbar when every line fits; it appears only when a
+  line is wider than the view, and never with soft wrap. The text area no longer overflows by
+  the vertical scrollbar's width.
+- The LinkedIn promo film no longer draws outlines and tags over the screen.
+
 ## 1.0.0-rc.6 — 2026-11-18
 
 - The formula editor's source hover now highlights a whole `\frac` (numerator, bar, and

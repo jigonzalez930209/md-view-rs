@@ -39,3 +39,10 @@ the captions name each feature. `check`: 0 errors, the same 2 warnings.
 Rendered `../out/linkedin-4x5.mp4`: 1080 × 1350, 44.0 s, −15.7 LUFS, −1.2 dBFS peak (measured,
 not heard). Checked frames 4.5, 7.2, 9.5, 14, 18.6, 23, 26.8, 29.5, 32.2, 35, 38.2, 43.75 in
 the preview and 7.2, 23, 38 from the render: no outline or tag left.
+
+## 1.0.0-rc.7 update (2026-11-18)
+
+End card reads "Download 1.0.0-rc.7". `17-settings` and `17b-settings-themes` recaptured in both
+themes with the rc.7 release build, so the Settings footer reads "MD View 1.0.0-rc.7"; the rest of
+the footage is unchanged. `check`: 0 errors, 2 warnings. Rendered 44.0 s, −15.7 LUFS, −1.2 dBFS
+peak. Checked 23, 38.5 and 43.5 s from the render.

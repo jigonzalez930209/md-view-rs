@@ -14,7 +14,7 @@ FROM EACH FILM:
 LOOK:
 - Ground: flat #0b6bd6 (the app icon's blue). No gradients, glow, glass, grain.
 - Two cards, 980 × 490, radius 20, x 50: light at y 262, dark at y 772 (20 px gap). Shadow 0 30 px 70 px rgba(3,25,60,.45).
-- Material: real MD View captures (1.0.0-rc.5 build), 1920 × 1000 at 150 % UI scale, scripted in Xvfb so both themes share exact state (tools/capture.py). Reading view = one tall page stitched from 7 captures at measured 480 px offsets.
+- Material: real MD View captures (1.0.0-rc.5 build; Settings frames from 1.0.0-rc.7), 1920 × 1000 at 150 % UI scale, scripted in Xvfb so both themes share exact state (tools/capture.py). Reading view = one tall page stitched from 7 captures at measured 480 px offsets.
 - Accent: #e8336d — paint strokes and the scanline only.
 - Captions: Inter 900, 66 px, line-height 1.04, white, left-aligned at x 60, top 84; max 2 lines, ≤ 3 words a line.
 

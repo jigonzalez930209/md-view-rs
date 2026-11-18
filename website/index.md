@@ -13,7 +13,7 @@ hero:
       text: Get started
       link: /guide/
     - theme: alt
-      text: Download 1.0.0-rc.6
+      text: Download 1.0.0-rc.7
       link: /guide/install
 
 features:
@@ -106,7 +106,7 @@ Files opened from anywhere appear in a fixed **External files** group at the end
 
 ## Ready to try it?
 
-The 1.0.0-rc.6 builds are published for Linux, macOS, and Windows. The RC is unsigned; the release page explains the current signing and notarization status.
+The 1.0.0-rc.7 builds are published for Linux, macOS, and Windows. The RC is unsigned; the release page explains the current signing and notarization status.
 
 <p class="home-actions">
   <a class="VPButton brand" href="/md-view-rs/guide/install">Download the RC</a>

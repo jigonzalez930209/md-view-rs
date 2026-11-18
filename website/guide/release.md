@@ -1,29 +1,21 @@
-# Release 1.0.0-rc.6
+# Release 1.0.0-rc.7
 
 **Release date:** 2026-11-18
 
-MD View 1.0.0-rc.6 is the sixth public release candidate. It is a native Rust desktop editor with
+MD View 1.0.0-rc.7 is the seventh public release candidate. It is a native Rust desktop editor with
 a GitHub-parity Markdown reading view, a virtualized code editor, a workspace explorer, and a
-self-contained media renderer. This candidate opens far more kinds of files: delimited data in an
-editable grid, PDF, video, animated images, and more image formats.
+self-contained media renderer. This candidate fixes the editor's horizontal scrollbar.
 
 ## Highlights
 
-- **Spreadsheet grid for CSV and TSV.** Delimited files open in an editable grid with detected
-  delimiters, in-place editing, block copy and paste with spreadsheet applications, row and column
-  insertion and deletion, and resizable columns. Edits change only the touched fields of the text.
-  See the [editor guide](/guide/editor#delimited-files-csv-tsv).
-- **PDF viewer.** Continuous pages, fit-width or manual zoom, and page navigation, rendered in the
-  background in pure Rust.
-- **Video viewer.** Every format the system FFmpeg reads plays with play/pause, seeking, ±5 s keys,
-  and mute.
-- **Animated GIF, WebP, and APNG**, plus ICO/CUR, TGA, HDR, EXR, PNM, QOI, Farbfeld, and JPEG XL.
-- **Richer animated SVG.** Motion paths, line drawing, spline easing, `fill="freeze"`, and CSS
-  delays, iteration counts, directions, and timing functions.
-- **Formula editor fix.** Pointing at `\frac` highlights the whole fraction.
+- **Horizontal scrollbar only when needed.** The editor no longer shows a horizontal scrollbar
+  under short lines. It appears when a line is wider than the view, and never with soft wrap.
 
 ### Included from earlier candidates
 
+- **More file types (rc.6).** An editable spreadsheet grid for CSV and TSV, PDF and video viewers,
+  animated GIF, WebP, and APNG, more image formats including JPEG XL, richer animated SVG, and
+  whole-fraction hover in the formula editor.
 - **Equation gallery and formula editor (rc.5).** The Σ gallery, the √x formula editor with a
   live preview and template palette, source-to-formula hover, and double-click editing.
 - **The system clipboard (rc.4).** Copy, cut, and paste exchange text with other applications.
@@ -47,7 +39,7 @@ editable grid, PDF, video, animated images, and more image formats.
 
 ## Downloads
 
-Use the [GitHub release page](https://github.com/jigonzalez930209/md-view-rs/releases/tag/v1.0.0-rc.6)
+Use the [GitHub release page](https://github.com/jigonzalez930209/md-view-rs/releases/tag/v1.0.0-rc.7)
 and verify every file against `SHA256SUMS`.
 
 | Platform | Assets |
