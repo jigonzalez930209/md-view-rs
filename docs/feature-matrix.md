@@ -16,6 +16,12 @@ cargo run -p mdview-app -- examples/v1-workspace \
 examples/v1-workspace/
 ├── README.md
 ├── config.json
+├── media/                 (viewer fixtures; see media/README.md)
+│   ├── images/            one still image per supported format
+│   ├── animated/          GIF, WebP, APNG, and animated SVG samples
+│   ├── documents/         guide.pdf, six pages of mixed sizes
+│   ├── video/             MP4, WebM, MKV, and a rotated MOV
+│   └── tables/            CSV, TSV, PSV, semicolon CSV, and a 5,000-row CSV
 └── level1/
     ├── notes.md
     ├── build.sh

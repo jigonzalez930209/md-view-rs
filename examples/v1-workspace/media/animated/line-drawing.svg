@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="150" viewBox="0 0 240 150">
+  <!-- SMIL: stroke-dashoffset draws the line, fill="freeze" keeps it drawn, then the fill fades in. -->
+  <rect width="240" height="150" fill="#f6f8fa"/>
+  <path d="M30 110 C 60 20, 100 20, 120 75 S 180 130, 210 40" fill="none" stroke="#0969da"
+        stroke-width="6" stroke-linecap="round" stroke-dasharray="300" stroke-dashoffset="300">
+    <animate attributeName="stroke-dashoffset" from="300" to="0" dur="2s" fill="freeze"
+             calcMode="spline" keyTimes="0;1" keySplines="0.42 0 0.58 1"/>
+  </path>
+  <circle cx="210" cy="40" r="10" fill="#1a7f37" opacity="0">
+    <animate attributeName="opacity" from="0" to="1" begin="2s" dur="0.5s" fill="freeze"/>
+  </circle>
+</svg>

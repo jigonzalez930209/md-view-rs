@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="150" viewBox="0 0 240 150">
+  <!-- CSS: staggered animation-delay, alternate direction, ease-in-out, and a stepped spinner. -->
+  <style>
+    @keyframes rise { from { opacity: 0.25; transform: translate(0, 0); } to { opacity: 1; transform: translate(0, -24px); } }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes dash { 0% { stroke-dashoffset: 120; } 100% { stroke-dashoffset: 0; } }
+    .dot { animation: rise 0.6s ease-in-out infinite alternate; fill: #8250df; }
+    .d2 { animation-delay: 0.2s; }
+    .d3 { animation-delay: 0.4s; }
+    #spinner { animation: spin 1.2s steps(8) infinite; }
+    #ring { animation-name: dash; animation-duration: 3s; animation-timing-function: linear;
+            animation-iteration-count: infinite; animation-direction: alternate; }
+  </style>
+  <rect width="240" height="150" fill="#ffffff"/>
+  <circle class="dot" cx="40" cy="100" r="10"/>
+  <circle class="dot d2" cx="70" cy="100" r="10"/>
+  <circle class="dot d3" cx="100" cy="100" r="10"/>
+  <g transform="translate(175 75)">
+    <g id="spinner">
+      <rect x="-3" y="-34" width="6" height="16" rx="3" fill="#cf222e"/>
+    </g>
+    <circle id="ring" r="20" fill="none" stroke="#0969da" stroke-width="4" stroke-dasharray="120"/>
+  </g>
+</svg>

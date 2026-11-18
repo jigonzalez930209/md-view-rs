@@ -1,0 +1,8 @@
+id,name,city,notes,score
+1,Ada Lovelace,London,"Wrote the first program, ""Note G""",98.5
+2,José Núñez,Málaga,"Two lines:
+second line",87
+3,李小龍,香港,Unicode names and cities,91.25
+4,  Spaces  ,Oslo," leading and trailing ",70
+5,Empty notes,Lima,,64
+6,Grace Hopper,Arlington,Compilers,99

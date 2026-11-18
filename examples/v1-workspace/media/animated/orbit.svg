@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="240" height="150" viewBox="0 0 240 150">
+  <!-- SMIL: animateMotion along an <mpath> with rotate="auto"; a second shape follows inline path data. -->
+  <rect width="240" height="150" fill="#0d1117"/>
+  <path id="track" d="M120 20 C 200 20, 220 130, 120 130 C 20 130, 40 20, 120 20 Z" fill="none" stroke="#30363d" stroke-width="2"/>
+  <polygon points="-10,-6 10,0 -10,6" fill="#ffd33d">
+    <animateMotion dur="4s" repeatCount="indefinite" rotate="auto">
+      <mpath xlink:href="#track"/>
+    </animateMotion>
+  </polygon>
+  <circle r="5" fill="#58a6ff">
+    <animateMotion path="M60 75 L180 75" dur="2s" repeatCount="indefinite" calcMode="spline"
+                   keyTimes="0;1" keySplines="0.42 0 0.58 1"/>
+  </circle>
+  <g transform="translate(120 75)">
+    <circle r="14" fill="#f78166">
+      <animateTransform attributeName="transform" type="scale" values="1;1.4;1" dur="1.5s"
+                        repeatCount="indefinite"/>
+    </circle>
+  </g>
+</svg>

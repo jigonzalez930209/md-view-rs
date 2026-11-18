@@ -14,6 +14,11 @@ data files alternating at every level.
 `showcase.md` is the full render matrix: LaTeX, tables, code highlighting, local PNG and
 SVG images, Mermaid diagrams, task lists, alerts, and footnotes.
 
+## Media viewers
+
+`media/` holds sample files for the image, animation, PDF, video, and table viewers; its
+`README.md` is the checklist.
+
 ## Root files
 
 - `config.json` for JSON highlighting.

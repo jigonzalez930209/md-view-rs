@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="150" viewBox="0 0 240 150">
+  <!-- No animation: opens as a still image, with no playback controls. -->
+  <rect width="240" height="150" rx="12" fill="#0969da"/>
+  <circle cx="60" cy="75" r="30" fill="#ffffff"/>
+  <rect x="110" y="55" width="100" height="14" rx="7" fill="#ffffff"/>
+  <rect x="110" y="80" width="70" height="12" rx="6" fill="#b6d7ff"/>
+</svg>

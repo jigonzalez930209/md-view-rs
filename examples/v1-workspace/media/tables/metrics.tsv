@@ -1,0 +1,4 @@
+metric	p50	p95	unit
+frame time	5.4	9.8	ms
+startup	180	260	ms
+peak memory	245	310	MiB

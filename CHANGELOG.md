@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `examples/v1-workspace/media` has sample files for every new viewer: one still image per
+  format, animated GIF/WebP/APNG and SVG samples, a six-page PDF, four videos, and five
+  delimited tables, with a checklist in its `README.md`. Tests open each one through the real
+  loaders, and `scripts/fixtures/make_media.py` rebuilds them.
 - Animated SVG covers much more of what icons and loaders use: `animateMotion` along a path or an
   `<mpath>` with `rotate="auto"`, line drawing with `stroke-dashoffset`, `fill="freeze"`, spline
   easing with `keySplines`, colors as `#rgb`, `rgb()`, or names, and in CSS the delay, iteration
