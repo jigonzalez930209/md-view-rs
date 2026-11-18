@@ -1,11 +1,12 @@
-//! Video probing and decoding through the system FFmpeg.
+//! Video probing and decoding through FFmpeg.
 //!
-//! MD View draws no video codec itself: a pure-Rust decoder for H.264, HEVC, VP9, and AV1 does
-//! not exist, and a webview is ruled out. When `ffprobe` and `ffmpeg` are on the PATH, every
-//! container and codec they read plays; otherwise the viewer explains how to install them. The
-//! programs run without a shell, read only the given file, and write raw frames to a pipe.
+//! MD View draws no video codec itself and a webview is ruled out, so `ffprobe` reads the
+//! stream layout and `ffmpeg` decodes frames and sound into pipes. Packaged builds ship their
+//! own LGPL FFmpeg (built by `scripts/ffmpeg/build.sh`) next to the executable; a build
+//! without one falls back to the programs on the PATH. The programs run without a shell,
+//! read only the given file, and write raw frames or PCM to a pipe.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::MediaError;
@@ -41,10 +42,42 @@ pub struct VideoInfo {
     pub codec: String,
 }
 
+/// Where packaged builds keep FFmpeg, in lookup order: an explicit `MDVIEW_FFMPEG_DIR`,
+/// beside the executable (Windows, the macOS bundle), and `../lib/mdview` from it (the Linux
+/// packages and the AppImage). The bare name, resolved through the PATH, comes last.
+pub fn tool_candidates(name: &str, executable: Option<&Path>, override_dir: Option<&Path>) -> Vec<PathBuf> {
+    let file = format!("{name}{}", std::env::consts::EXE_SUFFIX);
+    let mut candidates = Vec::new();
+    if let Some(directory) = override_dir {
+        candidates.push(directory.join(&file));
+    }
+    if let Some(directory) = executable.and_then(Path::parent) {
+        candidates.push(directory.join(&file));
+        candidates.push(directory.join("../lib/mdview").join(&file));
+    }
+    candidates.push(PathBuf::from(file));
+    candidates
+}
+
+/// The FFmpeg program to run for `name` (`ffmpeg` or `ffprobe`): the bundled copy when there
+/// is one, otherwise the name for a PATH lookup.
+pub fn tool_path(name: &str) -> PathBuf {
+    let executable = std::env::current_exe().ok();
+    let override_dir = std::env::var_os("MDVIEW_FFMPEG_DIR").map(PathBuf::from);
+    let mut candidates = tool_candidates(name, executable.as_deref(), override_dir.as_deref());
+    let fallback = candidates.pop().unwrap_or_else(|| PathBuf::from(name));
+    candidates.into_iter().find(|path| path.is_file()).unwrap_or(fallback)
+}
+
+/// A command for the bundled or system `ffmpeg`.
+pub fn ffmpeg_command() -> Command {
+    Command::new(tool_path("ffmpeg"))
+}
+
 /// Whether `ffmpeg` and `ffprobe` can be run.
 pub fn ffmpeg_available() -> bool {
     ["ffmpeg", "ffprobe"].iter().all(|program| {
-        Command::new(program)
+        Command::new(tool_path(program))
             .arg("-version")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -56,7 +89,7 @@ pub fn ffmpeg_available() -> bool {
 
 /// Probe a video file with `ffprobe`.
 pub fn probe(path: &Path) -> Result<VideoInfo, MediaError> {
-    let output = Command::new("ffprobe")
+    let output = Command::new(tool_path("ffprobe"))
         .args([
             "-v",
             "error",
@@ -158,13 +191,18 @@ pub fn decode_args(path: &Path, start: f64, size: (u32, u32), frames: Option<u32
     args
 }
 
-/// Arguments for `ffplay` that play only the audio of `path` from `start`, with no window.
-pub fn audio_args(path: &Path, start: f64) -> Vec<String> {
-    let mut args: Vec<String> = ["-nodisp", "-autoexit", "-loglevel", "quiet", "-ss"]
-        .map(str::to_owned)
-        .to_vec();
+/// Arguments for `ffmpeg` that decode the first audio stream of `path` from `start` seconds
+/// into interleaved signed 16-bit PCM at `rate` Hz with `channels` channels on stdout.
+pub fn audio_args(path: &Path, start: f64, rate: u32, channels: u16) -> Vec<String> {
+    let mut args: Vec<String> = ["-v", "error", "-nostdin", "-ss"].map(str::to_owned).to_vec();
     args.push(format!("{:.3}", start.max(0.0)));
+    args.push("-i".to_owned());
     args.push(path.to_string_lossy().into_owned());
+    args.extend(["-map", "0:a:0", "-vn", "-sn", "-ac"].map(str::to_owned));
+    args.push(channels.max(1).to_string());
+    args.push("-ar".to_owned());
+    args.push(rate.max(8000).to_string());
+    args.extend(["-f", "s16le", "-"].map(str::to_owned));
     args
 }
 
@@ -218,9 +256,33 @@ mod tests {
         );
         assert!(args.windows(2).any(|pair| pair == ["-ss", "3.250"]));
         assert!(args.windows(2).any(|pair| pair == ["-frames:v", "1"]));
+        let audio = audio_args(path, 1.5, 48_000, 2);
+        assert!(
+            audio.contains(&"/tmp/a b; rm -rf ~.mp4".to_owned()),
+            "the path is one argument"
+        );
+        assert!(audio.windows(2).any(|pair| pair == ["-ar", "48000"]));
+        assert!(audio.windows(2).any(|pair| pair == ["-ac", "2"]));
+        assert!(audio.ends_with(&["-f".to_owned(), "s16le".to_owned(), "-".to_owned()]));
+    }
+
+    #[test]
+    fn bundled_ffmpeg_is_found_before_the_path() {
+        let exe = std::env::consts::EXE_SUFFIX;
+        let executable = Path::new("/opt/mdview/usr/bin/mdview");
+        let candidates = tool_candidates("ffprobe", Some(executable), Some(Path::new("/dev/ff")));
         assert_eq!(
-            audio_args(path, 0.0).last().map(String::as_str),
-            Some("/tmp/a b; rm -rf ~.mp4")
+            candidates,
+            vec![
+                PathBuf::from(format!("/dev/ff/ffprobe{exe}")),
+                PathBuf::from(format!("/opt/mdview/usr/bin/ffprobe{exe}")),
+                PathBuf::from(format!("/opt/mdview/usr/bin/../lib/mdview/ffprobe{exe}")),
+                PathBuf::from(format!("ffprobe{exe}")),
+            ]
+        );
+        assert_eq!(
+            tool_candidates("ffmpeg", None, None),
+            vec![PathBuf::from(format!("ffmpeg{exe}"))]
         );
     }
 
@@ -229,34 +291,25 @@ mod tests {
         if !ffmpeg_available() {
             return;
         }
-        let directory = std::env::temp_dir().join(format!("mdview-video-test-{}", std::process::id()));
-        std::fs::create_dir_all(&directory).expect("temp dir");
-        let path = directory.join("clip.mp4");
-        let made = Command::new("ffmpeg")
-            .args([
-                "-v",
-                "error",
-                "-y",
-                "-f",
-                "lavfi",
-                "-i",
-                "testsrc=size=320x240:rate=25:duration=1",
-                "-pix_fmt",
-                "yuv420p",
-            ])
-            .arg(&path)
-            .status()
-            .is_ok_and(|status| status.success());
-        assert!(made, "ffmpeg made a test clip");
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/v1-workspace/media/video/clip.mp4");
         let info = probe(&path).expect("probe");
-        assert_eq!((info.width, info.height), (320, 240));
+        assert_eq!((info.width, info.height), (480, 270));
         assert!((info.fps - 25.0).abs() < 0.01);
+        assert!(info.has_audio);
         let size = decode_size(&info, 160);
-        let output = Command::new("ffmpeg")
+        let output = ffmpeg_command()
             .args(decode_args(&path, 0.5, size, Some(1)))
             .output()
             .expect("decode");
         assert_eq!(output.stdout.len(), (size.0 * size.1 * 4) as usize, "one RGBA frame");
-        let _ = std::fs::remove_dir_all(&directory);
+        let audio = ffmpeg_command()
+            .args(audio_args(&path, 3.0, 48_000, 2))
+            .output()
+            .expect("audio");
+        let seconds = audio.stdout.len() as f64 / (48_000.0 * 2.0 * 2.0);
+        assert!(
+            (seconds - 1.0).abs() < 0.1,
+            "one second of stereo PCM, got {seconds:.2} s"
+        );
     }
 }
