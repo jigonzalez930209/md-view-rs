@@ -1,25 +1,31 @@
-# Release 1.0.0-rc.4
+# Release 1.0.0-rc.5
 
 **Release date:** 2026-11-17
 
-MD View 1.0.0-rc.4 is the fourth public release candidate. It is a native Rust desktop editor with
+MD View 1.0.0-rc.5 is the fifth public release candidate. It is a native Rust desktop editor with
 a GitHub-parity Markdown reading view, a virtualized code editor, a workspace explorer, and a
-self-contained media renderer. This candidate restores copy and paste between MD View and the rest
-of the desktop.
+self-contained media renderer. This candidate adds an equation gallery and a formula editor that
+shows which part of the LaTeX source draws which symbol.
 
 ## Highlights
 
-- **The system clipboard works in both directions.** Copy, cut, and paste now exchange text with
-  other applications. The editor and the preview's **Copy** button write to the OS clipboard, and
-  text copied elsewhere can be pasted into MD View. The desktop shell had compiled egui with an
-  in-process clipboard simulation, so both directions stopped at the window. The E2E run now
-  reads a copied line through a separate X11 client and pastes text owned by another client.
-- **Safer local gate.** `cargo xtask ci` checks available memory before starting, caps parallel
-  Cargo jobs from it, and stops a step before memory pressure can make systemd-oomd kill the
-  terminal. Run it as `systemd-run --user --scope --collect cargo xtask ci` on a busy desktop.
+- **Equation gallery.** The **Σ** button in the Markdown formatting bar lists common formulas in
+  the style of Word's built-in equations. Click one to insert it, or open it in the formula editor
+  first.
+- **Formula editor.** The **√x** button, `Alt+=`, **Edit → Equation Editor…**, or the command
+  palette opens the LaTeX source beside a live preview, with a template palette in nine
+  categories whose placeholders are filled in order with Tab. See the
+  [editor guide](/guide/editor#equation-editor).
+- **Source-to-formula hover.** Point at any part of the source and the formula part it draws lights
+  up in the theme accent. Coloring never changes the formula's layout.
+- **Double-click to edit.** Double-click a formula in the editor or the reading view to edit it;
+  math blocks offer **Edit equation** in their context menu.
+- **A local gate that stops only on real memory pressure.** `cargo xtask ci` no longer stops
+  while memory is plentiful just because its own systemd scope throttles the build.
 
 ### Included from earlier candidates
 
+- **The system clipboard (rc.4).** Copy, cut, and paste exchange text with other applications.
 - **Editor behavior (rc.3).** Enter and Space no longer move the cursor to the mouse pointer,
   typing no longer recentres the view, soft wrap breaks at word boundaries, and Tab, arrows,
   copy, and paste work without clicking the text pane.
@@ -40,7 +46,7 @@ of the desktop.
 
 ## Downloads
 
-Use the [GitHub release page](https://github.com/jigonzalez930209/md-view-rs/releases/tag/v1.0.0-rc.4)
+Use the [GitHub release page](https://github.com/jigonzalez930209/md-view-rs/releases/tag/v1.0.0-rc.5)
 and verify every file against `SHA256SUMS`.
 
 | Platform | Assets |

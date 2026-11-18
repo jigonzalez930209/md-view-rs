@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.0-rc.5 — 2026-11-17
+
 - Markdown documents get a formula editor. The formatting bar adds an equation gallery (Σ) with
   common formulas in the style of Word's built-in equations: insert one as a display formula with
   a click, or open it in the editor first. The second button (√x), `Alt+=`, the command palette,
