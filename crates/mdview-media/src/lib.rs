@@ -16,6 +16,7 @@ mod pdf;
 mod raster_anim;
 mod svg;
 pub mod svg_anim;
+mod video;
 
 use std::path::{Path, PathBuf};
 
@@ -30,6 +31,10 @@ pub use pdf::{MAX_PAGE_PIXELS, PdfDocument};
 pub use raster_anim::{MAX_ANIMATION_BYTES, MAX_FRAMES, RasterAnimation, decode_animation};
 pub use svg::rasterize_svg;
 pub use svg_anim::{Animation, frame_svg, parse as parse_animation};
+pub use video::{
+    VIDEO_EXTENSIONS, VideoInfo, audio_args, decode_args, decode_size, ffmpeg_available, is_video_path, parse_probe,
+    probe as probe_video,
+};
 
 /// Image extensions that the application can open as an image document.
 ///
