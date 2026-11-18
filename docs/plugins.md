@@ -1,7 +1,7 @@
 # Viewer plugins
 
 MD View keeps Markdown and text in the editor. Files that need a dedicated presentation use a
-read-only viewer plugin. The image and PDF viewers are the built-in plugins; the same API is the
+read-only viewer plugin. The image, PDF, and video viewers are the built-in plugins; the same API is the
 extension point for video, notebooks, 3D models, or diagrams.
 
 **Compatibility:** for `1.0`, this is an internal compile-time API inside `mdview-app`, not a

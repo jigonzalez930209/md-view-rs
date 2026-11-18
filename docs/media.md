@@ -24,6 +24,18 @@ newer request for a page replaces an older one. Pages are capped at 64 megapixel
 512 MB. Encrypted PDFs and some advanced features (blending, knockout groups) are not supported
 by the renderer yet; pages still show what it can draw.
 
+## Video
+
+Video files open in a viewer with play/pause (click the picture or press Space), a seek bar,
+±5 s on the left and right arrows, a time counter, and mute. MD View includes no video codec:
+the viewer runs the system `ffprobe`, `ffmpeg`, and `ffplay` (without a shell) when they are on
+the PATH, so every container and codec FFmpeg reads plays; otherwise it explains how to install
+FFmpeg on each platform. A worker thread decodes raw RGBA frames through a pipe at the view's
+width (never above the native size) and hands each frame over at its presentation time; the
+pipe's backpressure keeps decoding at playback speed. Audio plays in a windowless `ffplay`
+started and stopped with the video. Pausing stops both processes, seeking while paused decodes a
+single frame, and closing the tab stops everything.
+
 ## Images
 
 - Relative and absolute local paths and `file:` URLs are validated with `craft-docpath`.

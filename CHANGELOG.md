@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Video files (MP4, MOV, MKV, WebM, AVI, WMV, FLV, MPEG, TS, 3GP, OGV, and more) open in a
+  viewer with play/pause (click or Space), a seek bar, ±5 s on the arrow keys, a time counter, and
+  mute. Frames are decoded by the system FFmpeg off the UI thread at the view's resolution and
+  shown at their presentation time; audio plays through `ffplay` without a window. Without
+  FFmpeg the viewer shows how to install it.
 - PDF files open in a viewer: continuous pages, fit-width by default, zoom out and in, 100%, and
   previous/next page with a page counter. Pages render off the UI thread with hayro, a pure-Rust
   rasterizer, only near the viewport and at the current zoom, so long documents stay responsive.

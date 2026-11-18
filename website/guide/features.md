@@ -33,6 +33,7 @@ The 1.0.0-rc.5 release candidate covers the following surface. The repository's
 | ICO, TGA, DDS, HDR, EXR, PNM, QOI, Farbfeld, JPEG XL | Yes |
 | Animated GIF, WebP, and APNG | Yes |
 | PDF viewer (continuous pages, zoom, page navigation) | Yes |
+| Video viewer with audio (needs FFmpeg installed) | Yes |
 | Cached remote images | Yes |
 | Animated SVG subset | Yes |
 | Image zoom, pan, fit, lightbox | Yes |
