@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The local gate no longer stops on memory pressure alone while memory is plentiful. Pressure is
+  system-wide and also counts stalls caused by the gate's own systemd scope reaching `MemoryHigh`;
+  it now stops below 2 GiB available, or at 20% full pressure with less than 6 GiB available.
+  The documented scope for `cargo xtask ci` is raised to `MemoryHigh=12G` /
+  `MemoryMax=16G`.
+
 ## 1.0.0-rc.4 — 2026-11-17
 
 - Copy, cut, and paste now use the operating system clipboard. The app built eframe with

@@ -12,8 +12,15 @@ use std::time::Instant;
 const MIN_START_AVAILABLE_MB: u64 = 4096;
 /// Stop a running step below this much available memory.
 const MIN_STEP_AVAILABLE_MB: u64 = 2048;
-/// Stop when the kernel reports this much full memory-stall pressure over the last 10 seconds.
-const MAX_FULL_PRESSURE_AVG10: f64 = 20.0;
+/// Stop at this much full memory-stall pressure (kernel avg10) once memory is getting scarce.
+///
+/// Pressure is reported system-wide, and it also counts stalls from the gate's own systemd
+/// scope reaching `MemoryHigh`: linking the test binaries in parallel reached 55% with 14 GiB
+/// still available. Those stalls throttle only the build, and the scope's `MemoryMax` already
+/// keeps it off the desktop, so pressure is a reason to stop only when memory is scarce.
+const LOW_MEMORY_PRESSURE_AVG10: f64 = 20.0;
+/// Below this much available memory, `LOW_MEMORY_PRESSURE_AVG10` applies.
+const LOW_MEMORY_MB: u64 = 6144;
 /// Memory budget used to size Cargo's parallel jobs.
 const JOB_MEMORY_MB: u64 = 2048;
 const MAX_JOBS: usize = 4;
@@ -91,7 +98,7 @@ fn run_step(name: &str, args: &[&str], jobs: usize, tmp: &Path) -> Result<(), St
         }
         let available = available_memory_mb().unwrap_or(u64::MAX);
         let pressure = full_pressure_avg10().unwrap_or(0.0);
-        if available < MIN_STEP_AVAILABLE_MB || pressure >= MAX_FULL_PRESSURE_AVG10 {
+        if must_stop(available, pressure) {
             eprintln!("ci: stopping {name}: available memory {available} MiB, full pressure {pressure:.2}%");
             terminate(&mut child, pid);
             return Err(format!(
@@ -100,6 +107,12 @@ fn run_step(name: &str, args: &[&str], jobs: usize, tmp: &Path) -> Result<(), St
         }
         std::thread::sleep(Duration::from_millis(200));
     }
+}
+
+/// Whether a running step endangers the desktop: too little memory left, or memory stalls
+/// while memory is already scarce.
+fn must_stop(available_mb: u64, full_pressure: f64) -> bool {
+    available_mb < MIN_STEP_AVAILABLE_MB || (full_pressure >= LOW_MEMORY_PRESSURE_AVG10 && available_mb < LOW_MEMORY_MB)
 }
 
 /// Stop the whole process group so rustc and linker children cannot keep the machine under
@@ -164,4 +177,23 @@ fn full_pressure_avg10() -> Option<f64> {
         .find_map(|field| field.strip_prefix("avg10="))?
         .parse()
         .ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::must_stop;
+
+    #[test]
+    fn pressure_with_plenty_of_memory_does_not_stop_the_gate() {
+        // The runs that motivated this: stalls from the scope's MemoryHigh with memory to spare.
+        assert!(!must_stop(14_050, 23.83));
+        assert!(!must_stop(14_534, 55.15));
+    }
+
+    #[test]
+    fn scarce_memory_stops_the_gate() {
+        assert!(must_stop(2_000, 0.0));
+        assert!(must_stop(5_000, 20.0));
+        assert!(!must_stop(5_000, 19.9));
+    }
 }

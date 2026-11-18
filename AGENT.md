@@ -192,7 +192,7 @@ or terminal with it. Use every core, cap memory, and forbid swap for the scope:
 
 ```sh
 systemd-run --user --scope --collect \
-  -p MemoryHigh=8G -p MemoryMax=12G -p MemorySwapMax=0 \
+  -p MemoryHigh=12G -p MemoryMax=16G -p MemorySwapMax=0 \
   -p "CPUQuota=$(nproc)00%" \
   env CARGO_BUILD_JOBS=4 nice -n 10 cargo xtask ci
 
@@ -202,11 +202,14 @@ systemd-run --user --scope --collect \
   env CARGO_BUILD_JOBS=4 nice -n 10 cargo xtask e2e
 ```
 
-The CI guard refuses to start below 4 GiB available, sizes Cargo jobs from available memory, stops
-a step below 2 GiB or at 20% full memory pressure, and terminates the whole process group. The E2E
-run applies the same 4 GiB start check and aborts below 2 GiB. Do not run either gate as an
-unguarded background job; keep the scope attached to the terminal and close browsers, language
-servers, or VMs when the host is short on memory.
+The CI guard refuses to start below 4 GiB available, sizes Cargo jobs from available memory, stops a
+step below 2 GiB or at 20% full memory pressure with less than 6 GiB available, and terminates the
+whole process group. Pressure is system-wide and also counts stalls from the scope's own
+`MemoryHigh`, which only throttle the build while the scope's `MemoryMax` keeps it off the desktop,
+so pressure with memory to spare does not stop the gate. The E2E run applies the same 4 GiB start
+check and aborts below 2 GiB. Do not run either gate as an unguarded background job; keep the scope
+attached to the terminal and close browsers, language servers, or VMs when the host is short on
+memory.
 
 If the host has swapped pages, force them back into RAM before a heavy run only when MemAvailable
 is larger than the swap in use:

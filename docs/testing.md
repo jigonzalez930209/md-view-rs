@@ -10,10 +10,12 @@
 
 ## Resource guard
 
-`cargo xtask ci` refuses to start with less than 4 GiB available, sizes `CARGO_BUILD_JOBS` from
-the available memory (at most 4 jobs), and stops a step when available memory drops below 2 GiB or
-full memory-stall pressure reaches 20%. Each step runs in its own process group, so stopping it
-also stops its rustc and linker children. The E2E run applies the same 4 GiB start check and stops
+`cargo xtask ci` refuses to start with less than 4 GiB available, sizes `CARGO_BUILD_JOBS` from the
+available memory (at most 4 jobs), and stops a step when available memory drops below 2 GiB or when
+full memory-stall pressure reaches 20% with less than 6 GiB available. Pressure is system-wide and
+includes stalls caused by the scope's own `MemoryHigh`, so pressure with memory to spare does not
+stop the gate. Each step runs in its own process group, so stopping it also stops its rustc and
+linker children. The E2E run applies the same 4 GiB start check and stops
 when available memory drops below 2 GiB (`MDVIEW_E2E_MIN_START_MB`,
 `MDVIEW_E2E_MIN_AVAILABLE_MB`).
 
