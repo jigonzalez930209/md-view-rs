@@ -86,3 +86,29 @@ fn listed_extensions_open_in_the_image_viewer() {
     }
 }
 
+#[test]
+fn animated_gif_files_load_as_animations() {
+    use image::codecs::gif::{GifEncoder, Repeat};
+    use image::{Delay, Frame};
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("spinner.gif");
+    {
+        let file = std::fs::File::create(&path).expect("create");
+        let mut encoder = GifEncoder::new(file);
+        encoder.set_repeat(Repeat::Infinite).expect("repeat");
+        for shade in [0u8, 120, 240] {
+            let frame = RgbaImage::from_pixel(5, 5, Rgba([shade, shade, shade, 255]));
+            encoder
+                .encode_frame(Frame::from_parts(frame, 0, 0, Delay::from_numer_denom_ms(100, 1)))
+                .expect("frame");
+        }
+    }
+    let mut request = MediaRequest::new(MediaKind::Image, path.to_string_lossy());
+    request.base = Some(directory.path().to_path_buf());
+    let loaded = request.load_with_animation().expect("load");
+    let duration = loaded.animation_duration.expect("animated");
+    assert!((duration - 0.3).abs() < 0.001, "{duration}");
+    let source = loaded.animated.expect("animation source");
+    assert_eq!(source.frame_index(0.25), Some(2));
+    assert_eq!(source.render_frame(0.15, &request).expect("frame").rgba[0], 120);
+}

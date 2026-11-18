@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use mdview_media::{MediaRequest, Raster};
+use mdview_media::{AnimatedSource, MediaRequest, Raster};
 
 pub(super) struct Job {
     pub(super) key: String,
@@ -13,7 +13,7 @@ pub(super) struct Job {
 
 pub(super) enum JobMode {
     Load,
-    Frame { source: String, time: f32 },
+    Frame { source: AnimatedSource, time: f32 },
 }
 
 pub(super) struct Completed {
@@ -27,7 +27,7 @@ pub(super) struct Completed {
 pub(super) struct CompletedMedia {
     pub(super) raster: Raster,
     pub(super) animation: Option<AnimationInfo>,
-    pub(super) source: Option<String>,
+    pub(super) source: Option<AnimatedSource>,
 }
 
 pub(super) struct AnimationInfo {
@@ -37,7 +37,9 @@ pub(super) struct AnimationInfo {
 
 pub(super) struct Playback {
     pub(super) request: MediaRequest,
-    pub(super) source: String,
+    pub(super) source: AnimatedSource,
+    /// The decoded frame on screen, for raster animations: ticks that keep it are skipped.
+    pub(super) frame_index: Option<usize>,
     pub(super) duration: f32,
     pub(super) unsupported: bool,
     pub(super) frame_time: f32,

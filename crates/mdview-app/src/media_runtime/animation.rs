@@ -34,6 +34,13 @@ impl MediaRuntime {
             }
             playback.frame_time = (playback.frame_time + elapsed.as_secs_f32()) % playback.duration;
             playback.last_tick = now;
+            // Decoded frames change only at their delays; keep the texture until they do.
+            let index = playback.source.frame_index(playback.frame_time);
+            if index.is_some() && index == playback.frame_index {
+                active = true;
+                continue;
+            }
+            playback.frame_index = index;
             playback.frame_pending = true;
             active = true;
             let _ = sender.send(Job {

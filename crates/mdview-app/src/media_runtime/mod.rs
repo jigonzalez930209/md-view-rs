@@ -1,4 +1,4 @@
-//! Background media loading, texture cache, and SVG animation playback.
+//! Background media loading, texture cache, and animation playback (SVG, GIF, WebP, APNG).
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
@@ -7,7 +7,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use eframe::egui;
-use mdview_media::{MediaRequest, render_svg_frame};
+use mdview_media::MediaRequest;
 
 mod animation;
 mod cache;
@@ -58,10 +58,10 @@ impl MediaRuntime {
                                     duration,
                                     unsupported: loaded.animation_unsupported,
                                 }),
-                                source: loaded.svg_source,
+                                source: loaded.animated,
                             }),
                             JobMode::Frame { source, time } => {
-                                render_svg_frame(&source, time, &job.request).map(|raster| CompletedMedia {
+                                source.render_frame(time, &job.request).map(|raster| CompletedMedia {
                                     raster,
                                     animation: None,
                                     source: None,
@@ -178,6 +178,7 @@ impl MediaRuntime {
                             completed.key.clone(),
                             Playback {
                                 request: completed.request.clone(),
+                                frame_index: source.frame_index(0.0),
                                 source,
                                 duration: animation.duration.max(0.05),
                                 unsupported: animation.unsupported,

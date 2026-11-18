@@ -12,6 +12,7 @@ mod image;
 mod math;
 mod math_source;
 mod mermaid;
+mod raster_anim;
 mod svg;
 pub mod svg_anim;
 
@@ -24,6 +25,7 @@ pub use image::load_bytes;
 pub use math::{MATH_PADDING, MATH_UNITS_PER_EM, math_baseline, render_math, render_math_at};
 pub use math_source::{MathHighlight, highlight_math_at, math_spans_at};
 pub use mermaid::render_mermaid;
+pub use raster_anim::{MAX_ANIMATION_BYTES, MAX_FRAMES, RasterAnimation, decode_animation};
 pub use svg::rasterize_svg;
 pub use svg_anim::{Animation, frame_svg, parse as parse_animation};
 
@@ -259,7 +261,35 @@ pub enum MediaError {
     EmptyImage,
 }
 
-/// A loaded media item, with animation metadata when the source is animated SVG.
+/// The source of an animation, kept to render its later frames.
+#[derive(Clone, Debug)]
+pub enum AnimatedSource {
+    /// Animated SVG: each frame is the SVG patched for its time, then rasterized.
+    Svg(String),
+    /// Animated GIF, WebP, or APNG: frames decoded once, picked by time.
+    Raster(std::sync::Arc<RasterAnimation>),
+}
+
+impl AnimatedSource {
+    /// The frame shown at `time` seconds.
+    pub fn render_frame(&self, time: f32, request: &MediaRequest) -> Result<Raster, MediaError> {
+        match self {
+            Self::Svg(source) => render_svg_frame(source, time, request),
+            Self::Raster(animation) => Ok(animation.frame_at(time).clone()),
+        }
+    }
+
+    /// A frame identity for change detection: decoded frames change only at their delays, so a
+    /// caller can skip times that show the same frame. SVG frames change continuously.
+    pub fn frame_index(&self, time: f32) -> Option<usize> {
+        match self {
+            Self::Svg(_) => None,
+            Self::Raster(animation) => Some(animation.index_at(time)),
+        }
+    }
+}
+
+/// A loaded media item, with animation metadata when the source is animated.
 #[derive(Clone, Debug)]
 pub struct LoadedMedia {
     /// The first frame or decoded image.
@@ -268,12 +298,12 @@ pub struct LoadedMedia {
     pub animation_duration: Option<f32>,
     /// Whether the animation uses unsupported features.
     pub animation_unsupported: bool,
-    /// The SVG source retained for later frames.
-    pub svg_source: Option<String>,
+    /// The animation source retained for later frames.
+    pub animated: Option<AnimatedSource>,
 }
 
 impl MediaRequest {
-    /// Load a media item and detect whether an SVG is animated.
+    /// Load a media item and detect whether it is animated (SVG, GIF, WebP, or APNG).
     pub fn load_with_animation(&self) -> Result<LoadedMedia, MediaError> {
         match self.kind {
             MediaKind::Image | MediaKind::Svg => {
@@ -287,7 +317,7 @@ impl MediaRequest {
                             raster,
                             animation_duration: Some(animation.duration),
                             animation_unsupported: animation.unsupported,
-                            svg_source: Some(source),
+                            animated: Some(AnimatedSource::Svg(source)),
                         });
                     }
                     let raster = load_bytes(&bytes, self)?;
@@ -295,7 +325,16 @@ impl MediaRequest {
                         raster,
                         animation_duration: None,
                         animation_unsupported: false,
-                        svg_source: None,
+                        animated: None,
+                    });
+                }
+                // A broken animation still shows its first frame through the still decoder.
+                if let Ok(Some(animation)) = decode_animation(&bytes, self) {
+                    return Ok(LoadedMedia {
+                        raster: animation.first().clone(),
+                        animation_duration: Some(animation.duration()),
+                        animation_unsupported: animation.truncated,
+                        animated: Some(AnimatedSource::Raster(std::sync::Arc::new(animation))),
                     });
                 }
                 let raster = load_bytes(&bytes, self)?;
@@ -303,14 +342,14 @@ impl MediaRequest {
                     raster,
                     animation_duration: None,
                     animation_unsupported: false,
-                    svg_source: None,
+                    animated: None,
                 })
             }
             _ => self.load().map(|raster| LoadedMedia {
                 raster,
                 animation_duration: None,
                 animation_unsupported: false,
-                svg_source: None,
+                animated: None,
             }),
         }
     }
