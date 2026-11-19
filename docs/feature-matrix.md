@@ -20,7 +20,7 @@ examples/v1-workspace/
 │   ├── images/            one still image per supported format
 │   ├── animated/          GIF, WebP, APNG, and animated SVG samples
 │   ├── documents/         guide.pdf, six pages of mixed sizes
-│   ├── video/             MP4, WebM, MKV, and a rotated MOV
+│   ├── video/             MP4, WebM, MKV, a rotated MOV, and formats/ (one per codec)
 │   └── tables/            CSV, TSV, PSV, semicolon CSV, and a 5,000-row CSV
 └── level1/
     ├── notes.md

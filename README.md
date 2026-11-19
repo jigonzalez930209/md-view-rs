@@ -22,6 +22,12 @@ opened outside the workspace appear in a fixed **External files** group. View, E
 share a block-accurate source map; split view scrolls and zooms both panes in exact, flicker-free
 sync, and nine themes cover light, dark, and system-follow modes.
 
+Other files open in built-in viewers: images in every common format (including JPEG XL and
+animated GIF/WebP/APNG), PDF, CSV/TSV in an editable grid, and video with sound. The video player
+is pure Rust with nothing to install: MP4, MOV, MKV, WebM, AVI, MPEG-TS/PS, and FLV with H.264,
+HEVC, AV1, VP8, VP9, MPEG-1/2/4, H.263, or Motion JPEG video and AAC, MP3, Opus, Vorbis, FLAC,
+AC-3, or PCM sound.
+
 The 1.0.0-rc.7 release candidate ships Linux packages (AppImage, deb, RPM, tarball), macOS DMG/zip,
 and Windows MSI/zip. macOS and Windows RC builds are unsigned; signing and notarization remain the
 final 1.0.0 release-operator steps. See [`docs/release.md`](docs/release.md).

@@ -27,6 +27,8 @@ features:
     details: View, Edit, and Split modes with block-accurate scroll sync, search and replace, go-to-line, encoding detection, mixed EOL preservation, and large-file mode.
   - title: Nine themes
     details: Calibrated light and dark palettes, a GitHub-parity reading layout, typography controls for body, headings, code, tables, and equations, and a zoomable image lightbox.
+  - title: Built-in viewers
+    details: Images in every common format, PDF, an editable CSV/TSV grid, and a pure-Rust video player for MP4, MKV, WebM, AVI, MPEG-TS, and FLV with H.264, HEVC, AV1, VP9, and more, with sound and nothing to install.
   - title: Local-first
     details: Files stay on your machine. Remote images are opt-in, private network requests are separate, and the update flow verifies SHA-256 before installing.
 ---
