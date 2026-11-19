@@ -1,9 +1,10 @@
-"""Variant B — product trailer (1920 x 1080, 56 s) for YouTube, the website, and the README.
+"""Variant B — product trailer (1920 x 1080, 67.5 s) for YouTube, the website, and the README.
 
 Chaptered and calmer than the social cuts: one large window card (GitHub Light) with a camera,
 a numbered chapter title above it, and real recordings for every interaction. 01 Read, 02 Write,
-03 Math (gallery, double-click + hover, build), 04 Find, 05 Fast (numbers measured by the E2E
-run), then the download card. Music: "Chronos" twice, the second copy crossfaded on a bar.
+03 Math (gallery, double-click + hover, build), 04 Find, 05 Watch (the pure-Rust video player
+playing HEVC, Xvid AVI, and H.264 TS, then the PDF viewer and the CSV grid), 06 Fast (numbers
+measured by the E2E run), then the download card. Music: "Chronos" twice, the second copy crossfaded on a bar.
 Run from the project root: python3 tools/gen.py
 """
 import sys
@@ -26,7 +27,12 @@ gallery = kit.events(ROOT, "light", "eq-gallery")
 hover = kit.events(ROOT, "light", "eq-hover")
 build = kit.events(ROOT, "light", "eq-build")
 
-TITLE, READ, WRITE, MATH, FIND, FAST, END, TOTAL = 0, 4, 13, 21, 37, 43, 51, 56
+TITLE, READ, WRITE, MATH, FIND, WATCH, FAST, END, TOTAL = 0, 4, 13, 21, 37, 43, 55, 63, 67.5
+VERSION = "1.0.0-rc.8"
+# video-play.mp4 (recorded by the trailer's capture notes in README.md): seconds into the
+# recording where the film cuts in, where the PDF and CSV stills take over, and the clicks.
+PLAY_IN, PDF_AT, CSV_AT = 1.2, 52.6, 53.8
+PLAY_CLICKS = [1.5, 5.8, 6.8, 9.4, 10.4]
 HOVER_AT, BUILD_AT = 26.5, 32.5
 
 
@@ -81,6 +87,9 @@ layers = [
     img_layer("l-palm", f"{CAP}/14-palette-mode.png", "Command palette filtered"),
     img_layer("l-srch", f"{CAP}/16-search.png", "Workspace search"),
     img_layer("l-thm", f"{CAP}/17b-settings-themes.png", "Theme list"),
+    video_layer("l-play", f"{CAP}/video-play.mp4", WATCH, PDF_AT, PLAY_IN, 5),
+    img_layer("l-pdf", f"{CAP}/viewer-pdf.png", "PDF viewer"),
+    img_layer("l-csv", f"{CAP}/viewer-csv.png", "CSV grid"),
 ]
 
 # ---- chapters: number + title + one line, top-left inside title-safe
@@ -88,8 +97,9 @@ CHAPTERS = [
     (READ, WRITE, "01", "Read", "GitHub-flavoured Markdown, LaTeX, and Mermaid, drawn natively."),
     (WRITE, MATH, "02", "Write", "A real code editor: regex find and replace, split view in sync."),
     (MATH, FIND, "03", "Math", "An equation gallery and a formula editor that explains its LaTeX."),
-    (FIND, FAST, "04", "Find", "Every command one keystroke away. Nine themes."),
-    (FAST, END, "05", "Fast", "Measured in the release test run, not promised."),
+    (FIND, WATCH, "04", "Find", "Every command one keystroke away. Nine themes."),
+    (WATCH, FAST, "05", "Watch", "Video with sound, PDF, and spreadsheets. Pure Rust, nothing to install."),
+    (FAST, END, "06", "Fast", "Measured in the release test run, not promised."),
 ]
 chapters = []
 for i, (t0, t1, num, title, line) in enumerate(CHAPTERS):
@@ -133,8 +143,14 @@ move(cam(1.25, 960, 470), FIND, 0.6)
 layer("l-palm", FIND + 1.0)
 layer("l-srch", FIND + 2.0)
 move(cam(1.2, 960, 430), FIND + 2.0, 0.5)
-layer("l-thm", FIND + 4.0)
 move(cam(1.35, 1180, 470), FIND + 4.0, 0.5)
+# ---- 05 watch: the recording plays at full size, then the PDF and CSV viewers
+layer("l-thm", FIND + 4.0, WATCH)
+move(FULL, WATCH, 0.6)
+layer("l-pdf", PDF_AT)
+move(cam(1.15, 1060, 420), PDF_AT, 0.5)
+layer("l-csv", CSV_AT)
+move(cam(1.25, 900, 360), CSV_AT, 0.5)
 a([f'tl.to("#card", {{ y: 900, duration: 0.6, ease: "power3.in" }}, {FAST - 0.1});'])
 
 # ---- 05 fast: measured numbers
@@ -168,7 +184,7 @@ html = f"""
       <div id="end">
         <img class="elogo" src="assets/images/logo.png" alt="MD View app icon" />
         <div class="ew">MD View</div>
-        <div class="ecta">Download {kit.VERSION}</div>
+        <div class="ecta">Download {VERSION}</div>
         <div class="eos">macOS · Windows · Linux · free &amp; open source</div>
         <div class="eurl">{kit.REPO}</div>
       </div>"""
@@ -208,7 +224,8 @@ initial = f'gsap.set(".cam", {js(FULL)}); gsap.set(".doc", {{ y: 0 }});'
 audio = [
     f'      <audio id="music" class="clip" data-start="0" data-duration="44" data-media-start="0.125" data-track-index="10" '
     f'data-volume="0.75" data-fade-out="2" src="assets/audio/chronos.mp3"></audio>',
-    f'      <audio id="music2" class="clip" data-start="42" data-duration="{TOTAL - 42}" data-media-start="20.125" '
+    # The track is 45 s long: the second copy ends with it, a little before the film.
+    f'      <audio id="music2" class="clip" data-start="42" data-duration="24.8" data-media-start="20.125" '
     f'data-track-index="11" data-volume="0.75" data-fade-in="2" data-fade-out="2.5" src="assets/audio/chronos.mp3"></audio>',
     kit.sfx("s-title", 0.2, "impact-bass-1", 0.5, 2.0, 12),
 ]
@@ -222,6 +239,10 @@ for i, (name, log, start, lead) in enumerate([("gal", gallery, MATH, kit.at(gall
         t = start + e["video_t"] - lead
         if e["kind"] in ("click", "dblclick", "key") and t < end:
             audio.append(kit.sfx(f"s-{name}{j}", t + 0.03, "click", 0.4, 0.2, 14))
+for i, t in enumerate(PLAY_CLICKS):
+    audio.append(kit.sfx(f"s-play{i}", WATCH + t - PLAY_IN + 0.03, "click", 0.4, 0.2, 14))
+for i, t in enumerate([PDF_AT, CSV_AT]):
+    audio.append(kit.sfx(f"s-view{i}", t, "whoosh-short", 0.25, 0.57, 13))
 for i in range(4):
     audio.append(kit.sfx(f"s-st{i}", FAST + 0.6 + i * 1.2, "key-press", 0.4, 0.2, 15))
 audio.append(kit.sfx("s-end", END + 0.05, "pop", 0.5, 0.7, 16))
