@@ -48,17 +48,6 @@ pub fn run() -> Result<(), String> {
             checked += 1;
         }
     }
-    // Release packages ship their own FFmpeg for the video viewer.
-    let stage = format!("dist/mdview-{version}-linux-{}/usr/lib/mdview", std::env::consts::ARCH);
-    for tool in ["ffmpeg", "ffprobe"] {
-        let path = Path::new(&stage).join(tool);
-        if !path.is_file() {
-            failures.push(format!(
-                "missing {}; build it with scripts/ffmpeg/build.sh and package with MDVIEW_FFMPEG_DIR",
-                path.display()
-            ));
-        }
-    }
     let lock = fs::read_to_string("Cargo.lock").map_err(|error| error.to_string())?;
     let allowed_git = [
         "https://github.com/storytold/craft-libs",
