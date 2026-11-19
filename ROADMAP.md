@@ -1698,6 +1698,19 @@ process, and `unsafe_code = "forbid"` in this workspace.
 ### 9.6 2.0
 
 - Real-time collaboration only if the product validates it.
+
+### 9.7 Idle footprint, from 1.2.0
+
+Measured for the 1.0.0-rc.8 promo film (`promo-film/linkedin/tools/measure.py`,
+`tools/metrics.json`). The release build opened `showcase.md` on a Ryzen 9 6900HX on Linux. The
+window was painted 157 ms after exec. With the GPU, peak RSS was 156 MiB and CPU use was 11.5 %
+of one core over the first two seconds. At idle it used 152 MiB and 0.8 %. Without a GPU (Xvfb,
+software rendering), idle CPU rises to about 10 %.
+
+| Item | Target | Gap today | Plan |
+|---|---|---|---|
+| No repaint while idle | 1.2.0 | With a file open, `ui_shell.rs` asks for a repaint every 500 ms so the disk-watcher path is polled. That redraws the whole window twice a second, which is cheap on a GPU but about 10 % of a core under software rendering (VMs, remote desktops, Xvfb). | The watcher thread already calls `request_repaint()` when an event arrives, so drop the periodic repaint. Poll the fallback path on its own timer off the UI thread. Test that an idle window draws no frames. |
+| Idle RSS budget | 1.2.0 | Idle RSS is 152 MiB with the showcase document. The budget in section 3 is ≤ 150 MB with one small file. | Measure with a small file in CI (`measure.py` mode). Trim font, glyph-atlas, and texture caches that stay alive after the first paint. |
 - Optional sync, history, and comments.
 - Any incompatible change to settings/CLI/plugin API.
 
