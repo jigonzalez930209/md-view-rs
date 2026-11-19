@@ -27,19 +27,62 @@ by the renderer yet; pages still show what it can draw.
 ## Video
 
 Video files open in a viewer with play/pause (click the picture or press Space), a seek bar,
-±5 s on the left and right arrows, a time counter, and mute. MD View includes no video codec of
-its own: it runs `ffprobe` and `ffmpeg` (without a shell). Release packages ship a reduced LGPL
-FFmpeg built by `scripts/ffmpeg/build.sh` (decoders, demuxers, scaling, resampling, and the
-rotation filters only; AV1 through dav1d) and the viewer looks for it first: `MDVIEW_FFMPEG_DIR`,
-then beside the executable (Windows, the macOS bundle), then `../lib/mdview` from it (the Linux
-packages and the AppImage). A build without it uses the FFmpeg on the PATH, and without any FFmpeg
-the viewer explains how to install it. A worker thread decodes raw RGBA frames through a pipe at
-the view's width (never above the native size) and hands each frame over at its presentation
-time; the pipe's backpressure keeps decoding at playback speed. A second `ffmpeg` decodes the
-soundtrack to 16-bit PCM at the output device's rate and channel count, and cpal plays it
-(CoreAudio, WASAPI, or ALSA) through a one-second queue whose backpressure paces that decoder.
-Pausing stops both, seeking while paused decodes a single frame, and closing the tab stops
-everything.
+±5 s on the left and right arrows, a time counter, and mute. Everything decodes in-process with
+pure-Rust crates; MD View runs no external program and links no C codec.
+
+| Stage | Crate | Scope |
+|---|---|---|
+| MP4, MOV, M4V, 3GP | `re_mp4` | edit lists, composition offsets, rotation matrix |
+| MKV, WebM | `matroska-demuxer` | cue-based seeking, `V_MS/VFW` and `A_MS/ACM` tracks |
+| AVI (with OpenDML) | `filmcraft-avi` | `idx1` and OpenDML indexes, dropped frames |
+| MPEG-TS, M2TS, MTS, MPG, VOB | `filmcraft-mpegts` | transport and program streams, PTS unwrapping |
+| FLV | `mdview-media` | legacy and enhanced (FourCC) tags |
+| H.264 video | `rust_h264` | Baseline/Main/High, 8 and 10 bit, 4:2:0 and 4:2:2, frame threads |
+| HEVC video | `rust_h265` | Main and Main 10, 4:2:0 and 4:4:4, frame threads |
+| AV1 video | `filmcraft-av1` | 8 and 10 bit, all chroma formats, tile threads |
+| VP8 video | `filmcraft-vp8` | all profiles |
+| VP9 video | `oximedia-codec` | profile 0 and 10-bit 4:2:0 |
+| MPEG-1 and MPEG-2 video | `filmcraft-mpeg2v` | 4:2:0 and 4:2:2, field pictures |
+| MPEG-4 Part 2 and H.263 video | `oxideav-mpeg4video` | Xvid, DivX 4+, B-VOPs, short header |
+| Motion JPEG | `zune-jpeg` | full-range YCbCr |
+| AAC sound | `symphonia-codec-aac` | AudioSpecificConfig or ADTS frames |
+| MP1, MP2, MP3 sound | `symphonia-bundle-mp3` | frames re-cut from their headers |
+| Vorbis, FLAC sound | `symphonia-codec-vorbis`, `symphonia-bundle-flac` | |
+| Opus sound | `opus-decoder` | pre-skip removed |
+| AC-3 sound | `filmcraft-ac3` | frames re-cut from their headers |
+| PCM sound | `mdview-media` | 8 to 64 bit, integer or float, either byte order |
+
+`mdview-media`'s `VideoReader` reads packets one at a time (a long file is never loaded into
+memory; AVI, MPEG streams, and FLV are indexed when opened), decodes them, and turns each
+picture into straight RGBA at the requested size in one pass: YUV conversion (BT.709 from 720
+lines, BT.601 below; limited range, or full range for JPEG), bilinear scaling, and the
+container's quarter-turn rotation, with per-axis tables and integer arithmetic across a few
+threads. The H.264, HEVC, AV1, VP8, and VP9 decoders are bit-exact with FFmpeg on the sample
+clips, MPEG-1/2/4 and H.263 are within IDCT rounding (about 70 dB PSNR), and the RGBA output is
+within 3 levels of FFmpeg's accurate chroma interpolation. A 1080p clip decodes and converts at
+about 4× real time for H.264, 1.8× for VP9, and over 2× for AV1 on an 8-thread desktop; HEVC
+decodes faster than H.264.
+
+Pictures are timed by the packet they came in where the decoder carries it (AV1, VP8,
+MPEG-1/2/4, Motion JPEG), and otherwise by giving each picture the smallest pending packet time,
+as display order is presentation order. After a seek, leading pictures of an open GOP cannot be
+decoded; their times are dropped so the frames that follow keep theirs. AVI has no presentation
+times, so its pictures are counted one frame interval apart from the key frame. A test decodes
+every sample from the start and again after a seek and checks that the frames match exactly.
+
+The viewer's worker thread seeks to the nearest earlier key frame, decodes up to the requested
+time without converting, and hands each later frame over at its presentation time; a pause or
+seek interrupts the wait, and frames more than two intervals late are dropped. `AudioReader`
+decodes the soundtrack on its own thread, maps it to the device's channels, resamples it
+linearly to the device's rate, and feeds cpal (CoreAudio, WASAPI, or ALSA) through a one-second
+queue whose backpressure paces the decoder. Pausing stops both, seeking while paused decodes a
+single frame (the last one for a seek past the end), and closing the tab stops everything.
+
+Windows Media (WMV/ASF) and Ogg video (OGV/Theora) open in the viewer with a message that
+they are not supported: there is no pure-Rust Windows Media Video decoder, and Ogg is not wired
+up yet. Inside the supported containers, Microsoft MPEG-4 (DivX 3), Sorenson Spark (FLV1), VP6,
+WMA, DTS, and E-AC-3 are reported the same way (a video without a playable soundtrack plays
+without sound).
 
 ## Images
 

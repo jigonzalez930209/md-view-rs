@@ -54,15 +54,11 @@ Run anyway** after verifying the checksum.
 
 ## Video playback
 
-Every package includes its own FFmpeg for the video viewer, so videos and their sound play with
-nothing else to install. It is a reduced LGPL build that only decodes: MP4, MOV, MKV, WebM, AVI,
-WMV, MPEG, Ogg, and FLV with H.264, HEVC, VP8, VP9, AV1, MPEG-2/4, WMV, and Theora video and
-AAC, MP3, Opus, Vorbis, FLAC, AC-3, and WMA sound. Its license, build record, and the exact
-sources ship with the app and the release.
-
-A build from source has no bundled FFmpeg and uses the one on the PATH instead
-(`sudo apt install ffmpeg`, `sudo dnf install ffmpeg`, `brew install ffmpeg`, or
-`winget install ffmpeg`), or the folder named by `MDVIEW_FFMPEG_DIR`.
+Videos and their sound play with nothing else to install: MD View decodes them itself with
+pure-Rust decoders. It plays MP4, MOV, 3GP, MKV, WebM, AVI, MPEG-TS/PS (TS, M2TS, MTS, MPG,
+VOB), and FLV files with H.264, HEVC, AV1, VP8, VP9, MPEG-1/2, MPEG-4 Part 2 (Xvid, DivX),
+H.263, or Motion JPEG video and AAC, MP3, Opus, Vorbis, FLAC, AC-3, or PCM sound. Windows Media
+(WMV) and Ogg video (OGV) open with a message that they are not supported.
 
 ## Verify the download
 

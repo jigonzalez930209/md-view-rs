@@ -41,8 +41,23 @@ pages; and a landscape page. Check ◀ ▶, the page counter, −/+, Fit width, 
 | `portrait.mov` | Landscape frames with a 90° rotation flag; must show upright, taller than wide |
 
 Check play/pause (button, click, Space), the clock, seeking with the slider and ←/→, and Mute.
-Release packages bring their own FFmpeg. A build from source without FFmpeg on the PATH (or in
-`MDVIEW_FFMPEG_DIR`) shows the install hint for each file instead.
+Every clip decodes in-process with the pure-Rust decoders; nothing needs to be installed.
+
+`video/formats/` has one 2 s test pattern with a beeping tone per further container and codec;
+each must play with sound:
+
+| File | Video + sound |
+|---|---|
+| `hevc.mp4` | HEVC + AAC |
+| `av1.mkv` | AV1 + FLAC |
+| `vp8.webm` | VP8 + Vorbis |
+| `xvid.avi` | MPEG-4 Part 2 (Xvid, with B-frames) + MP3 |
+| `mjpeg.avi` | Motion JPEG + 16-bit PCM |
+| `h264.ts` | H.264 + AAC (ADTS) in an MPEG transport stream |
+| `mpeg2.ts` | MPEG-2 (with B-frames) + AC-3 |
+| `mpeg1.mpg` | MPEG-1 + MP2 in an MPEG program stream |
+| `h264.flv` | H.264 + AAC in Flash Video |
+| `h263.3gp` | H.263 (QCIF) + AAC |
 
 ## `tables/`: the editable grid
 
