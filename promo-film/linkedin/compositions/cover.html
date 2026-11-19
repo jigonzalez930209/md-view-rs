@@ -1,0 +1,33 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #0b6bd6; overflow: hidden; font-family: Inter, sans-serif; }
+    #cover-stage { position: absolute; inset: 0; overflow: hidden; }
+    .cv { position: absolute; left: 0; width: 1080px; height: 562.5px; overflow: hidden; background: #000000; }
+    .cv img { position: absolute; left: 0; top: 0; width: 1920px; height: 1000px; transform-origin: 0 0; }
+    .cv-l { top: 225px; }
+    .cv-d { top: 787.5px; }
+    .cv-l img { transform: translate(-187.2px, -68.55px) scale(0.66); }
+    .cv-d img { transform: scale(0.5625); }
+    .icon { position: absolute; left: 60px; top: 48px; width: 128px; height: 128px; }
+    .name { position: absolute; left: 218px; top: 40px; font-size: 92px; font-weight: 900; letter-spacing: -0.045em; line-height: 1; color: #ffffff; white-space: nowrap; }
+    .tag { position: absolute; left: 222px; top: 140px; font-size: 36px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; color: #ffffff; white-space: nowrap; }
+    .ver { position: absolute; right: 60px; top: 58px; padding: 8px 18px; border-radius: 999px; background: #ffffff; color: #0b5cb8; font-size: 30px; font-weight: 800; line-height: 1.1; white-space: nowrap; }
+  </style>
+  <div id="root" data-composition-id="cover" data-width="1080" data-height="1350">
+    <div id="cover-stage" data-layout-allow-overflow>
+      <div class="cv cv-l"><img src="assets/cap/light/eq-03-gallery.png" alt="MD View equation gallery, light theme" /></div>
+      <div class="cv cv-d"><img src="assets/cap/dark/cover-video.png" alt="MD View playing a video, dark theme" /></div>
+      <img class="icon" src="assets/images/logo.png" alt="MD View app icon" />
+      <div class="name">MD View</div>
+      <div class="tag">Native Markdown. Now with video.</div>
+      <div class="ver">1.0.0-rc.8</div>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const tl = gsap.timeline({ paused: true });
+      tl.set(".name", { opacity: 1 }, 0);
+      window.__timelines["cover"] = tl;
+    })();
+  </script>
+</template>

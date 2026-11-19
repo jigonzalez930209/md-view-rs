@@ -7,7 +7,7 @@ are in `out/`.
 
 | Film | Format | Length | Platform | Idea |
 |---|---|---|---|---|
-| `linkedin/` | 1080 × 1350 (4:5) | 57.5 s | LinkedIn feed | Cold start and footprint, then every feature, light above and dark below in lockstep, ending on video, PDF and CSV. |
+| `linkedin/` | 1080 × 1350 (4:5) | 59 s | LinkedIn feed | Cold start and footprint, then every feature, light above and dark below in lockstep, ending on video, PDF and CSV. |
 | `vertical/` | 1080 × 1920 (9:16) | 22.5 s | Reels, Shorts, TikTok | Hook first: the LaTeX and the formula it draws, stacked from one recording, light up in frame 0; then the build, the gallery, a beat-cut montage, the end card. Text stays inside the strictest safe area of the three platforms. |
 | `trailer/` | 1920 × 1080 (16:9) | 56 s | YouTube, website, README | Five numbered chapters (Read, Write, Math, Find, Fast) on one window card with a camera; real recordings for every interaction and the numbers measured by the rc.5 E2E run. |
 | `loop/` | 1080 × 1080 (1:1) | 13.2 s | X, autoplay feeds, GitHub social preview | One continuous take of building a formula and hovering it; the cut points are chosen by pixel match so the last frame flows into the first. No music, so the sound loops too. |

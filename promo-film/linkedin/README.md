@@ -1,6 +1,6 @@
 # MD View — LinkedIn promo film
 
-A 57.5 s, 1080 × 1350 (4:5) HyperFrames film: GitHub Light above, GitHub Dark below, two
+A 59 s, 1080 × 1350 (4:5) HyperFrames film that opens on a cover frame (also `../out/linkedin-cover.png`): GitHub Light above, GitHub Dark below, two
 full-width screens with no gap, the same app state in both. It opens on the measured cold start
 (shown ten times slower) and the memory and CPU footprint, tours every feature including the
 equation gallery and formula editor, and ends on the 1.0.0-rc.8 video player, PDF and CSV

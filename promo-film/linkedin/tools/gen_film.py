@@ -408,12 +408,51 @@ end = f"""<template>
 """
 (ROOT / "compositions/end.html").write_text(end)
 
+# ---------------------------------------------------------------- COVER (the first frame)
+INTRO = 1.5  # the cover holds for three beats; every later time in index.html moves by it
+LIGHT_COVER = cam("gallery")
+cover = f"""<template>
+  <style>
+    #root {{ position: absolute; inset: 0; background: #0b6bd6; overflow: hidden; font-family: Inter, sans-serif; }}
+    #cover-stage {{ position: absolute; inset: 0; overflow: hidden; }}
+    .cv {{ position: absolute; left: 0; width: {CARD_W}px; height: {CARD_H}px; overflow: hidden; background: #000000; }}
+    .cv img {{ position: absolute; left: 0; top: 0; width: 1920px; height: 1000px; transform-origin: 0 0; }}
+    .cv-l {{ top: {BAND}px; }}
+    .cv-d {{ top: {BAND + CARD_H}px; }}
+    .cv-l img {{ transform: translate({LIGHT_COVER['x']}px, {LIGHT_COVER['y']}px) scale({LIGHT_COVER['scale']}); }}
+    .cv-d img {{ transform: scale({CARD_W / 1920}); }}
+    .icon {{ position: absolute; left: 60px; top: 48px; width: 128px; height: 128px; }}
+    .name {{ position: absolute; left: 218px; top: 40px; font-size: 92px; font-weight: 900; letter-spacing: -0.045em; line-height: 1; color: #ffffff; white-space: nowrap; }}
+    .tag {{ position: absolute; left: 222px; top: 140px; font-size: 36px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; color: #ffffff; white-space: nowrap; }}
+    .ver {{ position: absolute; right: 60px; top: 58px; padding: 8px 18px; border-radius: 999px; background: #ffffff; color: #0b5cb8; font-size: 30px; font-weight: 800; line-height: 1.1; white-space: nowrap; }}
+  </style>
+  <div id="root" data-composition-id="cover" data-width="{W}" data-height="{H}">
+    <div id="cover-stage" data-layout-allow-overflow>
+      <div class="cv cv-l"><img src="assets/cap/light/eq-03-gallery.png" alt="MD View equation gallery, light theme" /></div>
+      <div class="cv cv-d"><img src="assets/cap/dark/cover-video.png" alt="MD View playing a video, dark theme" /></div>
+      <img class="icon" src="assets/images/logo.png" alt="MD View app icon" />
+      <div class="name">MD View</div>
+      <div class="tag">Native Markdown. Now with video.</div>
+      <div class="ver">{VERSION}</div>
+    </div>
+  </div>
+  <script>
+    (() => {{
+      const tl = gsap.timeline({{ paused: true }});
+      tl.set(".name", {{ opacity: 1 }}, 0);
+      window.__timelines["cover"] = tl;
+    }})();
+  </script>
+</template>
+"""
+(ROOT / "compositions/cover.html").write_text(cover)
+
 # ---------------------------------------------------------------- INDEX + SOUND
 sfx = []
 
 
 def s(i, t, f, v, d, lane=12):
-    sfx.append(f'      <audio id="{i}" class="clip" data-start="{t:.2f}" data-duration="{d}" data-track-index="{lane}" data-volume="{v}" src="assets/sfx/{f}.mp3"></audio>')
+    sfx.append(f'      <audio id="{i}" class="clip" data-start="{t + INTRO:.2f}" data-duration="{d}" data-track-index="{lane}" data-volume="{v}" src="assets/sfx/{f}.mp3"></audio>')
 
 
 s("sfx-launch", LAUNCH_AT - 0.04, "click", 0.5, 0.2)
@@ -440,12 +479,13 @@ index = f"""<!doctype html>
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-start="0" data-duration="{TOTAL:g}" data-width="{W}" data-height="{H}">
-      <div id="app" data-composition-id="app" data-composition-src="compositions/app.html" data-start="0" data-duration="{END_AT:g}" data-track-index="0" data-track-kind="graphics" data-width="{W}" data-height="{H}"></div>
-      <div id="end" data-composition-id="end" data-composition-src="compositions/end.html" data-start="{END_AT:g}" data-duration="5" data-track-index="0" data-track-kind="graphics" data-width="{W}" data-height="{H}"></div>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="{INTRO + TOTAL:g}" data-width="{W}" data-height="{H}">
+      <div id="cover" data-composition-id="cover" data-composition-src="compositions/cover.html" data-start="0" data-duration="{INTRO:g}" data-track-index="0" data-track-kind="graphics" data-width="{W}" data-height="{H}"></div>
+      <div id="app" data-composition-id="app" data-composition-src="compositions/app.html" data-start="{INTRO:g}" data-duration="{END_AT:g}" data-track-index="0" data-track-kind="graphics" data-width="{W}" data-height="{H}"></div>
+      <div id="end" data-composition-id="end" data-composition-src="compositions/end.html" data-start="{INTRO + END_AT:g}" data-duration="5" data-track-index="0" data-track-kind="graphics" data-width="{W}" data-height="{H}"></div>
 
       <audio id="music" class="clip" data-start="0" data-duration="44.8" data-media-start="0.125" data-track-index="10" data-volume="0.8" data-fade-out="2" src="assets/audio/chronos.mp3"></audio>
-      <audio id="music2" class="clip" data-start="43" data-duration="{TOTAL - 43:g}" data-media-start="20.125" data-track-index="11" data-volume="0.8" data-fade-in="2" data-fade-out="2.5" src="assets/audio/chronos.mp3"></audio>
+      <audio id="music2" class="clip" data-start="{43 + INTRO:g}" data-duration="{TOTAL + INTRO - 43 - INTRO:g}" data-media-start="20.125" data-track-index="11" data-volume="0.8" data-fade-in="2" data-fade-out="2.5" src="assets/audio/chronos.mp3"></audio>
 {chr(10).join(sfx)}
     </div>
     <script>
@@ -455,4 +495,4 @@ index = f"""<!doctype html>
 </html>
 """
 (ROOT / "index.html").write_text(index)
-print(f"ok: {TOTAL:g} s; first frame {FIRST_MS} ms; cold {COLD_RAM} MB / {COLD_CPU} %; idle {IDLE_RAM} MB / {IDLE_CPU} %")
+print(f"ok: {INTRO + TOTAL:g} s; first frame {FIRST_MS} ms; cold {COLD_RAM} MB / {COLD_CPU} %; idle {IDLE_RAM} MB / {IDLE_CPU} %")

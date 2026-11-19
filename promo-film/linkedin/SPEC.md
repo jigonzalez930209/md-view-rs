@@ -4,7 +4,7 @@ GOAL: In under a minute a developer scrolling LinkedIn sees how fast and light M
 
 OUTPUT: HyperFrames, 1080 × 1350 (4:5, LinkedIn feed), 30 fps.
 
-TIME: 57.5 s. "Chronos" (CC0) at 120 BPM, `data-media-start=0.125` so beats land on every 0.5 s; a second copy from 20.125 s crossfades in at 43 s.
+TIME: 59 s: a 1.5 s cover, then the 57.5 s film. "Chronos" (CC0) at 120 BPM, `data-media-start=0.125` so beats land on every 0.5 s; a second copy from 20.125 s crossfades in at 44.5 s.
 
 LOOK (1.0.0-rc.8 cut):
 - Ground: flat #0b6bd6 (the app icon's blue). No gradients, glow, glass, grain, outlines or accent lines.
@@ -17,7 +17,8 @@ MOTION:
 - Scroll: power2.inOut 0.8 s. Mode changes: a clean top-to-bottom wipe, 0.4 s, no line.
 - UI actions are hard cuts. Captions blur in per word; numbers count up frame by frame.
 
-SHOTS:
+SHOTS (film times; add 1.5 s for the video):
+- COVER, 1.5 s before the film. The LinkedIn first frame: icon, "MD View", "Native Markdown. Now with video.", the version pill; the light screen on the equation gallery, the dark one playing the fractal. Also saved as `../out/linkedin-cover.png` for a custom thumbnail.
 - 0.0–2.5 COLD START. Black screens; the counter runs from exec (0.5 s) to the measured first frame (157 ms, shown 10× slower); the two real first frames of the launch recording appear at their times.
 - 2.5–7.5 FOOTPRINT. Cold start column (peak RAM, CPU over the first 2 s), then at 4.5 the loaded-and-idle column; the note names the machine.
 - 7.5–43.5 TOUR. Explorer, reading tour (tables, LaTeX, Mermaid, alerts), editor with regex find and replace, split view, equations, palette, workspace search, themes — the earlier cut moved by 4.5 s.

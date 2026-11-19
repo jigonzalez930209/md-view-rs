@@ -49,7 +49,7 @@ peak. Checked 23, 38.5 and 43.5 s from the render.
 
 ## 1.0.0-rc.8 update
 
-Rendered `../out/linkedin-4x5.mp4`: 1080 × 1350, 57.5 s, −16.0 LUFS integrated. `check`: 0 errors;
+Rendered `../out/linkedin-4x5.mp4`: 1080 × 1350, 59 s (1.5 s cover + 57.5 s), −16.0 LUFS integrated. `check`: 0 errors;
 one warning (generated `app.html` over the line budget).
 
 - The painted intro (edge strokes, region outlines, grey glyph bars, pink scanline) is gone; the
