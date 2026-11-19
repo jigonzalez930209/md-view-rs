@@ -1,0 +1,10 @@
+{
+  "machine": "AMD Ryzen 9 6900HX, Radeon 680M, Linux (Wayland), MD View 1.0.0-rc.8 release build",
+  "document": "examples/v1-workspace level5/showcase.md, fresh config, 1280 x 667 window at 150 %",
+  "first_frame_ms": 157,
+  "first_frame_note": "median of 5 cold starts in Xvfb (software rendering): exec until the window shows its painted sidebar and page (tools/measure.py)",
+  "startup_peak_rss_mib": [156.0, 152.8, 155.9],
+  "startup_cpu_pct_one_core_first_2s": [11.0, 11.5, 11.5],
+  "idle_rss_mib_after_10s": [152.3, 152.8, 152.2],
+  "idle_cpu_pct_one_core_10_to_15s": [0.8, 0.8, 0.8]
+}

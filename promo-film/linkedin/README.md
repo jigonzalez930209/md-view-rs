@@ -1,8 +1,10 @@
 # MD View — LinkedIn promo film
 
-A 44 s, 1080 × 1350 (4:5) HyperFrames film: GitHub Light above, GitHub Dark below, the same
-app state in both, painted and toured feature by feature, including the 1.0.0-rc.5 equation
-gallery and formula editor. The rendered file is `../out/linkedin-4x5.mp4`. Three alternative
+A 57.5 s, 1080 × 1350 (4:5) HyperFrames film: GitHub Light above, GitHub Dark below, two
+full-width screens with no gap, the same app state in both. It opens on the measured cold start
+(shown ten times slower) and the memory and CPU footprint, tours every feature including the
+equation gallery and formula editor, and ends on the 1.0.0-rc.8 video player, PDF and CSV
+viewers. The rendered file is `../out/linkedin-4x5.mp4`. Three alternative
 cuts built from the same footage live next to this project (see `../README.md`).
 
 - `SPEC.md` — the film's brief; `REVIEW.md` — review notes.
@@ -15,6 +17,12 @@ cuts built from the same footage live next to this project (see `../README.md`).
   from palette blocks, the gallery) with `tools/docs/equations.md`, plus an event log per
   recording; `tools/sync_events.py` aligns each log with its video (`video_t`), and
   `tools/contact_sheet.py` renders a review sheet at the logged events.
+- `tools/measure.py` — five cold starts in Xvfb: time to the first painted window, peak RSS
+  and CPU over the first two seconds, RSS and CPU at idle. `tools/metrics.json` holds the
+  numbers the film shows (first frame from `measure.py`; RAM and CPU from the same procedure
+  run on the real GPU session, since Xvfb renders in software).
+- `tools/capture_media.py` — per theme: the launch recording (`launch-1/2.png` are its first
+  two painted frames), the video playback recording, and the PDF and CSV viewers.
 - `tools/xdrive.py` — XTest pointer, keys, and capture helpers (no xdotool).
 - `tools/gen_film.py` — generates `index.html` and `compositions/` from the captures, and the
   recording flipbooks in `assets/frames/` (see `REVIEW.md`).

@@ -46,3 +46,19 @@ End card reads "Download 1.0.0-rc.7". `17-settings` and `17b-settings-themes` re
 themes with the rc.7 release build, so the Settings footer reads "MD View 1.0.0-rc.7"; the rest of
 the footage is unchanged. `check`: 0 errors, 2 warnings. Rendered 44.0 s, −15.7 LUFS, −1.2 dBFS
 peak. Checked 23, 38.5 and 43.5 s from the render.
+
+## 1.0.0-rc.8 update
+
+Rendered `../out/linkedin-4x5.mp4`: 1080 × 1350, 57.5 s, −16.0 LUFS integrated. `check`: 0 errors;
+one warning (generated `app.html` over the line budget).
+
+- The painted intro (edge strokes, region outlines, grey glyph bars, pink scanline) is gone; the
+  film opens on the measured cold start, then the footprint numbers. Mode changes are plain wipes.
+- Screens are full width and touch: no radius, gap or shadow.
+- The video section plays separate light and dark recordings; the clip counters differ by about
+  one frame (01.240 vs 01.200) because the clicks are not frame-locked between the two runs.
+- The idle CPU in Xvfb is ~10 % because the app repaints every 500 ms while a file is open
+  (disk watcher polling, `ui_shell.rs`) and Xvfb renders in software; on the GPU session it is
+  0.8 %. The film shows the GPU numbers.
+
+Checked frames: 0.2, 1.9, 2.3, 3.4, 5.6, 8.5, 11, 21, 24, 31, 40, 45, 47.5, 49.5, 51.5, 56.5.
