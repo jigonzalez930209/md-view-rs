@@ -32,8 +32,7 @@ pub use raster_anim::{MAX_ANIMATION_BYTES, MAX_FRAMES, RasterAnimation, decode_a
 pub use svg::rasterize_svg;
 pub use svg_anim::{Animation, frame_svg, parse as parse_animation};
 pub use video::{
-    VIDEO_EXTENSIONS, VideoInfo, audio_args, decode_args, decode_size, ffmpeg_available, ffmpeg_command, is_video_path,
-    parse_probe, probe as probe_video, tool_candidates, tool_path,
+    AudioReader, VIDEO_EXTENSIONS, VideoFrame, VideoInfo, VideoReader, decode_size, is_video_path, probe as probe_video,
 };
 
 /// Image extensions that the application can open as an image document.

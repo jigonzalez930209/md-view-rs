@@ -53,6 +53,27 @@ roxmltree = "0.21"
 mermaid-rs-renderer = { version = "0.3.1", default-features = false }
 blake3 = "1.8"
 mime = "0.3"
+re_mp4 = "0.5.1"
+matroska-demuxer = "0.8.1"
+rust_h264 = "0.6.1"
+oximedia-codec = { version = "0.2.1", default-features = false, features = ["vp9"] }
+oximedia-core = "0.2.1"
+symphonia-core = "0.6.1"
+symphonia-codec-aac = "0.6.1"
+opus-decoder = "0.1.1"
+rust_h265 = "0.4.1"
+filmcraft-av1 = "0.9.0"
+filmcraft-vp8 = "0.9.0"
+filmcraft-mpeg2v = "0.9.0"
+oxideav-mpeg4video = "0.1.10"
+zune-jpeg = "0.5.15"
+zune-core = "0.5.3"
+filmcraft-avi = "0.9.0"
+filmcraft-mpegts = "0.9.0"
+filmcraft-ac3 = "0.9.0"
+symphonia-bundle-mp3 = "0.6.1"
+symphonia-codec-vorbis = "0.6.1"
+symphonia-bundle-flac = "0.6.1"
 
 craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5", default-features = false }
 craft-settings = { git = "https://github.com/storytold/craft-libs", rev = "8ebdc499a5e8f13f249178072e56ccd7b45bc5b5" }

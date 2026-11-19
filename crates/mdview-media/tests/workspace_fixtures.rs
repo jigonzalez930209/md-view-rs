@@ -6,8 +6,8 @@
 use std::path::{Path, PathBuf};
 
 use mdview_media::{
-    MediaKind, MediaRequest, PdfDocument, SUPPORTED_IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, ffmpeg_available,
-    image_kind_for_path, probe_video,
+    MediaKind, MediaRequest, PdfDocument, SUPPORTED_IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, image_kind_for_path,
+    probe_video,
 };
 
 fn media_dir(folder: &str) -> PathBuf {
@@ -106,14 +106,11 @@ fn the_pdf_has_mixed_page_sizes_and_renders() {
 }
 
 #[test]
-fn videos_use_known_extensions_and_probe_when_ffmpeg_is_installed() {
+fn videos_use_known_extensions_and_probe() {
     let videos = files("video");
     for path in &videos {
         let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
         assert!(VIDEO_EXTENSIONS.contains(&extension), "{}", path.display());
-    }
-    if !ffmpeg_available() {
-        return;
     }
     for path in &videos {
         let info = probe_video(path)

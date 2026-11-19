@@ -1,22 +1,19 @@
-//! The video worker thread: probing, the decoder and audio processes, and frame timing.
+//! The video worker thread: decoding, frame timing, and the soundtrack.
+//!
+//! The worker owns a [`VideoReader`] and decodes in-process. While playing it decodes the
+//! next frame, waits for its presentation time on the order channel (so a pause or seek
+//! interrupts the wait), and hands it over; frames that are already late by more than two
+//! frame intervals are dropped to catch up. The clock starts once the first frame after a
+//! seek is decoded, together with the soundtrack.
 
-use std::io::Read;
 use std::path::Path;
-use std::process::{Child, ChildStdout, Stdio};
-use std::sync::mpsc::{Receiver, Sender, TryRecvError};
+use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, TryRecvError};
 use std::time::{Duration, Instant};
 
 use eframe::egui;
-use mdview_media::VideoInfo;
+use mdview_media::{VideoFrame, VideoInfo, VideoReader};
 
 use super::video_audio::AudioPlayer;
-
-/// Shown when neither a bundled FFmpeg nor one on the PATH is found: release packages ship
-/// FFmpeg, so this only happens in a build from source.
-const INSTALL_HINT: &str = "Video playback uses FFmpeg, which this build does not include and which was not \
-found. Install it (Debian/Ubuntu: `sudo apt install ffmpeg`, Fedora: `sudo dnf install ffmpeg`, macOS: \
-`brew install ffmpeg`, Windows: `winget install ffmpeg`) or point `MDVIEW_FFMPEG_DIR` at a folder that \
-contains it, then open the file again.";
 
 pub(super) enum Order {
     Play { from: f64, width: u32, audio: bool },
@@ -35,27 +32,12 @@ pub(super) enum Reply {
     Ended,
 }
 
-/// Child processes that die with their owner, so closing a tab never leaves FFmpeg running.
-struct Processes {
-    decoder: Option<(Child, ChildStdout)>,
-    audio: Option<AudioPlayer>,
-}
-
-impl Processes {
-    fn stop(&mut self) {
-        if let Some((mut child, _)) = self.decoder.take() {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-        // Dropping the player stops its device stream and its FFmpeg.
-        self.audio = None;
-    }
-}
-
-impl Drop for Processes {
-    fn drop(&mut self) {
-        self.stop();
-    }
+/// Playback in progress: when the clock started, at which video time, and the sound.
+struct Playing {
+    started: Instant,
+    from: f64,
+    size: (u32, u32),
+    _audio: Option<AudioPlayer>,
 }
 
 pub(super) fn worker(path: &Path, orders: &Receiver<Order>, replies: &Sender<Reply>, ctx: &egui::Context) {
@@ -64,12 +46,8 @@ pub(super) fn worker(path: &Path, orders: &Receiver<Order>, replies: &Sender<Rep
         ctx.request_repaint();
         sent
     };
-    if !mdview_media::ffmpeg_available() {
-        send(Reply::Info(Err(INSTALL_HINT.to_owned())));
-        return;
-    }
-    let info = match mdview_media::probe_video(path) {
-        Ok(info) => info,
+    let (mut reader, info) = match VideoReader::open(path) {
+        Ok(opened) => opened,
         Err(error) => {
             send(Reply::Info(Err(error.to_string())));
             return;
@@ -78,102 +56,109 @@ pub(super) fn worker(path: &Path, orders: &Receiver<Order>, replies: &Sender<Rep
     if !send(Reply::Info(Ok(info.clone()))) {
         return;
     }
-    let mut processes = Processes {
-        decoder: None,
-        audio: None,
-    };
-    let mut clock: Option<(Instant, f64, u64)> = None;
-    let mut size = (0, 0);
+    let interval = 1.0 / info.fps.max(1.0);
+    let mut playing: Option<Playing> = None;
+    let mut waiting: Option<Order> = None;
     loop {
-        let order = if processes.decoder.is_some() {
-            match orders.try_recv() {
+        let order = match (waiting.take(), &playing) {
+            (Some(order), _) => Some(order),
+            (None, Some(_)) => match orders.try_recv() {
                 Ok(order) => Some(order),
                 Err(TryRecvError::Empty) => None,
                 Err(TryRecvError::Disconnected) => return,
-            }
-        } else {
-            match orders.recv() {
+            },
+            (None, None) => match orders.recv() {
                 Ok(order) => Some(order),
                 Err(_) => return,
-            }
+            },
         };
         match order {
-            Some(Order::Pause) => {
-                processes.stop();
-                clock = None;
-                continue;
-            }
+            Some(Order::Pause) => playing = None,
             Some(Order::Still { at, width }) => {
-                processes.stop();
-                clock = None;
-                size = mdview_media::decode_size(&info, width);
-                if let Some(frame) = decode_still(path, at, size) {
-                    send(Reply::Frame {
-                        at,
-                        width: size.0,
-                        height: size.1,
-                        rgba: frame,
-                    });
+                playing = None;
+                let size = mdview_media::decode_size(&info, width);
+                if let Some(frame) = first_frame(&mut reader, at, size)
+                    && !send(frame_reply(frame))
+                {
+                    return;
                 }
-                continue;
             }
             Some(Order::Play { from, width, audio }) => {
-                processes.stop();
-                size = mdview_media::decode_size(&info, width);
-                processes.decoder = spawn_decoder(path, from, size);
-                if audio && info.has_audio {
-                    processes.audio = AudioPlayer::start(path, from);
+                // Stop the old sound before the new one starts.
+                playing = None;
+                let size = mdview_media::decode_size(&info, width);
+                let Some(frame) = first_frame(&mut reader, from, size) else {
+                    send(Reply::Ended);
+                    continue;
+                };
+                let sound = (audio && info.has_audio)
+                    .then(|| AudioPlayer::start(path, frame.at))
+                    .flatten();
+                playing = Some(Playing {
+                    started: Instant::now(),
+                    from: frame.at,
+                    size,
+                    _audio: sound,
+                });
+                if !send(frame_reply(frame)) {
+                    return;
                 }
-                clock = Some((Instant::now(), from, 0));
+                continue;
             }
             None => {}
         }
-        // Playing: read the next frame and hand it over at its presentation time.
-        let (Some((_, stdout)), Some((started, from, frames))) = (processes.decoder.as_mut(), clock.as_mut()) else {
+        let Some(state) = &playing else {
             continue;
         };
-        let mut frame = vec![0u8; (size.0 * size.1 * 4) as usize];
-        if stdout.read_exact(&mut frame).is_err() {
-            processes.stop();
-            clock = None;
-            send(Reply::Ended);
+        let frame = match reader.next_frame(state.size) {
+            Ok(Some(frame)) => frame,
+            Ok(None) | Err(_) => {
+                playing = None;
+                send(Reply::Ended);
+                continue;
+            }
+        };
+        let due = state.started + Duration::from_secs_f64((frame.at - state.from).max(0.0));
+        let now = Instant::now();
+        if let Some(wait) = due.checked_duration_since(now) {
+            match orders.recv_timeout(wait) {
+                // An order cancels this frame; it is handled on the next turn.
+                Ok(order) => {
+                    waiting = Some(order);
+                    continue;
+                }
+                Err(RecvTimeoutError::Timeout) => {}
+                Err(RecvTimeoutError::Disconnected) => return,
+            }
+        } else if now.duration_since(due).as_secs_f64() > 2.0 * interval {
             continue;
         }
-        let at = *from + *frames as f64 / info.fps;
-        *frames += 1;
-        let due = *started + Duration::from_secs_f64((at - *from).max(0.0));
-        if let Some(wait) = due.checked_duration_since(Instant::now()) {
-            std::thread::sleep(wait);
-        }
-        if !send(Reply::Frame {
-            at,
-            width: size.0,
-            height: size.1,
-            rgba: frame,
-        }) {
+        if !send(frame_reply(frame)) {
             return;
         }
     }
 }
 
-fn spawn_decoder(path: &Path, from: f64, size: (u32, u32)) -> Option<(Child, ChildStdout)> {
-    let mut child = mdview_media::ffmpeg_command()
-        .args(mdview_media::decode_args(path, from, size, None))
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok()?;
-    let stdout = child.stdout.take()?;
-    Some((child, stdout))
+/// Seek to `at` and decode the frame shown there.
+fn first_frame(reader: &mut VideoReader, at: f64, size: (u32, u32)) -> Option<VideoFrame> {
+    if let Err(error) = reader.seek(at) {
+        log::warn!("video seek to {at:.3}: {error}");
+        return None;
+    }
+    match reader.next_frame(size) {
+        Ok(frame) => frame,
+        Err(error) => {
+            log::warn!("video decode at {at:.3}: {error}");
+            None
+        }
+    }
 }
 
-fn decode_still(path: &Path, at: f64, size: (u32, u32)) -> Option<Vec<u8>> {
-    let output = mdview_media::ffmpeg_command()
-        .args(mdview_media::decode_args(path, at, size, Some(1)))
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .output()
-        .ok()?;
-    (output.stdout.len() == (size.0 * size.1 * 4) as usize).then_some(output.stdout)
+fn frame_reply(frame: VideoFrame) -> Reply {
+    Reply::Frame {
+        at: frame.at,
+        width: frame.width,
+        height: frame.height,
+        rgba: frame.rgba,
+    }
 }
