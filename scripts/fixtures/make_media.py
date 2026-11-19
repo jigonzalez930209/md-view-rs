@@ -5,7 +5,8 @@ Every viewer added after 1.0.0-rc.5 has sample files there: still images in each
 format, animated rasters and SVGs, a multi-page PDF, videos, and delimited tables. The files
 are committed; this script documents how they were made and rebuilds them.
 
-Requires Pillow, FFmpeg (with libx264, libvpx-vp9, libopus, libjxl, libwebp, exr, hdr, qoi),
+Requires Pillow, FFmpeg (with libx264, libx265, libaom, libvpx, libvpx-vp9, libopus, libvorbis,
+libmp3lame, libjxl, libwebp, exr, hdr, qoi),
 The PDF is written by hand. Run from the repository root:
 
     python3 scripts/fixtures/make_media.py
@@ -231,6 +232,32 @@ def videos() -> None:
            "-pix_fmt", "yuv420p", "-crf", "30", landscape)
     ffmpeg("-display_rotation", "90", "-i", landscape, "-c", "copy", out / "portrait.mov")
     landscape.unlink()
+    video_formats()
+
+
+def video_formats() -> None:
+    """One short clip per further container and codec the pure-Rust player decodes."""
+    out = ROOT / "video" / "formats"
+    out.mkdir(parents=True, exist_ok=True)
+    picture = ["-f", "lavfi", "-i", "testsrc2=size=320x180:rate=25:duration=2"]
+    tone = ["-f", "lavfi", "-i", "sine=frequency=440:beep_factor=4:duration=2"]
+    clips = {
+        "hevc.mp4": ["-c:v", "libx265", "-x265-params", "log-level=error", "-crf", "32", "-tag:v", "hvc1",
+                     "-c:a", "aac", "-b:a", "48k"],
+        "av1.mkv": ["-c:v", "libaom-av1", "-cpu-used", "8", "-crf", "45", "-c:a", "flac"],
+        "vp8.webm": ["-c:v", "libvpx", "-b:v", "150k", "-c:a", "libvorbis", "-b:a", "48k"],
+        "xvid.avi": ["-c:v", "mpeg4", "-vtag", "XVID", "-q:v", "8", "-bf", "2", "-c:a", "libmp3lame", "-b:a", "64k"],
+        "mjpeg.avi": ["-c:v", "mjpeg", "-q:v", "24", "-c:a", "pcm_s16le", "-ar", "22050", "-ac", "1"],
+        "h264.ts": ["-c:v", "libx264", "-crf", "32", "-c:a", "aac", "-b:a", "48k"],
+        "mpeg2.ts": ["-c:v", "mpeg2video", "-q:v", "14", "-bf", "2", "-c:a", "ac3", "-b:a", "96k"],
+        "mpeg1.mpg": ["-c:v", "mpeg1video", "-q:v", "14", "-c:a", "mp2", "-b:a", "64k"],
+        "h264.flv": ["-c:v", "libx264", "-crf", "32", "-c:a", "aac", "-b:a", "48k", "-ar", "44100"],
+    }
+    for name, codecs in clips.items():
+        ffmpeg(*picture, *tone, "-pix_fmt", "yuv420p", *codecs, "-shortest", out / name)
+    # H.263 has fixed picture sizes: QCIF here, with AAC as phones stored it in 3GP.
+    ffmpeg("-f", "lavfi", "-i", "testsrc2=size=176x144:rate=25:duration=2", *tone, "-c:v", "h263",
+           "-q:v", "8", "-c:a", "aac", "-b:a", "32k", "-ar", "16000", "-ac", "1", "-shortest", out / "h263.3gp")
 
 
 def tables() -> None:
