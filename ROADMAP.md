@@ -1632,6 +1632,28 @@ Rules:
 
 No dates; ordered by value and dependency.
 
+### 9.0 Video and sound, from 1.2.0
+
+The pure-Rust video player (see the "Pure-Rust video" row of the implementation status) ships
+with the formats listed in `docs/media.md`. What it leaves for 1.2.0 and later, most requested
+first. Every item keeps the rule of the player: pure Rust, no FFmpeg, no C codec, no helper
+process, and `unsafe_code = "forbid"` in this workspace.
+
+| Item | Target | Gap today | Plan |
+|---|---|---|---|
+| macOS and Windows verification | 1.2.0 | Playback, A/V sync, and cpal output are verified on Linux only. | Run the `video/` and `video/formats/` samples on both systems in the release checks; measure 1080p decode speed there. |
+| Ogg video (OGV) with Theora + Vorbis/Opus | 1.2.0 | Opens with a "not supported" message. | Ogg pages with `filmcraft-ogg`; Theora with `theora-rs` (libtheora port, MPL-2.0) behind the decoder adapter; Vorbis and Opus already decode. |
+| Microsoft MPEG-4 (DivX 3, `DIV3`/`MP43`) | 1.2.0 | Reported as unsupported in AVI and MKV. | `oxideav-msmpeg4` once it is bit-exact against a reference on real files; it also sniffs mislabelled DivX/Xvid streams. |
+| E-AC-3, DTS, WMA, ADPCM sound | 1.2.x | The video plays without sound. | E-AC-3 from `filmcraft-ac3`; `symphonia-codec-adpcm`; WMA v1/v2 from `oxideav-wma` when it matures; DTS needs a decoder. |
+| Windows Media Video (WMV, ASF, VC-1) | 1.3.0 or later | Opens with a message: no pure-Rust WMV1/2/3 or VC-1 decoder exists. | ASF demuxing with `wmvkit`; a VC-1 (WMV3/WVC1) decoder written in this project or adopted when one appears, bit-exact against FFmpeg before it ships. |
+| Sorenson Spark (FLV1) and VP6 | Later | Old Flash videos open without a picture. | FLV1 is H.263 with another picture header: an adapter on `oxideav-mpeg4video`'s short-header path; VP6 needs a decoder. |
+| Subtitles | 1.3.0 | Text tracks are ignored. | SRT/WebVTT side files, MKV `S_TEXT/*`, and MP4 `tx3g`, drawn over the picture. |
+| Track selection | 1.3.0 | The first video and first playable audio track are used. | A track menu for audio language and subtitles. |
+| HDR and colour metadata | Later | BT.601/709 by picture height; PQ/HLG and BT.2020 are shown as SDR. | Read the colour description (VUI, `colr`, AV1 sequence header) and tone-map 10-bit HDR. |
+| Hardware decoding | Later | CPU only; 4K HEVC/AV1 may fall behind real time on small machines. | Only through a safe crate (VA-API, VideoToolbox, Media Foundation) behind a setting, with the pure-Rust path as the fallback. |
+| Faster seeking in large MPEG-TS files | 1.2.x | A TS file is indexed in one pass when opened (about a second per GB). | Index lazily, or bisect on PCR/PTS. |
+| Playback speed and frame stepping | 1.2.0 | Play, pause, seek, ±5 s, and mute only. | 0.5×–2× with pitch-kept audio, and `,`/`.` for single frames. |
+
 ### 9.1 Reading and output
 
 - **PDF** via `craft-pdf`: open, navigate, and rasterize pages; no editing.
