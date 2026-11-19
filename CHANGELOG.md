@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.0-rc.8 — 2026-11-18
 
 - Video plays in-process with pure-Rust decoders and nothing to install: no FFmpeg, no codec
   library, no helper process. Containers: MP4/MOV/3GP, MKV/WebM, AVI (with OpenDML), MPEG
@@ -10,6 +10,9 @@
   played by cpal. Frames are converted, scaled, and rotated to RGBA at the view's size. Windows
   Media (WMV/ASF) and Ogg video (OGV) show a clear "not supported" message instead of playing.
   Building on Linux needs the ALSA development files (`libasound2-dev`).
+- The roadmap lists the video and sound work planned from 1.2.0 (OGV/Theora, DivX 3, WMV/VC-1,
+  more sound codecs, subtitles, track selection, HDR).
+- The trailer has a new Watch chapter recorded with the video, PDF, and CSV viewers.
 
 ## 1.0.0-rc.7 — 2026-11-18
 

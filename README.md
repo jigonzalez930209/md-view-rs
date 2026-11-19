@@ -28,7 +28,7 @@ is pure Rust with nothing to install: MP4, MOV, MKV, WebM, AVI, MPEG-TS/PS, and 
 HEVC, AV1, VP8, VP9, MPEG-1/2/4, H.263, or Motion JPEG video and AAC, MP3, Opus, Vorbis, FLAC,
 AC-3, or PCM sound.
 
-The 1.0.0-rc.7 release candidate ships Linux packages (AppImage, deb, RPM, tarball), macOS DMG/zip,
+The 1.0.0-rc.8 release candidate ships Linux packages (AppImage, deb, RPM, tarball), macOS DMG/zip,
 and Windows MSI/zip. macOS and Windows RC builds are unsigned; signing and notarization remain the
 final 1.0.0 release-operator steps. See [`docs/release.md`](docs/release.md).
 
@@ -73,7 +73,7 @@ format, 500-line file limit, crate boundaries, and progress-tracking rule.
 
 ## Status
 
-The project is at the `1.0.0-rc.7` release candidate. Implementation status, evidence, and the
+The project is at the `1.0.0-rc.8` release candidate. Implementation status, evidence, and the
 remaining `1.0.0` gates are maintained in [`ROADMAP.md`](ROADMAP.md). Hosted CI is in
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) and the local gate is `cargo xtask ci`.
 
