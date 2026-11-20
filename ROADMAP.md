@@ -150,7 +150,7 @@ Concrete rules:
 
 - `mdview-model` depends on neither egui nor the filesystem.
 - `mdview-markdown` produces an AST with spans; it does not draw.
-- `mdview-media` downloads, decodes, and rasterizes; it does not upload textures or touch the egui context. It exposes `MermaidEngine`, `MathEngine`, and `SvgFrameSource` traits so `mmdr`/RaTeX or the animation runtime can be replaced without touching the renderer.
+- `mdview-media` downloads, decodes, and rasterizes; it does not upload textures or touch the egui context. It exposes `MermaidEngine`, `MathEngine`, and `SvgFrameSource` traits so `merman`/RaTeX or the animation runtime can be replaced without touching the renderer.
 - `mdview-render` composes blocks and paints with egui; it does not write files.
 - `mdview-editor` is an editing widget; it does not open or save files.
 - `mdview-app` is the only layer that connects the filesystem, settings, watcher, updater, and UI.
@@ -164,7 +164,7 @@ Concrete rules:
 | `mdview-markdown` | `pulldown-cmark` adapter, spanned AST, GFM, footnotes, math, anchors, link index, source map. | `pulldown-cmark`, `linkify`, `mdview-model` | No |
 | `mdview-syntax` | Language detection, `syntect` highlighting, incremental per-line cache, token spans. | `syntect`, `two-face`, `mdview-model` | No |
 | `mdview-workspace` | Lazy file tree, file identity, ignore rules, watcher, reconciliation. | `notify`, `notify-debouncer-full`, `ignore`, `mdview-model` | No |
-| `mdview-media` | Local/remote images, static and animated SVG, Mermaid, LaTeX; caches and limits. | `image`, `ureq`, `craft-svg`, `resvg`, `mermaid-rs-renderer`, `ratex-*` | No |
+| `mdview-media` | Local/remote images, static and animated SVG, Mermaid, LaTeX; caches and limits. | `image`, `ureq`, `craft-svg`, `resvg`, `merman`, `ratex-*` | No |
 | `mdview-theme` | Tokens, 9 variants, contrast, mapping to `egui::Visuals`, `WidgetPalette`, syntax and Markdown styles. | `egui`, `craft-ui`, `serde`, `toml` | Yes |
 | `mdview-editor` | Virtualized editing widget, gutter, line numbers, selection, wrapping, find/replace, brackets, auto-indent, accessibility. | `egui`, `craft-ui`, `mdview-model`, `mdview-syntax`, `mdview-theme` | Yes |
 | `mdview-render` | Markdown block layout and painting: paragraphs, lists, tables, code, images, math, Mermaid, SVG; visual source map. | `egui`, `craft-ui`, `mdview-markdown`, `mdview-media`, `mdview-theme` | Yes |
@@ -366,7 +366,7 @@ notify-debouncer-full = "0.7"
 ureq = { version = "3.5", default-features = false, features = ["rustls"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "tiff"] }
 resvg = "=0.48.1"
-mermaid-rs-renderer = { version = "0.3.1", default-features = false }
+merman = { version = "0.10.0", default-features = false, features = ["all-diagrams", "complete-svg"] }
 ratex-layout = "0.1"
 ratex-render = "0.1"
 ratex-katex-fonts = "0.1"
@@ -613,7 +613,7 @@ Relative size/performance ratings in the gap-analysis tables are measured in H0 
 | `ureq` | 3.5 | MIT/Apache | Blocking HTTP for remote images. | `reqwest`. | Chosen for size; no Tokio. |
 | `image` | 0.25 | MIT/Apache | PNG/JPEG/GIF/WebP/BMP/TIFF decoding. | `zune-image`. | Chosen with limited features. |
 | `resvg` / `usvg` | 0.48.1 | MIT/Apache | SVG rasterization. | `librsvg` (C). | Chosen; version matched to `craft-svg`. |
-| `mermaid-rs-renderer` | 0.3.1 | MIT | Native Mermaid to SVG. | `mermaid-svg`, `flowmaid`. | Chosen with a quality gate. |
+| `merman` | 0.10.0 | MIT/Apache | Headless Mermaid port: Mermaid's parsers, dagre layout, themes, and SVG; resvg-safe output. | `mermaid-rs-renderer` (used until 1.0.0-rc.8), `mermaid-svg`. | Chosen for GitHub parity; replaced `mermaid-rs-renderer`, whose own layout overlapped sequence fragments, composite states, and subgraph edges. No ELK or JS engine features. |
 | `ratex-*` | 0.1.15 | MIT | LaTeX math to display list/PNG/SVG. | `latex-rust`, `craft-math` + custom layout. | Chosen with a quality gate. |
 | `roxmltree` | 0.21 | MIT/Apache | Parse SMIL/attributes from the original SVG for the animation runtime. | Custom XML parser. | Chosen; `craft-svg` uses XML but does not expose the raw tree. |
 | `lightningcss` | 1.x | MPL-2.0 | Parse `@keyframes` and `animation-*` for the CSS subset. | `cssparser` + `selectors`. | Chosen for coverage; review MPL obligations. |
@@ -736,13 +736,14 @@ If a budget is not met, scope is reduced (for example, optional syntax highlight
 
 | Option | License | Maturity | Size/performance | Cross-platform | Verdict |
 |---|---|---|---|---|---|
-| `mermaid-rs-renderer` (`mmdr`) 0.3.1 | MIT | Medium-high (≈1.8k stars, ≈270k downloads) | Low; milliseconds per diagram | Yes | **Chosen.** 23 types, its own parser/layout/SVG, scene API. |
-| `mermaid-svg` 0.7 | MIT | Low (small project) | Very low; one dependency | Yes | Fallback if mmdr fails on a type. |
+| `merman` 0.10 | MIT/Apache | Medium-high (used by Zed as its Mermaid backend) | Low; 5–20 ms per complex diagram | Yes | **Chosen in 1.0.0-rc.9.** Ports Mermaid's parsers, dagre layout, themes, and SVG structure; a resvg-safe pipeline replaces HTML labels with SVG text. |
+| `mermaid-rs-renderer` (`mmdr`) 0.3.1 | MIT | Medium-high (≈1.8k stars, ≈270k downloads) | Low; milliseconds per diagram | Yes | Used until 1.0.0-rc.8. Its own layout overlapped sequence fragments and composite states on complex diagrams. |
+| `mermaid-svg` 0.7 | MIT | Low (small project) | Very low; one dependency | Yes | Fallback if merman fails on a type. |
 | `flowmaid` 0.40 | Not declared | Medium | Low | Yes | “Mermaid-like”, not syntax parity; license needs review. |
 | Mermaid JS + QuickJS/Boa | — | — | High and DOM-dependent | — | **Rejected.** A JS engine is not the missing piece; Mermaid needs DOM/measurement. |
 | `mermaid-cli` / Chromium | MIT | High | Very high | Test only | **Test-only oracle**, never runtime. |
 
-**Decision.** `mmdr` with `default-features = false` (no CLI/PNG), SVG output, parsing/validation with `craft-svg`, and rasterization with `resvg` at the block width and DPR. The app theme is mapped to mmdr `Theme`. Cache key: source hash + theme + width + DPR.
+**Decision.** `merman` (since 1.0.0-rc.9; `mmdr` before) with `default-features = false` and only the diagram, SVG, and Cytoscape layout features (no ELK, no JS engine). Its resvg-safe SVG pipeline turns HTML labels into SVG text; the SVG passes the same sanitizer as any SVG and is rasterized with `resvg` at the block width. Text is measured with the installed sans-serif face that `resvg` draws (Mermaid's "trebuchet ms" stack first), so labels fit their boxes. The app theme selects Mermaid's `default` or `dark` theme, as GitHub does. Cache key: source hash + theme + width + DPR.
 
 **1.0 support matrix.** Not all types are equally mature:
 
@@ -750,9 +751,9 @@ If a budget is not met, scope is reduced (for example, optional syntax highlight
 - **Tier B (supported with documented visual differences):** sankey, packet, radar, requirement, C4, block, architecture, kanban, treemap, zenUML.
 - **Outside the matrix:** unsupported directives/plugins show the code block with a diagnostic and a link to the matrix.
 
-Tier A types are compared against `mermaid-cli` in the test suite (oracle only) with visual tolerance and manual review. If a Tier A type fails, fix/vendor `mmdr` or explicitly degrade the type before 1.0; never claim support that has not been verified.
+Tier A types are compared against `mermaid-cli` in the test suite (oracle only) with visual tolerance and manual review. If a Tier A type fails, fix/vendor `merman` or explicitly degrade the type before 1.0; never claim support that has not been verified.
 
-**Contribution.** `craft-mermaid` (mmdr wrapper with tokens, limits, cache, and errors) is a clear candidate for craft-libs if another app needs it.
+**Contribution.** `craft-mermaid` (merman wrapper with tokens, limits, cache, and errors) is a clear candidate for craft-libs if another app needs it.
 
 **Risk.** **High.** Visual parity with Mermaid JS is not guaranteed. Mitigation: tier matrix, golden tests, pin/vendor, code fallback. Plan B: reduce 1.0 to Tier A and move Tier B to Post-1.0, with explicit communication.
 
@@ -840,7 +841,7 @@ Tier A types are compared against `mermaid-cli` in the test suite (oracle only) 
 | Markdown/GFM | `pulldown-cmark` + custom AST | `comrak` | Re-evaluate `craft-markdown-ast` Post-1.0 | Medium |
 | Watching | `notify` + debouncer | Polling | `craft-watch` candidate | Medium |
 | Syntax highlighting | `syntect` + cache | tree-sitter Post-1.0 | `craft-highlight` candidate | Medium |
-| Mermaid | `mmdr` + resvg | `mermaid-svg` | `craft-mermaid` candidate | **High** |
+| Mermaid | `merman` + resvg | `mermaid-svg` | `craft-mermaid` candidate | **High** |
 | LaTeX | RaTeX + KaTeX fonts | `latex-rust` | `craft-math-render` candidate | **High** |
 | Static SVG | `craft-svg` + resvg | — | No | Low |
 | Animated SVG | Custom SMIL/CSS runtime | Static-first | `craft-svg-anim` candidate | **High** |
@@ -873,7 +874,7 @@ Tier A types are compared against `mermaid-cli` in the test suite (oracle only) 
 | R-WATCH | Cross-platform/network watching | Medium | High | `notify` + debounce + polling; file-manager tests. | Manual refresh + banner; not ideal, but avoids data loss. |
 | R-DATA | Data loss through conflict | Medium | High | `craft-atomic`, state machine, diff, conflict backup. | Always prompt on external change; never overwrite. |
 | R-PACKAGING | Signing/notarization | Medium | High | Early local packaging checks, certificates, VM install tests. | Delay 1.0 until signatures exist; never publish unsigned. |
-| R-DEPS | Young dependencies (mmdr/RaTeX) | High | Medium | Pin, vendor if needed, abstraction, corpus. | Switch to `mermaid-svg`/`latex-rust`. |
+| R-DEPS | Young dependencies (merman/RaTeX) | High | Medium | Pin, vendor if needed, abstraction, corpus. | Switch to `mermaid-svg`/`latex-rust`. |
 | R-THEME | Contrast/fidelity of 9 themes | Medium | Medium | Tokens, WCAG tests, snapshots, visual review. | Adjust variants; reduce to 6 if quality fails. |
 | R-SIZE | Large binary/installer | Medium | Medium | Limited features, curated syntaxes, font subsets, LTO/strip. | Drop Source Serif, trim languages, compress assets. |
 | R-FONTS | Cross-OS text differences | Medium | Medium | Embedded fonts, fallback, snapshots, 1x/2x tests. | Per-platform stack and visual tolerances. |
@@ -1683,7 +1684,8 @@ process, and `unsafe_code = "forbid"` in this workspace.
 
 ### 9.4 Content and parity
 
-- Mermaid: expand Tier B, fix visual differences, support more directives.
+- Mermaid: `merman` (from 1.0.0-rc.9) follows Mermaid's own layout and themes; remaining work is
+  golden-image comparison against `mermaid-cli` for every Tier A type and the ELK layout option.
 - LaTeX: controlled text/macros, more environments, full mhchem.
 - Animated SVG: more SMIL/CSS, path animation, simple events.
 - Accessible MathML and formula navigation.

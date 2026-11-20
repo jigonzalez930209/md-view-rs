@@ -58,7 +58,7 @@ and a horizontal rule.
 | LaTeX | `mdview-media` RaTeX layout; inline and display formulas use the Reading equation size | `common_formulas_render`, `one_hundred_formulas_render`; `media-light`/`media-dark` snapshots |
 | Raster images | `mdview-media` local and cached remote images with lightbox | `media-*` snapshots; E2E local and HTTP PNG assets |
 | SVG | `craft-svg`/`resvg` rasterization, static and supported SMIL/CSS animation | `media-*` snapshots; E2E local and HTTP animated SVG assets |
-| Mermaid | native `mermaid-rs-renderer`, no browser | `mermaid.rs` diagram corpus; flowchart and sequence in `media-*` and E2E |
+| Mermaid | `merman` (Mermaid's layout and themes in Rust), no browser or JS engine | `mermaid_tests.rs` diagram corpus and overlap regressions; flowchart and sequence in `media-*` and E2E |
 | Image documents | PNG, JPEG, GIF, WebP, BMP, TIFF, and SVG open in the fitted viewer with zoom, pan, fit, actual size, lightbox, and SVG animation | `image_documents_open_in_the_viewer_and_never_edit`; E2E image zoom/pan/lightbox stage |
 | Reading layout | Reading tab: 5–40% margin slider with independent body, heading, code, table, and equation sizes | `preview-*` snapshots; E2E drags the margin slider and edits body and equation sizes |
 | Viewer plugins | Compile-time `ViewerPlugin`/`ViewerInstance` registry for read-only formats; image viewer built in | `image_paths_select_the_image_plugin`; E2E opens SVG/PNG documents |

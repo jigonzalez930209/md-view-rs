@@ -1,7 +1,7 @@
 //! Media loading and rasterization for MD View.
 //!
 //! The crate is egui-free: it validates local and remote sources, decodes images, rasterizes
-//! static SVG, lays out LaTeX with RaTeX, and renders Mermaid with `mermaid-rs-renderer`. Results
+//! static SVG, lays out LaTeX with RaTeX, and renders Mermaid with `merman`. Results
 //! are plain RGBA buffers that the application uploads as textures. All work is bounded and
 //! returns typed errors; nothing here executes scripts or loads external resources from SVG.
 
@@ -12,6 +12,7 @@ mod image;
 mod math;
 mod math_source;
 mod mermaid;
+mod mermaid_font;
 mod pdf;
 mod raster_anim;
 mod svg;

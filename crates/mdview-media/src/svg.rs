@@ -73,7 +73,7 @@ pub(crate) fn intrinsic_size(bytes: &[u8]) -> Option<(f32, f32)> {
     Some((size.width().max(1.0), size.height().max(1.0)))
 }
 
-fn system_fonts() -> Arc<fontdb::Database> {
+pub(crate) fn system_fonts() -> Arc<fontdb::Database> {
     static FONTS: OnceLock<Arc<fontdb::Database>> = OnceLock::new();
     FONTS
         .get_or_init(|| {

@@ -130,11 +130,21 @@ without sound).
 
 ## Mermaid
 
-- Fenced ```` ```mermaid ```` blocks render with `mermaid-rs-renderer` 0.3.1 and `resvg`.
+- Fenced ```` ```mermaid ```` blocks render with `merman` 0.10, a headless Rust port of
+  Mermaid (its parsers, dagre layout, themes, and SVG structure), and `resvg`. No browser or
+  JavaScript engine is involved.
+- Diagrams look as they do on GitHub: Mermaid's `default` theme in light mode and its `dark`
+  theme in dark mode. Nested subgraphs, composite states, and sequence fragments (`alt`, `loop`,
+  `par`, notes, activations) lay out without overlaps.
+- Labels are SVG text, never HTML (`foreignObject`). Text is measured with the sans-serif face
+  that `resvg` draws (Mermaid's "trebuchet ms" stack first, then the platform's sans-serif), so
+  labels fit their boxes.
 - Supported: flowchart/graph, sequence, class, state, ER, pie, gantt, journey, timeline,
   mindmap, gitGraph, quadrant, xychart, requirement, sankey, packet, radar, C4, block,
-  architecture, kanban, treemap, and zenUML as provided by the renderer.
-- The release-blocking Tier A set is exercised by a 20-diagram test.
+  architecture, kanban, treemap, and zenUML.
+- The release-blocking Tier A set is exercised by a 22-diagram test, with regression tests for
+  overlapping sequence fragments and tall diagrams.
+- Tall diagrams keep their natural size up to 4,096 px instead of shrinking to twice their width.
 - Unsupported or invalid diagrams show the code fence source plus a diagnostic.
 - Diagrams fit the available width; clicking one opens the zoomable lightbox.
 

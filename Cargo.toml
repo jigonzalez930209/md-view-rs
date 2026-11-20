@@ -50,7 +50,10 @@ ratex-svg = { version = "0.1.14", features = ["embed-fonts"] }
 fontdb = "0.24"
 unicode-width = "0.2"
 roxmltree = "0.21"
-mermaid-rs-renderer = { version = "0.3.1", default-features = false }
+# Mermaid-compatible layout (dagre) and SVG without a browser or JS engine. ELK and
+# the analysis/ASCII front ends are left out.
+merman = { version = "0.10.0", default-features = false, features = ["all-diagrams", "complete-svg"] }
+ttf-parser = "0.25"
 blake3 = "1.8"
 mime = "0.3"
 re_mp4 = "0.5.1"

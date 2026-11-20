@@ -5,6 +5,12 @@
 - The editor's scrollbars stay visible at rest and are wide enough to grab. The theme's floating
   bars hid their handle unless the pointer was over the text, so a long line in Edit mode (most
   visibly in Markdown files, under the formatting bar) showed no horizontal scrollbar at all.
+- Mermaid diagrams render with `merman`, a Rust port of Mermaid's parsers, dagre layout, themes,
+  and SVG, instead of `mermaid-rs-renderer`. Complex diagrams lay out as they do on GitHub:
+  nested subgraphs, composite states, and sequence fragments (`alt`, `loop`, `par`, notes) no
+  longer overlap. Light mode uses Mermaid's default theme and dark mode its dark theme; labels
+  are measured with the face that draws them, and tall diagrams keep their natural size up to
+  4,096 px.
 
 ## 1.0.0-rc.8 — 2026-11-18
 

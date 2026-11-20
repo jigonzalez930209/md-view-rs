@@ -1,26 +1,34 @@
-//! Mermaid diagram rendering with the native `mermaid-rs-renderer`.
+//! Mermaid diagram rendering with `merman`, a headless Rust port of Mermaid.
+//!
+//! `merman` follows Mermaid's own parsers, dagre layout, and SVG structure, so complex
+//! diagrams (nested subgraphs, composite states, sequence fragments) lay out the way
+//! GitHub shows them. Its resvg-safe pipeline replaces HTML labels with SVG text, and
+//! text is measured with the face resvg draws so labels fit their boxes.
 
-use mermaid_rs_renderer::{LayoutConfig, Theme, compute_layout, parse_mermaid, render_svg};
+use std::sync::Arc;
 
+use merman::svg::{
+    DeterministicTextMeasurer, MeasurementProfileId, RootBackgroundPostprocessor, SvgPipeline, TextMeasurementPolicy,
+    TextMeasurementProfile, TextMeasurementProfileIdentity,
+};
+use merman::{
+    MermaidEngine, OperationControl, RenderOutput, RenderRequest, Renderer, SourcePresentationConfig, SvgEnvironment,
+    SvgRequest,
+};
+
+use crate::mermaid_font::DiagramFont;
 use crate::{MediaError, MediaKind, MediaRequest, Raster, rasterize_svg};
+
+/// The tallest raster a diagram may produce, in pixels. Tall diagrams keep their
+/// natural size up to this height instead of being shrunk to fit the width.
+const MAX_DIAGRAM_HEIGHT: u32 = 4_096;
 
 /// Render a Mermaid diagram to an RGBA raster.
 pub fn render_mermaid(source: &str, dark: bool, max_width: u32) -> Result<Raster, MediaError> {
-    let source = source.trim();
-    if source.is_empty() {
-        return Err(MediaError::Empty);
-    }
-    let parsed = parse_mermaid(source).map_err(|error| MediaError::Mermaid(error.to_string()))?;
-    let mut theme = if dark { Theme::dark() } else { Theme::modern() };
-    // Match the reading surface instead of the renderer's fixed grey. The exact app
-    // token is not available in this egui-free crate; these are the two base surfaces.
-    theme.background = if dark { "#1e1e1e" } else { "#ffffff" }.to_owned();
-    let config = LayoutConfig::default();
-    let layout = compute_layout(&parsed.graph, &theme, &config);
-    let svg = render_svg(&layout, &theme, &config);
+    let svg = mermaid_svg(source, dark)?;
     let mut request = MediaRequest::new(MediaKind::Svg, source);
     request.max_width = max_width.max(64);
-    request.max_height = max_width.saturating_mul(2).max(64);
+    request.max_height = MAX_DIAGRAM_HEIGHT;
     request.dark = dark;
     rasterize_svg(svg.as_bytes(), &request).map_err(|error| match error {
         MediaError::Svg(message) => MediaError::Mermaid(message),
@@ -28,90 +36,54 @@ pub fn render_mermaid(source: &str, dark: bool, max_width: u32) -> Result<Raster
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn flowcharts_render() {
-        let source = "flowchart LR\n    A[Start] --> B{Decision}\n    B -->|Yes| C[OK]\n    B -->|No| D[Cancel]";
-        let raster = render_mermaid(source, false, 640).expect("render");
-        assert!(raster.width > 0 && raster.height > 0);
-        assert!(raster.is_consistent());
+/// Lay out a Mermaid diagram and return its resvg-safe SVG.
+pub(crate) fn mermaid_svg(source: &str, dark: bool) -> Result<String, MediaError> {
+    let source = source.trim();
+    if source.is_empty() {
+        return Err(MediaError::Empty);
     }
-
-    #[test]
-    fn sequence_diagrams_render() {
-        let source = "sequenceDiagram\n    Alice->>Bob: Hello\n    Bob-->>Alice: Hi";
-        assert!(render_mermaid(source, true, 640).is_ok());
+    let font = DiagramFont::shared(&crate::svg::system_fonts());
+    let mut site = serde_json::json!({
+        // GitHub renders Mermaid with its default theme in light mode and `dark` in dark mode.
+        "theme": if dark { "dark" } else { "default" },
+    });
+    if let Some(font) = &font {
+        site["fontFamily"] = serde_json::Value::String(font.css_family());
     }
-
-    #[test]
-    fn twenty_tier_a_diagrams_render() {
-        let cases = [
-            ("flowchart LR", "flowchart LR\n A --> B --> C"),
-            (
-                "flowchart TD",
-                "flowchart TD\n A[Start] --> B{Choice}\n B -->|Yes| C[End]",
-            ),
-            (
-                "flowchart subgraph",
-                "flowchart LR\n subgraph One\n A --> B\n end\n B --> C",
-            ),
-            (
-                "flowchart styled",
-                "flowchart LR\n A:::hot --> B\n classDef hot fill:#f00",
-            ),
-            ("sequence", "sequenceDiagram\n Alice->>Bob: Hello\n Bob-->>Alice: Hi"),
-            (
-                "sequence loop",
-                "sequenceDiagram\n loop Every minute\n Alice->>Bob: Ping\n end",
-            ),
-            (
-                "sequence alt",
-                "sequenceDiagram\n alt ok\n Alice->>Bob: Yes\n else no\n Alice->>Bob: No\n end",
-            ),
-            (
-                "class",
-                "classDiagram\n class Animal { +String name }\n Animal <|-- Dog",
-            ),
-            ("class relation", "classDiagram\n A --> B : uses"),
-            (
-                "state",
-                "stateDiagram-v2\n [*] --> Idle\n Idle --> Running\n Running --> [*]",
-            ),
-            (
-                "state note",
-                "stateDiagram-v2\n state Check { [*] --> Ready }\n [*] --> Check",
-            ),
-            ("er", "erDiagram\n CUSTOMER ||--o{ ORDER : places"),
-            (
-                "er fields",
-                "erDiagram\n USER { string name }\n USER ||--|| PROFILE : has",
-            ),
-            ("pie", "pie title Pets\n \"Dogs\" : 60\n \"Cats\" : 40"),
-            ("pie show", "pie showData\n \"A\" : 1\n \"B\" : 2"),
-            ("gantt", "gantt\n title Plan\n section Work\n Task :a1, 2024-01-01, 3d"),
-            (
-                "journey",
-                "journey\n title Day\n section Work\n Wake: 5: Me\n Code: 3: Me",
-            ),
-            ("timeline", "timeline\n title History\n 2020 : Start\n 2021 : Next"),
-            ("mindmap", "mindmap\n root((MD View))\n  Editor\n  Preview"),
-            (
-                "gitGraph",
-                "gitGraph\n commit\n branch dev\n checkout dev\n commit\n checkout main\n merge dev",
-            ),
-        ];
-        for (name, source) in cases {
-            let raster = render_mermaid(source, false, 640).unwrap_or_else(|error| panic!("{name}: {error}"));
-            assert!(raster.is_consistent(), "{name}");
-        }
+    let renderer = Renderer::new()
+        .with_presentation_engine(MermaidEngine::new().with_site_config(SourcePresentationConfig::from_value(site)));
+    let pipeline = SvgPipeline::resvg_safe().with_postprocessor(RootBackgroundPostprocessor::new(
+        // Match the reading surface. The exact app token is not available in this
+        // egui-free crate; these are the two base surfaces.
+        if dark { "#1e1e1e" } else { "#ffffff" },
+    ));
+    let mut request = SvgRequest {
+        pipeline: Some(pipeline),
+        ..SvgRequest::default()
+    };
+    if let Some(font) = font {
+        request.environment = SvgEnvironment::deterministic().with_text_measurement_policy(measurement(font)?);
     }
-
-    #[test]
-    fn unsupported_diagrams_report_an_error() {
-        let error = render_mermaid("unknownDiagram\n    A --> B", false, 400).expect_err("error");
-        assert!(matches!(error, MediaError::Mermaid(_)));
+    match renderer.render(RenderRequest::svg(source, OperationControl::new(), request)) {
+        Ok(RenderOutput::Svg(Some(svg))) => Ok(svg.svg().to_owned()),
+        Ok(_) => Err(MediaError::Mermaid(
+            "This is not a supported Mermaid diagram type.".to_owned(),
+        )),
+        Err(error) => Err(MediaError::Mermaid(error.to_string())),
     }
 }
+
+fn measurement(font: Arc<DiagramFont>) -> Result<TextMeasurementPolicy, MediaError> {
+    let invalid = |error: &dyn std::fmt::Display| MediaError::Mermaid(format!("text measurement: {error}"));
+    let profile = MeasurementProfileId::new("mdview.diagram-font").map_err(|error| invalid(&error))?;
+    let identity = TextMeasurementProfileIdentity::new(profile, font.identity()).map_err(|error| invalid(&error))?;
+    let measurer = DeterministicTextMeasurer::default()
+        .with_width_callback(move |text, style| font.width_px(text, style.font_size, style.font_weight.as_deref()));
+    Ok(TextMeasurementPolicy::uniform(TextMeasurementProfile::new(
+        identity, measurer,
+    )))
+}
+
+#[cfg(test)]
+#[path = "mermaid_tests.rs"]
+mod tests;
