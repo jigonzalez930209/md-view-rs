@@ -3,7 +3,7 @@
 MD View is a native Markdown, text, and code editor for Windows, macOS, and Linux. It is built with
 Rust and egui, renders Markdown itself, and does not embed a browser or a webview.
 
-The 1.0.0-rc.8 release is the eighth public release candidate. It ships the GitHub-parity reading
+The 1.0.0-rc.9 release is the ninth public release candidate. It ships the GitHub-parity reading
 view, the virtualized editor, the workspace explorer, nine themes, media rendering, search, and
 the release packaging for the three desktop platforms.
 

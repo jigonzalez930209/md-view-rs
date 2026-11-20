@@ -1,4 +1,4 @@
-# Distribution, associations, and updates (`1.0.0-rc.8`)
+# Distribution, associations, and updates (`1.0.0-rc.9`)
 
 ## Local packaging pipeline
 
@@ -44,12 +44,12 @@ both `LICENSE-MIT` and `LICENSE-APACHE`.
 ### Linux install
 
 ```sh
-sudo dpkg -i dist/mdview_1.0.0.rc.8_amd64.deb
+sudo dpkg -i dist/mdview_1.0.0.rc.9_amd64.deb
 # or
-sudo rpm -i dist/mdview-1.0.0.rc.8-1.x86_64.rpm
+sudo rpm -i dist/mdview-1.0.0.rc.9-1.x86_64.rpm
 # or
-chmod +x dist/MD-View-1.0.0-rc.8-x86_64.AppImage
-./dist/MD-View-1.0.0-rc.8-x86_64.AppImage
+chmod +x dist/MD-View-1.0.0-rc.9-x86_64.AppImage
+./dist/MD-View-1.0.0-rc.9-x86_64.AppImage
 ```
 
 The packages install:
@@ -134,5 +134,5 @@ The repository does not store certificates, keys, or tokens. A signed release ne
 - GPG key for Debian/RPM repositories and Flathub verification for Flatpak.
 
 `cargo xtask release-check` verifies the local artifact set, SHA-256 values, SBOM, manifest, and
-packaging inputs. It does not contact a network or a release host. The 1.0.0-rc.8 release is
+packaging inputs. It does not contact a network or a release host. The 1.0.0-rc.9 release is
 published unsigned; signing and notarization remain the final 1.0.0 release-operator steps.

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.0-rc.9 — 2026-11-20
 
 - The editor's scrollbars stay visible at rest and are wide enough to grab. The theme's floating
   bars hid their handle unless the pointer was over the text, so a long line in Edit mode (most

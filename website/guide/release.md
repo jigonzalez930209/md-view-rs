@@ -1,20 +1,28 @@
-# Release 1.0.0-rc.8
+# Release 1.0.0-rc.9
 
-**Release date:** 2026-11-18
+**Release date:** 2026-11-20
 
-MD View 1.0.0-rc.8 is the eighth public release candidate. It is a native Rust desktop editor with
+MD View 1.0.0-rc.9 is the ninth public release candidate. It is a native Rust desktop editor with
 a GitHub-parity Markdown reading view, a virtualized code editor, a workspace explorer, and a
-self-contained media renderer. This candidate plays video in-process with pure-Rust codecs.
+self-contained media renderer. This candidate draws Mermaid diagrams as GitHub does, keeps the
+editor scrollbars visible, and stops redrawing an idle window.
 
 ## Highlights
 
-- **Video with nothing to install.** The video viewer decodes in-process with pure-Rust codecs:
-  MP4, MOV, 3GP, MKV, WebM, AVI, MPEG-TS/PS, and FLV with H.264, HEVC, AV1, VP8, VP9, MPEG-1/2,
-  MPEG-4 Part 2, H.263, or Motion JPEG video and AAC, MP3, Opus, Vorbis, FLAC, AC-3, or PCM sound.
-  No FFmpeg is bundled or needed. WMV and OGV show a "not supported" message.
+- **Mermaid diagrams as on GitHub.** Diagrams render with `merman`, a Rust port of Mermaid's
+  parsers, dagre layout, and themes. Nested subgraphs, composite states, and sequence fragments
+  lay out without overlaps, in Mermaid's default theme (light) or dark theme (dark). No browser
+  and no JavaScript engine.
+- **Editor scrollbars you can see.** The horizontal scrollbar for long lines stays visible at rest
+  and is wide enough to grab, so a long line in Edit mode always shows that it can be scrolled.
+- **No redraws while idle.** The window no longer repaints twice a second to watch open files;
+  the workspace watcher and a background poller wake it only when a file changed.
 
 ### Included from earlier candidates
 
+- **Video with nothing to install (rc.8).** Pure-Rust decoders for MP4, MOV, 3GP, MKV, WebM, AVI,
+  MPEG-TS/PS, and FLV with H.264, HEVC, AV1, VP8, VP9, MPEG-1/2/4, H.263, or Motion JPEG video
+  and AAC, MP3, Opus, Vorbis, FLAC, AC-3, or PCM sound.
 - **Horizontal scrollbar only when needed (rc.7).** It appears only when a line is wider than
   the view, and never with soft wrap.
 - **More file types (rc.6).** An editable spreadsheet grid for CSV and TSV, PDF and video viewers,
@@ -43,7 +51,7 @@ self-contained media renderer. This candidate plays video in-process with pure-R
 
 ## Downloads
 
-Use the [GitHub release page](https://github.com/jigonzalez930209/md-view-rs/releases/tag/v1.0.0-rc.8)
+Use the [GitHub release page](https://github.com/jigonzalez930209/md-view-rs/releases/tag/v1.0.0-rc.9)
 and verify every file against `SHA256SUMS`.
 
 | Platform | Assets |
