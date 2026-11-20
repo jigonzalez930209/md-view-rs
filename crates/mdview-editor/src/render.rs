@@ -23,6 +23,9 @@ impl Editor {
         self.ensure_layout();
         self.ensure_language();
         self.ensure_brackets();
+        // Visible editor bars for this pass; the caller's style is restored below.
+        let parent_scroll = ui.spacing().scroll;
+        ui.spacing_mut().scroll = crate::scroll::editor_scroll_style(&parent_scroll);
 
         let font = FontId::monospace(self.style.font_size);
         let natural_row_height = ui.ctx().fonts_mut(|fonts| fonts.row_height(&font));
@@ -335,6 +338,7 @@ impl Editor {
                 columns,
             });
         });
+        ui.spacing_mut().scroll = parent_scroll;
         let new_scroll = output.state.clamped_offset().y;
         if !programmatic && (new_scroll - self.scroll_y).abs() > 0.5 {
             self.user_scrolled = true;

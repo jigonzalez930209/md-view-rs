@@ -7,6 +7,30 @@ use crate::Editor;
 /// targets land exactly; this only absorbs float noise.
 const SYNC_TOLERANCE: f32 = 0.001;
 
+/// The scroll bar style of the editor viewport.
+///
+/// The app theme's floating bars have an invisible handle at rest and are 3 points
+/// thin, so a long line gave no sign that it could be scrolled sideways unless the
+/// pointer happened to be over the text. Editor bars stay floating (they never change
+/// the viewport size, which keeps the end of the document and split synchronization
+/// stable when the horizontal axis toggles) but their handle is visible at rest and
+/// wide enough to grab.
+pub(crate) fn editor_scroll_style(base: &egui::style::ScrollStyle) -> egui::style::ScrollStyle {
+    egui::style::ScrollStyle {
+        floating: true,
+        floating_width: base.floating_width.max(6.0),
+        bar_width: base.bar_width.max(10.0),
+        handle_min_length: base.handle_min_length.max(24.0),
+        dormant_background_opacity: 0.0,
+        active_background_opacity: 0.3,
+        interact_background_opacity: 0.5,
+        dormant_handle_opacity: 0.55,
+        active_handle_opacity: 0.75,
+        interact_handle_opacity: 1.0,
+        ..*base
+    }
+}
+
 /// Whether a pass painted past the scrollable end by accident.
 ///
 /// Trackpad rubber-banding paints past the end on purpose and keeps the stored offset

@@ -280,6 +280,25 @@ fn only_a_long_line_enables_the_horizontal_scrollbar() {
 }
 
 #[test]
+fn the_scrollbars_stay_visible_without_resizing_the_viewport() {
+    // The theme's floating bars hid their handle at rest, so a long line showed no
+    // horizontal bar unless the pointer was over the text.
+    let style = crate::scroll::editor_scroll_style(&egui::style::ScrollStyle::floating());
+    assert!(style.dormant_handle_opacity > 0.0 && style.floating_width >= 6.0);
+    // Floating bars overlay the text: toggling the horizontal axis must not change the
+    // viewport height (that moved the end of the document in split view).
+    assert!(style.floating);
+    let (_harness, short) = setup("notes.txt", &numbered(20), false);
+    let long = format!("{}\nshort\n", "x".repeat(400));
+    let (_harness, wide) = setup("notes.txt", &long, false);
+    assert!(wide.borrow().horizontal_scroll);
+    assert_eq!(
+        short.borrow().viewport_rect().height(),
+        wide.borrow().viewport_rect().height()
+    );
+}
+
+#[test]
 fn page_down_moves_one_viewport() {
     let (mut harness, editor) = setup("notes.rs", &numbered(300), false);
     let rows = {

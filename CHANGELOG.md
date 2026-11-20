@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- The editor's scrollbars stay visible at rest and are wide enough to grab. The theme's floating
+  bars hid their handle unless the pointer was over the text, so a long line in Edit mode (most
+  visibly in Markdown files, under the formatting bar) showed no horizontal scrollbar at all.
+
 ## 1.0.0-rc.8 — 2026-11-18
 
 - Video plays in-process with pure-Rust decoders and nothing to install: no FFmpeg, no codec
