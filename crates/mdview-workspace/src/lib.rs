@@ -4,10 +4,15 @@
 //! reports changed paths; [`Workspace::poll`] reloads the affected loaded directories. When a
 //! native watcher cannot be installed, the workspace falls back to periodic rescans of the
 //! directories that are already loaded.
+//!
+//! An application that sleeps while idle installs a waker with [`Workspace::set_waker`]: the
+//! watcher thread calls it after each batch of events so the next [`Workspace::poll`] runs
+//! without a periodic timer.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
@@ -15,6 +20,9 @@ use notify::RecursiveMode;
 use notify_debouncer_full::{Debouncer, RecommendedCache, new_debouncer};
 
 type NativeWatcher = Debouncer<notify::RecommendedWatcher, RecommendedCache>;
+
+/// A callback that wakes the application from the watcher thread.
+pub type Waker = Arc<dyn Fn() + Send + Sync>;
 
 /// One file or folder in the sidebar.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -63,6 +71,7 @@ pub struct Workspace {
     last_poll: Instant,
     watcher_warning: Option<String>,
     changed_paths: Vec<PathBuf>,
+    waker: Arc<Mutex<Option<Waker>>>,
 }
 
 impl std::fmt::Debug for Workspace {
@@ -108,6 +117,7 @@ impl Workspace {
             last_poll: Instant::now(),
             watcher_warning: None,
             changed_paths: Vec::new(),
+            waker: Arc::new(Mutex::new(None)),
         };
         workspace.rebuild_gitignore();
         workspace.reload_root();
@@ -169,6 +179,20 @@ impl Workspace {
             }
         }
         files
+    }
+
+    /// Wake the application whenever the native watcher reports events.
+    pub fn set_waker(&mut self, waker: Waker) {
+        if let Ok(mut slot) = self.waker.lock() {
+            *slot = Some(waker);
+        }
+    }
+
+    /// Whether the workspace rescans loaded folders on a timer because no native watcher
+    /// could be installed. The application must then call [`Workspace::poll`] about once a
+    /// second; the watcher's waker never fires in this mode.
+    pub fn is_polling(&self) -> bool {
+        self.polling
     }
 
     /// A warning when the native watcher could not be installed.
@@ -356,6 +380,7 @@ impl Workspace {
     fn start_watcher(&mut self) {
         let (sender, receiver) = mpsc::channel();
         let root = self.root.path.clone();
+        let waker = self.waker.clone();
         let mut debouncer = match new_debouncer(
             Duration::from_millis(250),
             None,
@@ -365,7 +390,12 @@ impl Workspace {
                         .into_iter()
                         .flat_map(|event| event.paths.clone())
                         .collect::<Vec<_>>();
-                    let _ = sender.send(paths);
+                    if sender.send(paths).is_ok()
+                        && let Ok(slot) = waker.lock()
+                        && let Some(wake) = slot.as_ref()
+                    {
+                        wake();
+                    }
                 }
             },
         ) {

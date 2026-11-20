@@ -15,6 +15,7 @@ use crate::app::MdViewApp;
 use crate::file_ops::{self, FileError};
 
 mod conflict;
+pub(crate) mod disk_poll;
 mod session;
 mod watch;
 use crate::load_job::{LoadEvent, LoadJob};

@@ -201,3 +201,26 @@ fn refreshes_created_files() {
     workspace.refresh_dir(&root);
     assert_eq!(workspace.root_entry().children.as_ref().map(Vec::len), Some(1));
 }
+
+#[test]
+fn the_watcher_wakes_the_application() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let mut workspace = Workspace::open(dir.path()).expect("open");
+    if workspace.is_polling() {
+        // No native watcher on this host: the application polls on a timer instead.
+        return;
+    }
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let sender = std::sync::Mutex::new(sender);
+    workspace.set_waker(std::sync::Arc::new(move || {
+        if let Ok(sender) = sender.lock() {
+            let _ = sender.send(());
+        }
+    }));
+    fs::write(dir.path().join("woken.md"), "one").expect("write");
+    receiver
+        .recv_timeout(Duration::from_secs(5))
+        .expect("the watcher did not wake the application");
+    workspace.poll();
+    assert!(workspace.root_entry().find(&dir.path().join("woken.md")).is_some());
+}

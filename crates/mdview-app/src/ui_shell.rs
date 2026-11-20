@@ -166,6 +166,14 @@ impl MdViewApp {
         if changed {
             ctx.request_repaint();
         }
+        if self
+            .workspace
+            .as_ref()
+            .is_some_and(mdview_workspace::Workspace::is_polling)
+        {
+            // No native watcher: the fallback rescans loaded folders about once a second.
+            ctx.request_repaint_after(std::time::Duration::from_secs(1));
+        }
         self.reconcile_paths(&paths, ctx);
         self.poll_open_files(ctx);
     }
@@ -227,16 +235,6 @@ impl eframe::App for MdViewApp {
 
         self.handle_shortcuts(ctx);
         self.handle_close_request(ctx);
-
-        // Keep the disk watcher/polling path alive while files are open, even when egui is idle.
-        if self
-            .tabs
-            .tabs()
-            .iter()
-            .any(|tab| tab.editor.document().path().is_some())
-        {
-            ctx.request_repaint_after(std::time::Duration::from_millis(500));
-        }
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {

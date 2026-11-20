@@ -19,6 +19,8 @@ impl MdViewApp {
                 self.sidebar.respect_gitignore = self.prefs.get().session.respect_gitignore;
                 workspace.set_show_hidden(self.sidebar.show_hidden);
                 workspace.set_respect_gitignore(self.sidebar.respect_gitignore);
+                let waker = ctx.clone();
+                workspace.set_waker(std::sync::Arc::new(move || waker.request_repaint()));
                 let text = path.to_string_lossy().into_owned();
                 self.prefs
                     .update(|prefs| prefs.session.remember_recent_workspace(&text));

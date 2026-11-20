@@ -93,6 +93,22 @@ impl MdViewApp {
         if let Some(next) = next {
             self.update = Some(next);
             ctx.request_repaint();
+        } else if matches!(
+            self.update,
+            Some(
+                UpdateState::Checking(_)
+                    | UpdateState::Available {
+                        downloading: Some(_),
+                        ..
+                    }
+                    | UpdateState::Downloaded {
+                        installing: Some(_),
+                        ..
+                    }
+            )
+        ) {
+            // The update worker has no handle on the UI; look again shortly while it runs.
+            ctx.request_repaint_after(std::time::Duration::from_millis(100));
         }
     }
 

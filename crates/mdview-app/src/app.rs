@@ -58,7 +58,7 @@ pub struct MdViewApp {
     pub(crate) workspace: Option<Workspace>,
     pub(crate) sidebar: Sidebar,
     pub(crate) diff: Option<DiffState>,
-    pub(crate) last_file_poll: Instant,
+    pub(crate) disk_poller: crate::document_ops::disk_poll::DiskPoller,
     pub(crate) last_window_poll: Instant,
     pub(crate) media: MediaRuntime,
     pub(crate) icons: mdview_ui::MaterialIcons,
@@ -150,7 +150,12 @@ impl MdViewApp {
             workspace: None,
             sidebar,
             diff: None,
-            last_file_poll: Instant::now(),
+            disk_poller: {
+                let ctx = cc.egui_ctx.clone();
+                crate::document_ops::disk_poll::DiskPoller::spawn(std::time::Duration::from_secs(1), move || {
+                    ctx.request_repaint();
+                })
+            },
             last_window_poll: Instant::now(),
             media: MediaRuntime::new(&cc.egui_ctx),
             icons: mdview_ui::MaterialIcons::new(),

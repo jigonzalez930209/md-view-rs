@@ -1,7 +1,6 @@
 //! Watcher reconciliation and disk polling.
 
 use std::path::PathBuf;
-use std::time::Duration;
 
 use eframe::egui;
 
@@ -67,12 +66,24 @@ impl MdViewApp {
         }
     }
 
-    /// Periodically check every open file for changes outside the watched workspace.
+    /// Check every open file when the disk poller saw one change outside the application.
+    ///
+    /// The poller thread stats the files and wakes the UI, so an idle window draws no
+    /// frames just to look for changes.
     pub(crate) fn poll_open_files(&mut self, ctx: &egui::Context) {
-        if self.last_file_poll.elapsed() < Duration::from_millis(1_000) {
+        let files = self
+            .tabs
+            .tabs()
+            .iter()
+            .filter_map(|tab| {
+                let path = tab.editor.document().path()?;
+                Some((path.to_path_buf(), tab.disk_mtime))
+            })
+            .collect();
+        self.disk_poller.watch(files);
+        if !self.disk_poller.take_changed() {
             return;
         }
-        self.last_file_poll = std::time::Instant::now();
         for index in 0..self.tabs.len() {
             self.check_tab_disk(index, ctx);
         }

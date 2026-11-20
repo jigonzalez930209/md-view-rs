@@ -11,6 +11,9 @@
   longer overlap. Light mode uses Mermaid's default theme and dark mode its dark theme; labels
   are measured with the face that draws them, and tall diagrams keep their natural size up to
   4,096 px.
+- An idle window no longer redraws twice a second to watch open files for outside changes. The
+  workspace watcher wakes the window after each batch of events, and a background thread stats
+  files opened from outside the workspace and wakes it only when one changed.
 
 ## 1.0.0-rc.8 — 2026-11-18
 
